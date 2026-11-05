@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v1)
+## Tables (Dexie v2)
+
+v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn glyph name in `icon` instead of an `emoji`. The upgrade and backup import both convert old rows through `src/db/legacy.ts`.
 
 | Table | Key | Indexes | Purpose |
 |---|---|---|---|
@@ -23,21 +25,21 @@ Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). K
 ## Entities (abridged)
 
 ```ts
-Area        { id, name, short, emoji, color, kind: 'work'|'growth'|'hobby'|'personal',
+Area        { id, name, short, icon, color, kind: 'work'|'growth'|'hobby'|'personal',
               weeklyHoursTarget, monetizable, order, archived }
 Task        { id, areaId, title, notes?, difficulty: 1..5, priority: 1|2|3, dueDate?, status: 'todo'|'doing'|'done',
               createdAt, completedAt? }
-Habit       { id, key, name, emoji, kind: 'check'|'number'|'auto', target?, unit?, xp, core, order, archived }
+Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, order, archived }
 HabitLog    { id, habitId, date, value, done }
 Session     { id, areaId, taskId?, date, start, end, minutes, note? }
 Account     { id, name, institution, type: 'debit'|'credit'|'cash'|'savings'|'investment',
               creditLimit?, cutoffDay?, paymentDueDay?, openingBalance, color, archived, order }
 Transaction { id, accountId, date, amount (signed MXN), kind: 'income'|'expense'|'transfer', category,
               areaId? (income source), description?, transferId?, createdAt }
-Goal        { id, name, emoji, target, current, deadline?, order }
+Goal        { id, name, icon, target, current, deadline?, order }
 Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', monthlyValue,
               probability 0..1, expectedDate?, nextAction?, notes?, createdAt }
-Reward      { id, title, emoji, cost, archived }
+Reward      { id, title, icon, cost, archived }
 XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ```
 

@@ -1,3 +1,4 @@
+import { Glyph } from '@/components/Glyph';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { BarChart, Bar as RBar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area as RArea } from 'recharts';
 import { subDays, startOfWeek, addDays } from 'date-fns';
@@ -5,7 +6,7 @@ import { db } from '@/db/db';
 import { dateKey } from '@/lib/util';
 import { Card, PageTitle } from '@/components/ui';
 
-const tip = { contentStyle: { background: '#fff', border: '2px solid #1b1530', borderRadius: 0, fontFamily: 'Courier Prime' }, labelStyle: { color: '#1b1530' } };
+const tip = { contentStyle: { background: '#fff', border: '2px solid #2b3437', borderRadius: 0, fontFamily: 'Courier Prime' }, labelStyle: { color: '#2b3437' } };
 
 /** Capture calendar: every day you showed up is a "snapshot" in your personal archive. */
 function CaptureCalendar({ xpByDate }: { xpByDate: Map<string, number> }) {
@@ -13,7 +14,7 @@ function CaptureCalendar({ xpByDate }: { xpByDate: Map<string, number> }) {
   const start = startOfWeek(subDays(end, 7 * 25), { weekStartsOn: 1 });
   const weeks: Date[][] = [];
   for (let d = start; d <= end; d = addDays(d, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => addDays(d, i)));
-  const shade = (xp: number) => xp === 0 ? '#ffffff' : xp < 100 ? '#d9ccff' : xp < 250 ? '#b9a3ff' : xp < 450 ? '#ff8fcf' : '#e8399a';
+  const shade = (xp: number) => xp === 0 ? '#ffffff' : xp < 100 ? '#dcefeb' : xp < 250 ? '#b7e2da' : xp < 450 ? '#8fcfc6' : '#2f716b';
   return (
     <div className="overflow-x-auto">
       <div className="flex gap-[3px]">
@@ -21,7 +22,7 @@ function CaptureCalendar({ xpByDate }: { xpByDate: Map<string, number> }) {
           <div key={i} className="flex flex-col gap-[3px]">
             {w.map(d => {
               const k = dateKey(d), xp = xpByDate.get(k) ?? 0;
-              return <div key={k} title={`${k} · ${xp} XP`} className="h-3.5 w-3.5" style={{ background: d > end ? 'transparent' : shade(xp), borderRadius: xp > 0 ? '50%' : 0, boxShadow: xp > 0 ? '0 0 0 1px #1b1530' : 'inset 0 0 0 1px #1b153033' }} />;
+              return <div key={k} title={`${k} · ${xp} XP`} className="h-3.5 w-3.5" style={{ background: d > end ? 'transparent' : shade(xp), borderRadius: xp > 0 ? '50%' : 0, boxShadow: xp > 0 ? '0 0 0 1px #2b3437' : 'inset 0 0 0 1px #2b343733' }} />;
             })}
           </div>
         ))}
@@ -72,7 +73,7 @@ export default function Stats() {
         <div className="overflow-x-auto">
           <table className="border-separate border-spacing-1 text-xs">
             <tbody>{habits.map(h => (
-              <tr key={h.id}><td className="whitespace-nowrap pr-2 text-ink/80">{h.emoji} {h.name}</td>
+              <tr key={h.id}><td className="whitespace-nowrap pr-2 text-ink/80"><span className="inline-flex items-center gap-1.5"><Glyph name={h.icon} size={15} />{h.name}</span></td>
                 {days.map(d => <td key={d} title={d}><div className={`h-4 w-4 ${done.has(`${h.id}:${d}`) ? 'bg-mint ring-2 ring-inset ring-ink' : 'bg-white ring-1 ring-inset ring-ink/20'}`} /></td>)}
               </tr>
             ))}</tbody>
@@ -81,12 +82,12 @@ export default function Stats() {
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Hours by Area · 7 days">
-          <div className="h-64"><ResponsiveContainer><BarChart data={hoursByDay}><XAxis dataKey="d" stroke="#6c4fc4" fontSize={11} /><YAxis stroke="#6c4fc4" fontSize={11} /><Tooltip {...tip} cursor={{ fill: '#ffffff10' }} />
+          <div className="h-64"><ResponsiveContainer><BarChart data={hoursByDay}><XAxis dataKey="d" stroke="#615d8a" fontSize={11} /><YAxis stroke="#615d8a" fontSize={11} /><Tooltip {...tip} cursor={{ fill: '#ffffff10' }} />
             {areas.map(a => <RBar key={a.id} dataKey={a.short} stackId="h" fill={a.color} />)}</BarChart></ResponsiveContainer></div>
         </Card>
         <Card title="XP Signal · 30 days">
-          <div className="h-64"><ResponsiveContainer><AreaChart data={xpByDay}><defs><linearGradient id="gx" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff8fcf" stopOpacity={0.8} /><stop offset="1" stopColor="#7ff0d8" stopOpacity={0.2} /></linearGradient></defs>
-            <XAxis dataKey="d" stroke="#6c4fc4" fontSize={11} interval={4} /><YAxis stroke="#6c4fc4" fontSize={11} /><Tooltip {...tip} /><RArea type="step" dataKey="xp" stroke="#1b1530" fill="url(#gx)" strokeWidth={2} /></AreaChart></ResponsiveContainer></div>
+          <div className="h-64"><ResponsiveContainer><AreaChart data={xpByDay}><defs><linearGradient id="gx" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e3b9b2" stopOpacity={0.8} /><stop offset="1" stopColor="#a6d9d1" stopOpacity={0.2} /></linearGradient></defs>
+            <XAxis dataKey="d" stroke="#615d8a" fontSize={11} interval={4} /><YAxis stroke="#615d8a" fontSize={11} /><Tooltip {...tip} /><RArea type="step" dataKey="xp" stroke="#2b3437" fill="url(#gx)" strokeWidth={2} /></AreaChart></ResponsiveContainer></div>
         </Card>
       </div>
     </div>

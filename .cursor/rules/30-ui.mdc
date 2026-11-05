@@ -4,10 +4,11 @@ globs: src/pages/**,src/components/**,src/index.css,tailwind.config.js
 alwaysApply: false
 ---
 - Reuse primitives from src/components/ui.tsx (Card, Button, Bar, Ring, Input, Select, Modal, Chip, Empty) before creating new ones.
-- Follow @docs/08-DESIGN-SYSTEM.md ("Floral Dream": Macintosh System 6 × Floral Shoppe vaporwave × Greek marble × dreamcore × Beat typewriter).
-- Tokens: fills use pink/mint/laurel; text uses ink/xp/cyan/gold/ok/hp (contrast ≥ 4.5:1).
+- Follow @docs/08-DESIGN-SYSTEM.md ("Thermae": nostalgic, liminal, dreamcore Greek bathhouse; Mac System 6 chrome; Beat typewriter).
+- Muted palette only. Fills use mint/pink/laurel; text uses ink/xp/cyan/gold/ok/hp (contrast ≥ 4.5:1). Nothing neon.
+- NEVER use emoji or icon libraries. Use `<Glyph name="…" />` from src/components/Glyph.tsx; draw new glyphs in src/components/glyphs.ts.
 - Fonts: font-display (ChicagoFLF) chrome & numbers, font-sans (Courier Prime) body, .inscription/font-greek (Cinzel) titles, font-type (Special Elite) for scroll/poetry, font-jp (DotGothic16) for kanji.
-- Every content block is a `<Card title="Plain Words">` (System 6 window). Use mac-window / mac-inset / mac-btn; 1-bit borders and hard shadows; images 1-bit dithered.
+- Every content block is a `<Card title="Plain Words">` (System 6 window). Use mac-window / mac-inset / mac-btn; 1-bit borders and hard shadows; images are natural photos of public-domain sculpture (scripts/cutout.py), no filters.
 - Touch-first: tap targets ≥ 40px; taskbar at the bottom on all sizes; modals are bottom sheets on small screens.
 - Read data with useLiveQuery; mutate via src/game/engine.ts actions when XP is involved.
 - Every list needs an empty state that tells the user what to do next.

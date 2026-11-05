@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { usePlayer, useNow } from '@/lib/hooks';
-import { DR, roman } from '@/lib/util';
+import { roman } from '@/lib/util';
+import { Glyph } from './Glyph';
 import { Bar, Modal } from './ui';
 import { ActiveTimerPill } from './ActiveTimerPill';
 
@@ -27,30 +28,56 @@ const INSCRIPTIONS = [
   'the money quest comes first',
   'pay every card in full',
   'lights out 22:00 · rise 05:45',
-  'you have been here before',
-  'retainers > one-off gigs',
+    'retainers > one-off gigs',
   'the road is life'
 ];
 
-const CLOUDS = [
-  { top: '8%', w: 260, h: 60, dur: 140, delay: -20 },
-  { top: '18%', w: 180, h: 44, dur: 110, delay: -70 },
-  { top: '30%', w: 320, h: 70, dur: 170, delay: -120 },
-  { top: '44%', w: 220, h: 50, dur: 130, delay: -40 },
-  { top: '56%', w: 280, h: 56, dur: 190, delay: -150 }
-];
-const SPARKLES = [['12%', '22%', 0], ['78%', '14%', 1.2], ['64%', '38%', 2.1], ['24%', '58%', .6], ['88%', '62%', 1.7], ['40%', '8%', 2.6]] as const;
+const SPARKLES = [['8%', '20%', 0, 14], ['86%', '16%', 1.4, 18], ['70%', '44%', 2.2, 12], ['18%', '52%', .7, 16], ['92%', '58%', 1.9, 10], ['44%', '12%', 2.8, 12]] as const;
+
+/** A colonnade of arches opening onto a pale dream sky: the liminal far wall of the bathhouse. */
+function Colonnade() {
+  return (
+    <svg className="thermae-arches" width="100%" height="420" aria-hidden>
+      <defs>
+        <linearGradient id="dreamsky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#b9d8e4" /><stop offset=".55" stopColor="#e3eee9" /><stop offset="1" stopColor="#f6f1e4" />
+        </linearGradient>
+        <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
+        <pattern id="arcade" width="260" height="420" patternUnits="userSpaceOnUse">
+          <path d="M45 420V170a85 85 0 0 1 170 0v250z" fill="url(#dreamsky)" />
+          <g filter="url(#soft)" fill="#fff" opacity=".9">
+            <ellipse cx="105" cy="150" rx="38" ry="10" /><ellipse cx="170" cy="215" rx="30" ry="8" /><ellipse cx="90" cy="285" rx="26" ry="7" />
+          </g>
+          <path d="M45 420V170a85 85 0 0 1 170 0v250" fill="none" stroke="#2b3437" strokeOpacity=".28" strokeWidth="2" />
+          <path d="M55 420V172a75 75 0 0 1 150 0v248" fill="none" stroke="#2b3437" strokeOpacity=".1" strokeWidth="1.5" />
+          {[-16, 244].map(x => (
+            <g key={x} stroke="#2b3437" strokeOpacity=".22" strokeWidth="1.5">
+              <rect x={x} y="70" width="32" height="350" fill="#ece6da" />
+              <rect x={x - 6} y="58" width="44" height="12" fill="#f3efe6" />
+              <path d={`M${x + 8} 74v346M${x + 16} 74v346M${x + 24} 74v346`} />
+            </g>
+          ))}
+        </pattern>
+        <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stopColor="#fff" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
+        <mask id="fadeMask"><rect width="100%" height="420" fill="url(#fade)" /></mask>
+      </defs>
+      <rect y="40" width="100%" height="18" fill="#ece6da" stroke="#2b3437" strokeOpacity=".2" />
+      <rect width="100%" height="420" fill="url(#arcade)" mask="url(#fadeMask)" />
+    </svg>
+  );
+}
 
 function Backdrop() {
   return (
     <>
-      <div className="dream-sky" aria-hidden>
-        {CLOUDS.map((c, i) => <div key={i} className="cloud" style={{ top: c.top, width: c.w, height: c.h, animationDuration: `${c.dur}s`, animationDelay: `${c.delay}s` }} />)}
-      </div>
-      <div className="dream-floor" aria-hidden />
-      {SPARKLES.map(([l, t, d], i) => <span key={i} className="sparkle text-2xl" style={{ left: l, top: t, animationDelay: `${d}s` }} aria-hidden>✧</span>)}
-      <img src="/art/bust.png" alt="" className="dream-bust" aria-hidden />
-      <div className="grain" aria-hidden />
+      <div className="thermae-wall" aria-hidden />
+      <Colonnade />
+      <div className="thermae-floor" aria-hidden />
+      <div className="thermae-pool" aria-hidden />
+      <div className="thermae-haze" aria-hidden />
+      <div className="wall-whisper" aria-hidden>you have been here before</div>
+      {SPARKLES.map(([l, t, d, sz], i) => <span key={i} className="sparkle" style={{ left: l, top: t, animationDelay: `${d}s` }} aria-hidden><Glyph name="sparkle" size={sz} stroke={0} className="fill-white" /></span>)}
+      <img src="/art/bust.webp" alt="" className="thermae-bust" aria-hidden />
     </>
   );
 }
@@ -65,7 +92,7 @@ function MenuBar({ onShutdown }: { onShutdown: () => void }) {
   const nav = useNavigate();
   return (
     <div className="relative flex h-9 items-center gap-1 border-b-2 border-ink bg-white px-2 font-display text-[15px]">
-      <button onClick={() => setOpen(o => !o)} className={`flex h-8 items-center px-2 text-xl ${open ? 'bg-ink text-white' : 'text-xp'}`} aria-label="Menu">✿</button>
+      <button onClick={() => setOpen(o => !o)} className={`flex h-8 items-center px-2 ${open ? 'bg-ink text-white' : 'text-cyan'}`} aria-label="Menu"><Glyph name="laurel" size={22} /></button>
       <span className="hidden px-2 font-bold lg:inline">{APP_NAME}</span>
       <nav className="hidden flex-1 items-center md:flex">
         {NAV.map(n => (
@@ -94,7 +121,7 @@ function Hud() {
   const p = usePlayer();
   return (
     <div className="flex items-center gap-3">
-      <div className="mac-window flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full bg-laurel/40" title={`Level ${p.level}`}>
+      <div className="mac-window flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full bg-marble" title={`Level ${p.level}`}>
         <span className="text-[9px] leading-none">LVL</span>
         <span className="inscription text-lg font-bold leading-none">{roman(p.level)}</span>
       </div>
@@ -105,7 +132,7 @@ function Hud() {
         </div>
         <Bar value={p.progress} className="mt-1" />
       </div>
-      <div className="mac-window shrink-0 bg-laurel/60 px-2 py-1 font-display text-lg leading-none" title="Drachmae (coins)">{DR} {p.coins}</div>
+      <div className="mac-window shrink-0 bg-laurel/60 px-2 py-1 font-display text-lg leading-none" title="Drachmae (coins)"><span className="flex items-center gap-1.5"><Glyph name="drachma" size={18} />{p.coins}</span></div>
     </div>
   );
 }
@@ -120,8 +147,8 @@ export function Layout() {
         <MenuBar onShutdown={() => setShutdown(true)} />
         <div className="border-b-2 border-ink bg-white/85 backdrop-blur">
           <div className="mx-auto max-w-6xl px-3 py-2 sm:px-6"><Hud /></div>
-          <div className="marquee overflow-hidden border-t-2 border-ink bg-mint/60 py-0.5 text-[13px]" aria-hidden>
-            <div>{[...INSCRIPTIONS, ...INSCRIPTIONS].map((t, i) => <span key={i} className="inscription px-6 font-bold">✦ {t}</span>)}</div>
+          <div className="marquee overflow-hidden border-t-2 border-ink bg-laurel/70 py-0.5 text-[13px]" aria-hidden>
+            <div>{[...INSCRIPTIONS, ...INSCRIPTIONS].map((t, i) => <span key={i} className="inscription inline-flex items-center gap-3 px-4 font-bold"><Glyph name="sparkle" size={10} stroke={0} className="fill-current" />{t}</span>)}</div>
           </div>
         </div>
       </header>
@@ -151,7 +178,7 @@ export function Layout() {
 
       <Modal open={shutdown} onClose={() => setShutdown(false)} title="Special">
         <div className="flex flex-col items-center gap-3 p-4 text-center">
-          <div className="text-5xl text-xp">✿</div>
+          <Glyph name="moon" size={56} stroke={1.2} className="text-cyan" />
           <p className="font-display text-xl">It is now safe to switch off your day.</p>
           <p className="font-type text-sm">screens off 21:15 · in bed 21:45 · lights out 22:00<br />choose tomorrow's three quests before you go</p>
         </div>

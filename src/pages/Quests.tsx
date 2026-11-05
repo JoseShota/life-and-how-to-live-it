@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Plus } from 'lucide-react';
+import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
 import { Button, Card, Empty, Bar, PageTitle } from '@/components/ui';
 import { TaskRow, TaskForm } from '@/components/TaskBits';
@@ -26,7 +26,7 @@ export default function Quests() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="冒険" sub="every pending thing, by area. go, go, go." right={<Button onClick={() => setAdding(true)}><Plus size={16} />New quest</Button>}>Quest Log</PageTitle>
+      <PageTitle jp="冒険" sub="every pending thing, by area. go, go, go." right={<Button onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>New quest</Button>}>Quest Log</PageTitle>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {areas.map(a => {
@@ -34,7 +34,7 @@ export default function Quests() {
           const hrs = (weekMinutes.get(a.id) ?? 0) / 60;
           return (
             <button key={a.id} onClick={() => setAreaId(areaId === a.id ? 'all' : a.id)} className={cx('p-3 text-left transition', areaId === a.id ? 'mac-inset bg-white shadow-glow' : 'mac-window bg-white/90 hover:bg-panel2')}>
-              <div className="text-2xl">{a.emoji}</div>
+              <Glyph name={a.icon} size={30} stroke={1.4} />
               <div className="mt-1 flex items-center gap-1.5 truncate font-display text-lg leading-5"><span className="h-3 w-3 shrink-0 border-2 border-ink" style={{ background: a.color }} />{a.short}</div>
               <div className="text-[11px] text-ink/60">{open} open · {hrs.toFixed(1)}/{a.weeklyHoursTarget}h wk</div>
               <Bar value={hrs / (a.weeklyHoursTarget || 1)} color={a.color} className="mt-2" height="h-3" />

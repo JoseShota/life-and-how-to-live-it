@@ -10,7 +10,8 @@ export interface Area {
   id: ID;
   name: string;
   short: string;
-  emoji: string;
+  /** Glyph name from src/components/glyphs.ts (was `emoji` before schema v2) */
+  icon: string;
   color: string; // hex
   kind: AreaKind;
   /** Hours per week you want to invest here */
@@ -44,7 +45,8 @@ export interface Habit {
   id: ID;
   key: string; // stable key, e.g. 'wake', 'sleep'
   name: string;
-  emoji: string;
+  /** Glyph name from src/components/glyphs.ts (was `emoji` before schema v2) */
+  icon: string;
   kind: HabitKind;
   /** For 'number' habits (e.g. sleep hours) or 'auto' (work hours) */
   target?: number;
@@ -115,7 +117,8 @@ export interface Transaction {
 export interface Goal {
   id: ID;
   name: string;
-  emoji: string;
+  /** Glyph name from src/components/glyphs.ts (was `emoji` before schema v2) */
+  icon: string;
   target: number;
   current: number;
   deadline?: DateKey;
@@ -142,7 +145,8 @@ export interface Opportunity {
 export interface Reward {
   id: ID;
   title: string;
-  emoji: string;
+  /** Glyph name from src/components/glyphs.ts (was `emoji` before schema v2) */
+  icon: string;
   cost: number;
   archived: boolean;
 }

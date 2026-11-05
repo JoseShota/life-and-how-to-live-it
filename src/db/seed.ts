@@ -3,48 +3,48 @@ import type { Area, Habit, Account, Reward, Goal, Opportunity } from './types';
 import { uid } from '@/lib/util';
 
 export const SEED_AREAS: Omit<Area, 'id'>[] = [
-  { name: 'Teaching · Introducción a la Economía (CIDE)', short: 'CIDE', emoji: '🎓', color: '#7cc7ff', kind: 'work', weeklyHoursTarget: 8, monetizable: true, order: 0, archived: false },
-  { name: 'Weaving Memories (web, media, admin)', short: 'Weaving', emoji: '🧵', color: '#ff8fcf', kind: 'work', weeklyHoursTarget: 12, monetizable: true, order: 1, archived: false },
-  { name: 'Freelance web development', short: 'Freelance', emoji: '💻', color: '#7ff0d8', kind: 'work', weeklyHoursTarget: 10, monetizable: true, order: 2, archived: false },
-  { name: 'AI automation skills', short: 'AI', emoji: '🤖', color: '#b9a3ff', kind: 'growth', weeklyHoursTarget: 7, monetizable: true, order: 3, archived: false },
-  { name: 'Video editing (hobby)', short: 'Video', emoji: '🎬', color: '#ffb27a', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 4, archived: false },
-  { name: 'Writing (hobby)', short: 'Writing', emoji: '✍️', color: '#ffe08a', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 5, archived: false },
-  { name: 'Personal webpage', short: 'Website', emoji: '🌐', color: '#9fb4ff', kind: 'personal', weeklyHoursTarget: 2, monetizable: true, order: 6, archived: false },
-  { name: 'Wealth & life admin', short: 'Wealth', emoji: '💼', color: '#e9c46a', kind: 'personal', weeklyHoursTarget: 2, monetizable: false, order: 7, archived: false }
+  { name: 'Teaching · Introducción a la Economía (CIDE)', short: 'CIDE', icon: 'owl', color: '#b9cfe0', kind: 'work', weeklyHoursTarget: 8, monetizable: true, order: 0, archived: false },
+  { name: 'Weaving Memories (web, media, admin)', short: 'Weaving', icon: 'spindle', color: '#e3b9b2', kind: 'work', weeklyHoursTarget: 12, monetizable: true, order: 1, archived: false },
+  { name: 'Freelance web development', short: 'Freelance', icon: 'amphora', color: '#a6d9d1', kind: 'work', weeklyHoursTarget: 10, monetizable: true, order: 2, archived: false },
+  { name: 'AI automation skills', short: 'AI', icon: 'cog', color: '#c7c2e3', kind: 'growth', weeklyHoursTarget: 7, monetizable: true, order: 3, archived: false },
+  { name: 'Video editing (hobby)', short: 'Video', icon: 'mask', color: '#e8c9a0', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 4, archived: false },
+  { name: 'Writing (hobby)', short: 'Writing', icon: 'quill', color: '#efe3b0', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 5, archived: false },
+  { name: 'Personal webpage', short: 'Website', icon: 'temple', color: '#bcd3c6', kind: 'personal', weeklyHoursTarget: 2, monetizable: true, order: 6, archived: false },
+  { name: 'Wealth & life admin', short: 'Wealth', icon: 'drachma', color: '#dccb98', kind: 'personal', weeklyHoursTarget: 2, monetizable: false, order: 7, archived: false }
 ];
 
 export const SEED_HABITS: Omit<Habit, 'id'>[] = [
-  { key: 'wake', name: 'Up by 5:45', emoji: '🌅', kind: 'check', xp: 20, core: true, order: 0, archived: false },
-  { key: 'sleep', name: 'Slept ≥ 7.5 h', emoji: '😴', kind: 'number', target: 7.5, unit: 'h', xp: 20, core: true, order: 1, archived: false },
-  { key: 'exercise', name: 'Exercise', emoji: '🏋️', kind: 'check', xp: 25, core: true, order: 2, archived: false },
-  { key: 'clean', name: 'Clean (15 min)', emoji: '🧹', kind: 'check', xp: 10, core: true, order: 3, archived: false },
-  { key: 'intel', name: 'Newsletters + econ videos', emoji: '📰', kind: 'check', xp: 15, core: true, order: 4, archived: false },
-  { key: 'work', name: 'Deep work 8 h', emoji: '⚒️', kind: 'auto', target: 8, unit: 'h', xp: 40, core: true, order: 5, archived: false },
-  { key: 'money', name: 'Money check-in (log + review)', emoji: '💰', kind: 'check', xp: 15, core: true, order: 6, archived: false }
+  { key: 'wake', name: 'Up by 5:45', icon: 'sunrise', kind: 'check', xp: 20, core: true, order: 0, archived: false },
+  { key: 'sleep', name: 'Slept ≥ 7.5 h', icon: 'moon', kind: 'number', target: 7.5, unit: 'h', xp: 20, core: true, order: 1, archived: false },
+  { key: 'exercise', name: 'Exercise', icon: 'discus', kind: 'check', xp: 25, core: true, order: 2, archived: false },
+  { key: 'clean', name: 'Clean (15 min)', icon: 'wave', kind: 'check', xp: 10, core: true, order: 3, archived: false },
+  { key: 'intel', name: 'Newsletters + econ videos', icon: 'scroll', kind: 'check', xp: 15, core: true, order: 4, archived: false },
+  { key: 'work', name: 'Deep work 8 h', icon: 'anvil', kind: 'auto', target: 8, unit: 'h', xp: 40, core: true, order: 5, archived: false },
+  { key: 'money', name: 'Money check-in (log + review)', icon: 'scales', kind: 'check', xp: 15, core: true, order: 6, archived: false }
 ];
 
 export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
-  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#ff4d6d', archived: false, order: 0 },
-  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#e0457f', archived: false, order: 1 },
-  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b8407f', archived: false, order: 2 },
-  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#8a3a85', archived: false, order: 3 },
-  { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#7ff0d8', archived: false, order: 4 }
+  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#d8a7a0', archived: false, order: 0 },
+  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#c99790', archived: false, order: 1 },
+  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b98a8a', archived: false, order: 2 },
+  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#a98088', archived: false, order: 3 },
+  { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#a6d9d1', archived: false, order: 4 }
 ];
 
 export const SEED_REWARDS: Omit<Reward, 'id'>[] = [
-  { title: '1 episode of a series', emoji: '📺', cost: 40, archived: false },
-  { title: 'Fancy coffee', emoji: '☕', cost: 60, archived: false },
-  { title: 'Guilt-free gaming hour', emoji: '🎮', cost: 80, archived: false },
-  { title: 'Dinner out', emoji: '🍜', cost: 250, archived: false },
-  { title: 'Buy a book', emoji: '📚', cost: 300, archived: false },
-  { title: 'Full day off', emoji: '🏝️', cost: 1000, archived: false }
+  { title: '1 episode of a series', icon: 'mask', cost: 40, archived: false },
+  { title: 'Fancy coffee', icon: 'cup', cost: 60, archived: false },
+  { title: 'Guilt-free gaming hour', icon: 'dice', cost: 80, archived: false },
+  { title: 'Dinner out', icon: 'bowl', cost: 250, archived: false },
+  { title: 'Buy a book', icon: 'scroll', cost: 300, archived: false },
+  { title: 'Full day off', icon: 'sun', cost: 1000, archived: false }
 ];
 
 export const SEED_GOALS: Omit<Goal, 'id'>[] = [
-  { name: 'Emergency fund (1 month)', emoji: '🛡️', target: 25000, current: 0, order: 0 },
-  { name: 'Emergency fund (6 months)', emoji: '🏰', target: 150000, current: 0, order: 1 },
-  { name: 'Credit cards at 0 revolving debt', emoji: '💳', target: 1, current: 0, order: 2 },
-  { name: 'First 1,000,000 MXN invested', emoji: '🚀', target: 1000000, current: 0, order: 3 }
+  { name: 'Emergency fund (1 month)', icon: 'aspis', target: 25000, current: 0, order: 0 },
+  { name: 'Emergency fund (6 months)', icon: 'temple', target: 150000, current: 0, order: 1 },
+  { name: 'Credit cards at 0 revolving debt', icon: 'card', target: 1, current: 0, order: 2 },
+  { name: 'First 1,000,000 MXN invested', icon: 'mountain', target: 1000000, current: 0, order: 3 }
 ];
 
 export const SEED_OPPS: Omit<Opportunity, 'id' | 'createdAt'>[] = [

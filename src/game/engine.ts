@@ -55,7 +55,7 @@ export async function setHabit(habit: Habit, date: string, value: number) {
   if (done) {
     const streak = await habitStreak(habit.id, date);
     const xp = Math.round(habit.xp * streakMultiplier(streak));
-    await award('habit', ref, xp, `${habit.emoji} ${habit.name}${streak >= 7 ? ` (🔥${streak})` : ''}`, coinsFor(xp), date);
+    await award('habit', ref, xp, `${habit.name}${streak >= 7 ? ` (streak ${streak})` : ''}`, coinsFor(xp), date);
   }
   await evaluateDay(date);
 }
@@ -73,7 +73,7 @@ export async function evaluateDay(date: string = dateKey()) {
     await db.habitLogs.put({ id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done });
     if (done !== !!prev?.done) {
       await revoke(`workday:${date}`);
-      if (done) await award('workday', `workday:${date}`, WORKDAY_BONUS_XP + workHabit.xp, `⚒️ Full workday (${hours.toFixed(1)} h)`, undefined, date);
+      if (done) await award('workday', `workday:${date}`, WORKDAY_BONUS_XP + workHabit.xp, `Full workday (${hours.toFixed(1)} h)`, undefined, date);
     }
   }
   const core = habits.filter(h => h.core);
@@ -82,7 +82,7 @@ export async function evaluateDay(date: string = dateKey()) {
   const perfect = core.length > 0 && core.every(h => doneIds.has(h.id));
   const ref = `perfect:${date}`;
   const had = (await db.xp.where('refId').equals(ref).count()) > 0;
-  if (perfect && !had) await award('perfect-day', ref, PERFECT_DAY_XP, '🌟 PERFECT DAY', undefined, date);
+  if (perfect && !had) await award('perfect-day', ref, PERFECT_DAY_XP, 'Perfect day', undefined, date);
   if (!perfect && had) await revoke(ref);
   await checkAchievements();
 }
@@ -124,6 +124,6 @@ export async function redeem(rewardId: string) {
   if (!r) return false;
   const { coins } = await totals();
   if (coins < r.cost) return false;
-  await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'reward', refId: `reward:${rewardId}:${Date.now()}`, xp: 0, coins: -r.cost, label: `${r.emoji} Redeemed: ${r.title}` });
+  await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'reward', refId: `reward:${rewardId}:${Date.now()}`, xp: 0, coins: -r.cost, label: `Redeemed: ${r.title}` });
   return true;
 }

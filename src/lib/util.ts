@@ -32,5 +32,5 @@ export function roman(n: number): string {
   return out;
 }
 
-/** Coins are drachmae. */
-export const DR = '₯';
+/** Coins are drachmae, written "dr". */
+export const dr = (n: number) => `${n} dr`;

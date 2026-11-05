@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Check, Trash2, Pencil, Timer } from 'lucide-react';
+import { Glyph } from '@/components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Area, Difficulty, Task } from '@/db/types';
@@ -26,19 +26,19 @@ export function TaskRow({ task, area, compact }: { task: Task; area?: Area; comp
   return (
     <div className={cx('group flex items-center gap-3 border border-line/50 bg-panel2/60 px-3 py-2 transition hover:border-cyan/60 hover:bg-panel2', done && 'opacity-50')}>
       <button onClick={toggle} aria-label={done ? 'Reopen' : 'Complete'} className={cx('flex h-8 w-8 shrink-0 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-pink/40', popping && 'pop')} onAnimationEnd={() => setPopping(false)}>
-        {done && <Check size={16} strokeWidth={3} />}
+        {done && <Glyph name="check" size={16} stroke={2.6}/>}
       </button>
       <div className="min-w-0 flex-1">
         <div className={cx('truncate text-sm font-medium', done && 'line-through')}>{task.title}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-          {area && !compact && <Chip color={area.color}>{area.emoji} {area.short}</Chip>}
-          <Chip color="#b9a3ff">+{TASK_XP[task.difficulty]} XP</Chip>
-          {task.priority === 1 && !done && <Chip color="#ff8fcf">Today</Chip>}
-          {task.dueDate && <Chip color={overdue ? '#d2264a' : '#d9d9d9'}>{overdue ? 'Overdue ' : ''}{task.dueDate.slice(5)}</Chip>}
+          {area && !compact && <Chip color={area.color}><Glyph name={area.icon} size={13} stroke={2} />{area.short}</Chip>}
+          <Chip color="#c7c2e3">+{TASK_XP[task.difficulty]} XP</Chip>
+          {task.priority === 1 && !done && <Chip color="#e3b9b2">Today</Chip>}
+          {task.dueDate && <Chip color={overdue ? '#a8383a' : '#d4d9d6'}>{overdue ? 'Overdue ' : ''}{task.dueDate.slice(5)}</Chip>}
         </div>
       </div>
-      {!done && <button onClick={startFocus} className="p-2 text-ink/55 hover:bg-panel hover:text-xp" aria-label="Focus on this"><Timer size={16} /></button>}
-      <button onClick={() => setEdit(true)} className="p-2 text-ink/55 hover:bg-panel hover:text-ink/90" aria-label="Edit"><Pencil size={16} /></button>
+      {!done && <button onClick={startFocus} className="p-2 text-ink/55 hover:bg-panel hover:text-xp" aria-label="Focus on this"><Glyph name="hourglass" size={16}/></button>}
+      <button onClick={() => setEdit(true)} className="p-2 text-ink/55 hover:bg-panel hover:text-ink/90" aria-label="Edit"><Glyph name="pencil" size={16}/></button>
       <TaskForm open={edit} onClose={() => setEdit(false)} task={task} />
     </div>
   );
@@ -67,7 +67,7 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
         <Label text="Quest"><Input autoFocus value={v.title} onChange={e => setF({ ...v, title: e.target.value })} onKeyDown={e => e.key === 'Enter' && save()} placeholder="e.g. Grade midterm exams" /></Label>
         <Label text="Area">
           <Select value={v.areaId} onChange={e => setF({ ...v, areaId: e.target.value })}>
-            {areas.map(a => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+            {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </Select>
         </Label>
         <div className="grid grid-cols-2 gap-3">
@@ -78,14 +78,14 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
           </Label>
           <Label text="Priority">
             <Select value={v.priority} onChange={e => setF({ ...v, priority: Number(e.target.value) as 1 | 2 | 3 })}>
-              <option value={1}>🔥 Today</option><option value={2}>This week</option><option value={3}>Someday</option>
+              <option value={1}>Today</option><option value={2}>This week</option><option value={3}>Someday</option>
             </Select>
           </Label>
         </div>
         <Label text="Due date"><Input type="date" value={v.dueDate ?? ''} onChange={e => setF({ ...v, dueDate: e.target.value })} /></Label>
         <Label text="Notes"><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
         <div className="mt-2 flex gap-2">
-          {task && <Button variant="danger" onClick={remove}><Trash2 size={16} /></Button>}
+          {task && <Button variant="danger" onClick={remove}><Glyph name="trash" size={16}/></Button>}
           <Button className="flex-1" onClick={save}>{task ? 'Save' : 'Add quest'}</Button>
         </div>
       </div>

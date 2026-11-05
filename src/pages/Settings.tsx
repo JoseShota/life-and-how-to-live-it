@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, Upload, CalendarPlus, Bell } from 'lucide-react';
+import { Glyph } from '@/components/Glyph';
 import { db, setSetting } from '@/db/db';
 import { exportAll, importAll, download } from '@/lib/backup';
 import { routineIcs } from '@/lib/routine';
@@ -29,7 +29,7 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-2">
           {areas.map(a => (
             <div key={a.id} className="grid grid-cols-[2rem_1fr_5rem] items-center gap-2">
-              <span className="text-xl">{a.emoji}</span>
+              <Glyph name={a.icon} size={22} />
               <Input value={a.name} onChange={e => db.areas.update(a.id, { name: e.target.value })} />
               <Input inputMode="numeric" value={a.weeklyHoursTarget} onChange={e => db.areas.update(a.id, { weeklyHoursTarget: Number(e.target.value) || 0 })} />
             </div>
@@ -40,16 +40,16 @@ export default function SettingsPage() {
       <Card title="Reminders">
         <p className="mb-3 text-sm text-ink/60">Your device calendar is the most reliable reminder engine. Import the ideal-day routine as daily recurring events with a 5-minute alert (works with Google Calendar, Apple Calendar, Outlook).</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => download('life-routine.ics', routineIcs(), 'text/calendar')}><CalendarPlus size={16} />Download routine (.ics)</Button>
-          <Button variant="ghost" onClick={async () => { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Notifications enabled' : 'Notifications blocked', r === 'granted' ? 'xp' : 'bad'); }}><Bell size={16} />Enable in-app notifications</Button>
+          <Button variant="ghost" onClick={() => download('life-routine.ics', routineIcs(), 'text/calendar')}><Glyph name="calendar" size={16}/>Download routine (.ics)</Button>
+          <Button variant="ghost" onClick={async () => { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Notifications enabled' : 'Notifications blocked', r === 'granted' ? 'xp' : 'bad'); }}><Glyph name="bell" size={16}/>Enable in-app notifications</Button>
         </div>
       </Card>
 
       <Card title="Backup · data & sync">
         <p className="mb-3 text-sm text-ink/60">All data lives on this device (offline-first). Until cloud sync ships (Phase 2), move data between tablet and laptop with a backup file. Back up weekly.</p>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={async () => download(`life-backup-${dateKey()}.json`, JSON.stringify(await exportAll()))}><Download size={16} />Export backup</Button>
-          <Button variant="ghost" onClick={() => file.current?.click()}><Upload size={16} />Import backup</Button>
+          <Button onClick={async () => download(`life-backup-${dateKey()}.json`, JSON.stringify(await exportAll()))}><Glyph name="download" size={16}/>Export backup</Button>
+          <Button variant="ghost" onClick={() => file.current?.click()}><Glyph name="upload" size={16}/>Import backup</Button>
           <input ref={file} type="file" accept="application/json" hidden onChange={async e => {
             const f = e.target.files?.[0]; if (!f) return;
             if (!confirm('This REPLACES all data on this device with the backup. Continue?')) return;

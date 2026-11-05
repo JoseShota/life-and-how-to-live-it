@@ -1,3 +1,4 @@
+import { Glyph } from '@/components/Glyph';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useLocation } from 'react-router-dom';
 import { db } from '@/db/db';
@@ -14,7 +15,7 @@ export function ActiveTimerPill() {
   const mm = String(Math.floor(s / 60)).padStart(2, '0'), ss = String(s % 60).padStart(2, '0');
   return (
     <Link to="/focus" className="mac-window fixed bottom-[70px] right-3 z-30 flex items-center gap-2 bg-pink px-3 py-1.5 font-display text-lg md:bottom-6">
-      <span className="blink h-2.5 w-2.5 rounded-full bg-hp" />{area?.emoji} {mm}:{ss}
+      <span className="blink h-2.5 w-2.5 rounded-full bg-hp" /><Glyph name={area?.icon ?? 'dot'} size={18} /> {mm}:{ss}
     </Link>
   );
 }

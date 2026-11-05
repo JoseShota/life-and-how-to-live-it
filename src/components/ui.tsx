@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import { useEffect } from 'react';
 import { cx } from '@/lib/util';
+import { Glyph } from './Glyph';
 
 /** Macintosh System 6 window. With `title`: pinstriped title bar + close box. Without: plain 1-bit panel. */
 export function Card({ children, className, title, action }: { children: ReactNode; className?: string; title?: ReactNode; action?: ReactNode }) {
@@ -34,19 +35,19 @@ export function Button({ variant = 'primary', className, ...p }: ButtonHTMLAttri
 export function Bar({ value, color, className, height = 'h-4' }: { value: number; color?: string; className?: string; height?: string }) {
   return (
     <div className={cx('mac-inset w-full overflow-hidden', height, className)}>
-      <div className={cx('h-full border-r-2 border-ink transition-all duration-700', !color && 'dither-pink')} style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, background: color, borderRightWidth: value > 0 && value < 1 ? 2 : 0 }} />
+      <div className={cx('h-full border-r-2 border-ink transition-all duration-700', !color && 'fill-pool')} style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, background: color, borderRightWidth: value > 0 && value < 1 ? 2 : 0 }} />
     </div>
   );
 }
 
-export function Ring({ value, size = 96, stroke = 10, color = '#e8399a', children }: { value: number; size?: number; stroke?: number; color?: string; children?: ReactNode }) {
+export function Ring({ value, size = 96, stroke = 10, color = '#9c4a57', children }: { value: number; size?: number; stroke?: number; color?: string; children?: ReactNode }) {
   const r = (size - stroke) / 2 - 2, c = 2 * Math.PI * r;
   const v = Math.max(0, Math.min(1, value));
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r + stroke / 2} stroke="#1b1530" strokeWidth={2} fill="#fff" />
-        <circle cx={size / 2} cy={size / 2} r={r - stroke / 2} stroke="#1b1530" strokeWidth={2} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r + stroke / 2} stroke="#2b3437" strokeWidth={2} fill="#fff" />
+        <circle cx={size / 2} cy={size / 2} r={r - stroke / 2} stroke="#2b3437" strokeWidth={2} fill="none" />
         <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke - 2} fill="none" strokeDasharray={c} strokeDashoffset={c * (1 - v)} style={{ transition: 'stroke-dashoffset .7s' }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
@@ -83,13 +84,13 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
 }
 
 export const Chip = ({ children, color }: { children: ReactNode; color?: string }) => (
-  <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink px-2 text-[12px] font-bold leading-[18px]" style={{ background: (color ?? '#d9d9d9') + '55' }}>{children}</span>
+  <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink px-2 text-[12px] font-bold leading-[18px]" style={{ background: (color ?? '#d4d9d6') + '66' }}>{children}</span>
 );
 
 /** Dreamcore empty state: a familiar, empty room. */
 export const Empty = ({ children }: { children: ReactNode }) => (
   <div className="mac-inset border-dashed bg-panel2/60 p-4 text-center">
-    <div className="mb-1 font-type text-[15px] text-lav">✧ this room is empty. it feels familiar. ✧</div>
+    <div className="mb-1 flex items-center justify-center gap-2 font-type text-[15px] text-lav"><Glyph name="sparkle" size={12} />this room is empty. it feels familiar.<Glyph name="sparkle" size={12} /></div>
     <p className="text-sm text-ink/70">{children}</p>
   </div>
 );
@@ -99,7 +100,7 @@ export const PageTitle = ({ children, jp, sub, right }: { children: ReactNode; j
   <div>
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        {jp && <div className="font-jp text-lg leading-none text-xp [text-shadow:2px_2px_0_#fff]">{jp}</div>}
+        {jp && <div className="font-jp text-lg leading-none text-xp [text-shadow:1px_1px_0_#fff]">{jp}</div>}
         <h1 className="marble-text inscription text-4xl font-bold leading-tight sm:text-5xl">{children}</h1>
         {sub && <p className="mt-1 inline-block bg-white/80 px-1.5 font-type text-sm text-ink">{sub}<span className="blink">▌</span></p>}
       </div>

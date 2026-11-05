@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { legacyIcon, ICON_TABLES } from './legacy';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
   Opportunity, Reward, XpEvent, Unlocked, Setting
@@ -36,6 +37,10 @@ export class LifeDB extends Dexie {
       xp: 'id, date, source, refId, ts',
       unlocked: 'key',
       settings: 'key'
+    });
+    // v2: emoji → hand-drawn glyph names (no index changes).
+    this.version(2).stores({}).upgrade(async tx => {
+      for (const t of ICON_TABLES) await tx.table(t).toCollection().modify(row => legacyIcon(row, t));
     });
   }
 }

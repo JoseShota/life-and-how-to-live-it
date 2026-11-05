@@ -1,4 +1,5 @@
 import { db, ALL_TABLES } from '@/db/db';
+import { legacyIcon, ICON_TABLES } from '@/db/legacy';
 
 export const BACKUP_VERSION = 1;
 
@@ -15,7 +16,9 @@ export async function importAll(json: unknown) {
   await db.transaction('rw', ALL_TABLES.map(t => db.table(t)), async () => {
     for (const t of ALL_TABLES) {
       await db.table(t).clear();
-      if (b.data![t]?.length) await db.table(t).bulkAdd(b.data![t]);
+      let rows = b.data![t] ?? [];
+      if ((ICON_TABLES as readonly string[]).includes(t)) rows = rows.map(r => legacyIcon({ ...(r as Record<string, unknown>) }, t));
+      if (rows.length) await db.table(t).bulkAdd(rows);
     }
   });
 }

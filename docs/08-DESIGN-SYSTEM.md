@@ -1,64 +1,55 @@
-# 08 · Design System: "Floral Dream" edition
+# 08 · Design System: "Thermae" edition
 
-*Life and How to Live It* should feel like a **Macintosh Plus left on in a dream**. The screen is 1-bit black and white, a marble head floats over a pink-and-teal vaporwave sky, Greek inscriptions scroll past, and a Beat poet's typewriter keeps the log.
+*Life and How to Live It* is an **empty Greek bathhouse at four in the afternoon, inside a dream**. Pale tiled walls, a colonnade whose arches open onto a washed-out sky, still pool water, a real marble head resting by the edge. The interface sits on top like an old Macintosh someone left running there, and the day is logged on a typewriter.
+
+Nostalgic · liminal · dreamcore · Greek. Quiet, never loud.
 
 | Ingredient | What we take | Where it lives |
 |---|---|---|
-| **Macintosh Plus / System 6** | 1-bit windows, pinstriped title bars with a close box, the Chicago font, rounded-rect buttons with a hard shadow, the ✿ menu bar, "It is now safe to switch off your day" | `.mac-*` classes, `MenuBar`, `Card`, `Modal` |
-| **Floral Shoppe-era vaporwave** | Pink + teal, a Greek marble head, a checkerboard floor in perspective, Japanese subtitles. *Inspired by, never copying, the album art* | `.dream-floor`, `.dream-bust`, `font-jp`, `pink`/`mint` tokens |
-| **Greek / classical** | Cinzel inscriptions, Greek-key (meander) bands, Delphic maxims (ΓΝΩΘΙ ΣΑΥΤΟΝ, ΜΗΔΕΝ ΑΓΑΝ), Roman-numeral levels, classical ranks (Neophyte → Philosopher-King), drachmae ₯ as coins, the **Agora** reward market, the **Hall of Laurels** | `.inscription`, `.marble-text`, `.meander`, `roman()` |
-| **Dreamcore** | Light pastel sky, drifting soft clouds, twinkling ✧, film grain, gentle uncanny copy ("this room is empty. it feels familiar.", "you have been here before") | `.dream-sky`, `.sparkle`, `.grain`, `Empty` |
-| **Beat Generation** | Typewriter type (Courier Prime, Special Elite), **The Scroll** (today's log on continuous teletype paper, a nod to Kerouac), the **Cut-Up** poem built from your day (Burroughs/Gysin), lowercase spontaneous subtitles | `.scroll-paper`, `font-type`, `src/lib/cutup.ts` |
+| **Liminal space** | Tiled walls with grout lines, soft overhead light, vignette, haze, a still pool with slow caustics, an empty floor. Nobody is here. Faint wall text: *you have been here before* | `.thermae-wall`, `.thermae-floor`, `.thermae-pool`, `.thermae-haze`, `.wall-whisper` |
+| **Greek / classical** | A colonnade of arches with fluted columns, a real marble head (natural photo, no filter), Cinzel inscriptions, Greek-key bands, Delphic maxims, Roman-numeral levels, classical ranks, drachmae, the Agora, the Hall of Laurels | `Colonnade` in `Layout.tsx`, `.thermae-bust`, `.inscription`, `.marble-text`, `.meander` |
+| **Dreamcore** | Arches open to a pale dream sky with soft clouds, drifting sparkles, uncanny gentle copy ("this room is empty. it feels familiar.") | `#dreamsky` pattern, `.sparkle`, `Empty` |
+| **Macintosh System 6** | Pinstriped title bars, close box, Chicago font, rounded-rect buttons with a hard shadow, menu bar | `.mac-*`, `MenuBar`, `Card`, `Modal` |
+| **Beat Generation** | Courier Prime / Special Elite type, The Scroll (continuous paper), the Cut-Up poem | `.scroll-paper`, `font-type`, `src/lib/cutup.ts` |
 
-## Tokens (`tailwind.config.js`)
-| Token | Hex | Use |
+## Palette (`tailwind.config.js`)
+| Token | Hex | Role |
 |---|---|---|
-| `ink` / `line` | `#1b1530` | All 1-bit borders, text, hard shadows |
-| `paper` | `#fdfaf3` | Typewriter paper |
-| `bg` / `panel` / `panel2` | `#efe9f7` / `#fff` / `#f6f0ff` | Haze / windows / inset rows |
-| `xp` | `#e8399a` | Pink **text** and accents |
-| `pink` | `#ffb3dd` | Pink **fills** (primary buttons, dithered progress) |
-| `cyan` / `mint` | `#0e9c97` / `#7ff0d8` | Teal text / teal fills |
-| `lav` | `#6c4fc4` | Labels |
-| `gold` / `laurel` | `#a87b00` / `#e9c46a` | Drachmae text / gold fills |
-| `ok` / `hp` | `#0f8a6d` / `#d2264a` | Positive / danger |
-| `marble`, `sky`, `silver` | | Decoration |
+| `ink` / `line` | `#2b3437` | Soft charcoal: text, borders, shadows. Never pure black |
+| `bg` | `#e4ebe7` | Haze |
+| `panel` / `panel2` | `#fbfaf6` / `#eef3f0` | Warm marble white windows / pale-tile rows |
+| `tile` | `#d6dfdb` | Grout |
+| `mint` / `cyan` | `#a6d9d1` / `#2f716b` | Pool water **fill** / teal **text** |
+| `pink` / `xp` | `#ecc7c0` / `#9c4a57` | Dusty rose **fill** / rose **text** |
+| `laurel` / `gold` | `#e5d6a1` / `#82652a` | Fluorescent cream **fill** / ochre **text** (drachmae) |
+| `lav` | `#615d8a` | Faded violet labels |
+| `ok` / `hp` | `#2f7a5f` / `#a8383a` | Positive / danger |
+| `marble`, `sky`, `paper`, `silver` | | Decoration |
 
-Rule: **fills use pastel tokens (`pink`, `mint`, `laurel`), text uses dark tokens (`xp`, `cyan`, `gold`, `ok`, `ink`)**, so text contrast stays ≥ 4.5:1.
+Rule: **fills use the pale tokens (mint, pink, laurel), text uses the deep ones (cyan, xp, gold, ok, ink)**, so contrast stays ≥ 4.5:1. Saturation stays low everywhere. If a color feels "neon", it's wrong.
+
+## No emoji, ever
+All icons are **hand-drawn line glyphs** in `src/components/glyphs.ts`, rendered by `<Glyph name="owl" />`.
+- 24×24 grid, single 1.6 px stroke, round caps, drawn with classical motifs: owl (teaching), spindle (Weaving), amphora (freelance), cog (AI), mask (video), quill (writing), temple (website), drachma (wealth), sunrise, moon, discus, wave, scroll, anvil, scales, lamp, laurel, Vergina star, and more.
+- Data stores a glyph **name** in `icon` (schema v2 migrated old emoji). Pickers use `<IconPicker>`.
+- `tests/legacy.test.ts` fails the build if any emoji appears in `src/`.
+- To add a glyph: draw it in the DSL at the top of `glyphs.ts` (path / circle / rect / ellipse), add it to `PICKABLE` if users can choose it, and check it on the Agora "+ Reward" picker.
 
 ## Type
 | Class | Font | Use |
 |---|---|---|
-| `font-display` | **ChicagoFLF** (self-hosted, `public/fonts`) | Mac chrome: menu bar, window titles, buttons, numbers |
-| `font-sans` (default) | **Courier Prime** | Body text, forms |
-| `font-greek` / `.inscription` | **Cinzel** | Page titles, maxims ticker, level numerals |
-| `font-type` | **Special Elite** | The Scroll, cut-up poems, subtitles, dreamy copy |
-| `font-jp` | **DotGothic16** | Katakana/kanji subtitles (今日, 冒険, 宝庫…) |
-
-## Components
-- `<Card title="Plain Words">` is a System 6 window. Titles are short and plain ("Quests of the Day", "The Scroll"), not file names.
-- `<PageTitle jp="今日" sub="lowercase typed line">Title</PageTitle>` renders kanji, a marble Cinzel title, a typed subtitle with a cursor, and a meander band.
-- `<Button>`: `primary` = pink fill + default-button ring, `gold` = laurel + ring, `cyan` = mint, `ghost` = white, `danger` = white with red text. They invert on press, like a real Mac.
-- `<Bar>` is a Mac progress bar with a **dithered pink** fill. `<Ring>` is a 1-bit double circle with a pastel stroke.
-- `<Empty>` is a dreamcore empty room.
-- `.mac-window`, `.mac-inset`, `.mac-btn`, `.mac-titlebar`, `.mac-close`, `.dither-pink`, `.dither-gray` live in `@layer components` so utilities (`bg-pink`, etc.) can override them.
+| `font-display` | ChicagoFLF (self-hosted) | Menu bar, window titles, buttons, numbers |
+| `font-sans` | Courier Prime | Body |
+| `.inscription` / `font-greek` | Cinzel | Page titles, maxims, levels |
+| `font-type` | Special Elite | The Scroll, poems, subtitles, dreamy copy |
+| `font-jp` | DotGothic16 | Kanji subtitles |
 
 ## Imagery
-- `public/art/bust.png` is the *Marble head of a youth*, Greek, 4th c. BCE (The Met, Open Access, public domain). It was converted to 1-bit with **Atkinson dithering** (the original MacPaint algorithm).
-- To add more, pick an **Open Access** object from metmuseum.org (check the label) and run the dither script below. Keep images 1-bit (ink + white + transparent) so they match the System 6 look.
+- `public/art/bust.webp` is the *Marble head of a youth*, Greek, 4th c. BCE (The Met, Open Access, public domain). It's the natural photo cut out with a soft edge and graded slightly cooler. **No dithering, no grain.**
+- Add more with `python3 scripts/cutout.py photo.jpg public/art/name.webp`.
 
-```bash
-python3 scripts/dither.py input.jpg public/art/name.png 1b1530
-```
+## Motion
+Slow and ambient only: the pool caustics (14 s), the bust floating (11 s), sparkles twinkling, the maxims ticker (70 s). Everything stops under `prefers-reduced-motion`.
 
 ## Voice
-Lowercase, spontaneous, a little uncanny for subtitles and empty states ("the world still dreams. you rise."). Plain Mac language for actions ("Add", "Log time"). **Numbers and money are always clear and literal.**
-
-## Accessibility guardrails
-- Body text ≥ 15 px Courier Prime, tap targets ≥ 40 px, text contrast ≥ 4.5:1 (see the token rule).
-- Subtitles sit on a white backing over the sky.
-- `prefers-reduced-motion` stops clouds, bust float, sparkles, marquee, blink and pop.
-- Grain and backdrop never take pointer events.
-
-## Credits
-See `CREDITS.md`.
+Lowercase, calm, a little uncanny in subtitles and empty states. Plain Mac language for actions. **Numbers and money are always literal.** Coins are written `27 dr`.

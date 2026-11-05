@@ -3,22 +3,22 @@ import { dateKey, uid } from '@/lib/util';
 
 export interface AchievementDef {
   key: string;
-  emoji: string;
+  icon: string;
   name: string;
   description: string;
   xp: number;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
-  { key: 'first-quest', emoji: '🗡️', name: 'First Blood', description: 'Complete your first quest', xp: 25 },
-  { key: 'quests-50', emoji: '⚔️', name: 'Questmaster', description: 'Complete 50 quests', xp: 250 },
-  { key: 'perfect-1', emoji: '🌟', name: 'Perfect Day', description: 'Complete every core habit in a day', xp: 50 },
-  { key: 'perfect-7', emoji: '👑', name: 'Perfect Week', description: '7 Perfect Days in total', xp: 300 },
-  { key: 'early-7', emoji: '🌅', name: 'Dawn Patrol', description: 'Up by 5:45 seven days in a row', xp: 150 },
-  { key: 'deep-100', emoji: '🧠', name: 'Centurion', description: 'Log 100 hours of focus', xp: 500 },
-  { key: 'workday-5', emoji: '⚒️', name: 'Grinder', description: '5 full 8-hour workdays', xp: 200 },
-  { key: 'ledger-30', emoji: '📒', name: 'Bookkeeper', description: 'Log 30 transactions', xp: 100 },
-  { key: 'first-income', emoji: '💸', name: 'Paid', description: 'Register income linked to an activity', xp: 50 }
+  { key: 'first-quest', icon: 'spear', name: 'First Blood', description: 'Complete your first quest', xp: 25 },
+  { key: 'quests-50', icon: 'helmet', name: 'Questmaster', description: 'Complete 50 quests', xp: 250 },
+  { key: 'perfect-1', icon: 'star', name: 'Perfect Day', description: 'Complete every core habit in a day', xp: 50 },
+  { key: 'perfect-7', icon: 'laurel', name: 'Perfect Week', description: '7 Perfect Days in total', xp: 300 },
+  { key: 'early-7', icon: 'sunrise', name: 'Dawn Patrol', description: 'Up by 5:45 seven days in a row', xp: 150 },
+  { key: 'deep-100', icon: 'eye', name: 'Centurion', description: 'Log 100 hours of focus', xp: 500 },
+  { key: 'workday-5', icon: 'anvil', name: 'Grinder', description: '5 full 8-hour workdays', xp: 200 },
+  { key: 'ledger-30', icon: 'tablet', name: 'Bookkeeper', description: 'Log 30 transactions', xp: 100 },
+  { key: 'first-income', icon: 'drachma', name: 'Paid', description: 'Register income linked to an activity', xp: 50 }
 ];
 
 async function conditions(): Promise<Record<string, boolean>> {
@@ -68,7 +68,7 @@ export async function checkAchievements() {
     for (const a of ACHIEVEMENTS) {
       if (c[a.key] && !have.has(a.key)) {
         await db.unlocked.put({ key: a.key, unlockedAt: Date.now() });
-        await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'achievement', refId: `ach:${a.key}`, xp: a.xp, coins: Math.round(a.xp / 5), label: `${a.emoji} Achievement: ${a.name}` });
+        await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'achievement', refId: `ach:${a.key}`, xp: a.xp, coins: Math.round(a.xp / 5), label: `Achievement: ${a.name}` });
         listeners.forEach(l => l(a));
       }
     }

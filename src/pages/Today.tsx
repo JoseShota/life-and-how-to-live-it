@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
-import { Plus, Check, AlertTriangle } from 'lucide-react';
+import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
 import type { Habit, HabitLog } from '@/db/types';
 import { setHabit, habitStreak } from '@/game/engine';
@@ -25,14 +25,14 @@ function HabitRow({ habit, log, today }: { habit: Habit; log?: HabitLog; today: 
   const done = !!log?.done;
   return (
     <div className={cx('flex items-center gap-3 border px-3 py-2 transition', done ? 'border-ok/50 bg-ok/10' : 'border-line/50 bg-panel2/60')}>
-      <span className="text-xl">{habit.emoji}</span>
+      <Glyph name={habit.icon} size={24} stroke={1.5} className="shrink-0 text-cyan" />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{habit.name}</div>
-        <div className="text-[11px] text-ink/60">{streak > 0 ? `🔥 ${streak}-day streak` : 'Start a streak today'} · +{habit.xp} XP</div>
+        <div className="flex items-center gap-1 text-[11px] text-ink/60">{streak > 0 ? <><Glyph name="flame" size={12} className="text-xp" />{streak}-day streak</> : 'Start a streak today'} · +{habit.xp} XP</div>
       </div>
       {habit.kind === 'check' && (
         <button onClick={() => setHabit(habit, today, done ? 0 : 1)} aria-label={habit.name} className={cx('flex h-10 w-10 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-mint/40')}>
-          {done && <Check size={18} strokeWidth={3} />}
+          {done && <Glyph name="check" size={18} stroke={2.6}/>}
         </button>
       )}
       {habit.kind === 'number' && (
@@ -83,23 +83,23 @@ export default function Today() {
 
       <div className="grid grid-cols-3 gap-3">
         <Card className="flex flex-col items-center gap-1 !p-3">
-          <Ring value={coreTotal ? coreDone / coreTotal : 0} size={84} color="#05ffa1"><span className="font-display text-2xl leading-none text-ok">{coreDone}/{coreTotal}</span></Ring>
+          <Ring value={coreTotal ? coreDone / coreTotal : 0} size={84} color="#2f7a5f"><span className="font-display text-2xl leading-none text-ok">{coreDone}/{coreTotal}</span></Ring>
           <span className="text-[11px] text-ink/60">Routine</span>
         </Card>
         <Card className="flex flex-col items-center gap-1 !p-3">
-          <Ring value={minutes / (target * 60)} size={84} color="#ff8fcf"><span className="font-display text-xl leading-none text-xp">{hm(minutes)}</span></Ring>
+          <Ring value={minutes / (target * 60)} size={84} color="#cf9a95"><span className="font-display text-xl leading-none text-xp">{hm(minutes)}</span></Ring>
           <span className="text-[11px] text-ink/60">Deep work / {target}h</span>
         </Card>
         <Card className="flex flex-col items-center gap-1 !p-3">
-          <Ring value={Math.min(1, player.todayXp / 300)} size={84} color="#7cc7ff"><span className="font-display text-2xl leading-none text-cyan">{player.todayXp}</span></Ring>
+          <Ring value={Math.min(1, player.todayXp / 300)} size={84} color="#8fc3cf"><span className="font-display text-2xl leading-none text-cyan">{player.todayXp}</span></Ring>
           <span className="text-[11px] text-ink/60">XP today</span>
         </Card>
       </div>
 
       {alerts.length > 0 && (
-        <Card title="⚠ A Gentle Warning" className="bg-hp/10">
+        <Card title="A Gentle Warning" className="bg-pink/40">
           {alerts.map(a => (
-            <div key={a.account.id} className="flex items-center gap-2 text-sm"><AlertTriangle size={16} className="text-hp" />
+            <div key={a.account.id} className="flex items-center gap-2 text-sm"><Glyph name="alert" size={16} className="text-hp"/>
               <b>{a.account.name}</b>: pay {mxn(a.debt)} {a.daysToDue === 0 ? 'TODAY' : `in ${a.daysToDue} days`} → <Link to="/money" className="underline">Money</Link>
             </div>
           ))}
@@ -107,14 +107,14 @@ export default function Today() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Quests of the Day" action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setAdding(true)}><Plus size={16} />Add</Button>}>
+        <Card title="Quests of the Day" action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>Add</Button>}>
           <div className="flex flex-col gap-2">
             {tasks.length === 0 ? <Empty>No quests marked for today. Add your top 3 — the ones that move money or mastery.</Empty> : tasks.map(t => <TaskRow key={t.id} task={t} area={areaOf(t.areaId)} />)}
           </div>
           <TaskForm open={adding} onClose={() => setAdding(false)} defaultPriority={1} />
         </Card>
 
-        <Card title="The Routine" action={<span className="font-type text-sm">all core = ✿ perfect day +100 XP</span>}>
+        <Card title="The Routine" action={<span className="font-type text-sm">all core = perfect day +100 XP</span>}>
           <div className="flex flex-col gap-2">
             {habits.map(h => <HabitRow key={h.id} habit={h} log={logs.find(l => l.habitId === h.id)} today={today} />)}
           </div>
@@ -124,7 +124,7 @@ export default function Today() {
           <ol className="flex flex-col">
             {IDEAL_DAY.map((b, i) => (
               <li key={b.start} className={cx('flex gap-3 px-2 py-1.5 text-sm', i === cur ? 'bg-ink font-bold text-white' : i < cur ? 'text-ink/45 line-through' : 'text-ink/90')}>
-                <span className="w-12 shrink-0 font-display text-[14px] tabular-nums opacity-80">{b.start}</span><span>{b.emoji}</span><span>{b.title}</span>
+                <span className="w-12 shrink-0 font-display text-[14px] tabular-nums opacity-80">{b.start}</span><Glyph name={b.icon} size={16} className="mt-0.5 shrink-0" /><span>{b.title}</span>
               </li>
             ))}
           </ol>
@@ -137,7 +137,7 @@ export default function Today() {
                 {xpLog.slice(0, 14).map(e => (
                   <li key={e.id} className="flex items-baseline justify-between gap-2">
                     <span className="truncate">{new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {e.label.toLowerCase()}</span>
-                    <span className={cx('shrink-0', e.coins < 0 ? 'text-gold' : 'text-xp')}>{e.xp > 0 ? `+${e.xp}` : `${e.coins}₯`}</span>
+                    <span className={cx('shrink-0', e.coins < 0 ? 'text-gold' : 'text-xp')}>{e.xp > 0 ? `+${e.xp}` : `${e.coins} dr`}</span>
                   </li>
                 ))}
               </ul>
@@ -163,7 +163,7 @@ function CutUpCard({ lines }: { lines: string[] }) {
         </blockquote>
         <div className="flex flex-col items-start gap-2 text-sm sm:w-56">
           <p className="text-ink/70">Slice today's words, shuffle the pieces, read what the day was really saying.</p>
-          <Button variant="cyan" onClick={() => setSeed(s => s + 1)}>✂ cut again</Button>
+          <Button variant="cyan" onClick={() => setSeed(s => s + 1)}><Glyph name="scissors" size={16} />cut again</Button>
         </div>
       </div>
     </Card>

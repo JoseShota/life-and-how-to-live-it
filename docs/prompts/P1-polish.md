@@ -17,7 +17,7 @@ UI: recurrence select in TaskForm; a 🔁 chip on TaskRow. Plan first.
 ## P1-3 Habit editor
 ```
 Ticket P1-3: habit editor in Settings. Context: @src/pages/Settings.tsx @src/db/types.ts @src/game/engine.ts
-Allow add/edit (name, emoji, kind check|number, target, unit, xp, core) / archive / reorder (up/down buttons).
+Allow add/edit (name, icon via IconPicker, kind check|number, target, unit, xp, core) / archive / reorder (up/down buttons).
 'auto' habits (work) are editable for target/xp only. Archived habits disappear from Today but keep logs.
 evaluateDay must ignore archived habits (it already filters — verify with a test).
 ```

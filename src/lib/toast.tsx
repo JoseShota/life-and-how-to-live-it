@@ -19,16 +19,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     // Every XP event anywhere in the app produces a floating reward toast.
     const fn = (_pk: unknown, e: { xp: number; coins: number; source: string; label: string }) => {
       if (e.source === 'achievement') return; // handled below with an epic toast
-      if (e.source === 'reward') setTimeout(() => push(`${e.label} (₯${e.coins})`, 'gold'));
-      else if (e.xp > 0) setTimeout(() => push(`+${e.xp} XP · +₯${e.coins} — ${e.label}`, e.source === 'perfect-day' ? 'epic' : 'xp'));
+      if (e.source === 'reward') setTimeout(() => push(`${e.label} (${e.coins} dr)`, 'gold'));
+      else if (e.xp > 0) setTimeout(() => push(`+${e.xp} XP · +${e.coins} dr — ${e.label}`, e.source === 'perfect-day' ? 'epic' : 'xp'));
     };
     db.xp.hook('creating', fn as never);
-    const off = onAchievement(a => push(`🏆 ${a.name} unlocked! +${a.xp} XP`, 'epic'));
+    const off = onAchievement(a => push(`${a.name} unlocked. +${a.xp} XP`, 'epic'));
     return () => { db.xp.hook('creating').unsubscribe(fn as never); off(); };
   }, [push]);
 
-  const head = { xp: '✿ the universe noticed', gold: '₯ the agora thanks you', bad: '⚠ an error occurred', epic: '★ ACHIEVEMENT ★' };
-  const tint = { xp: 'bg-white', gold: 'bg-laurel/40', bad: 'bg-white text-hp', epic: 'dither-pink' };
+  const head = { xp: 'the universe noticed', gold: 'the agora thanks you', bad: 'something went quiet', epic: 'ACHIEVEMENT' };
+  const tint = { xp: 'bg-white', gold: 'bg-laurel/40', bad: 'bg-white text-hp', epic: 'fill-pool' };
   return (
     <Ctx.Provider value={push}>
       {children}
