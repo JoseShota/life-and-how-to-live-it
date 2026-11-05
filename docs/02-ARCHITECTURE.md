@@ -1,0 +1,86 @@
+# 02 · Architecture
+
+## Stack (pinned in `package.json`)
+| Layer | Choice | Why |
+|---|---|---|
+| Build | **Vite 5** + **TypeScript 5 (strict)** | Fast, simple, static output |
+| UI | **React 18** + **React Router 6** | Standard, Cursor knows it well |
+| Styling | **Tailwind CSS 3** | Fast iteration, consistent design tokens (`tailwind.config.js`) |
+| Icons | **lucide-react** | |
+| Charts | **Recharts** | |
+| Storage | **Dexie 4** (IndexedDB) + `dexie-react-hooks` (`useLiveQuery`) | Offline-first, reactive queries, schema versioning |
+| PWA | **vite-plugin-pwa** (Workbox, `autoUpdate`) | Installable on iPad/Android tablet and laptop |
+| Tests | **Vitest** + **fake-indexeddb** | Unit tests for rules, finance math and engine |
+| Hosting (recommended) | **Vercel** or **Cloudflare Pages** (static) | Free, HTTPS (required for PWA install) |
+| Sync (Phase 2) | **Supabase** (Postgres + Auth + Edge Functions) | Free tier, also hosts the AI proxy and push cron later |
+
+## Folder layout
+```
+src/
+  main.tsx              # bootstrap: seed DB → render router
+  index.css             # Tailwind + small keyframes
+  db/
+    types.ts            # ALL domain types (single source of truth)
+    db.ts               # Dexie schema + versions, settings helpers
+    seed.ts             # first-run data: areas, habits, accounts, rewards, goals, opps, onboarding quests
+  game/
+    rules.ts            # PURE balance functions (XP tables, level curve, multipliers) — no I/O
+    engine.ts           # side-effectful actions: completeTask, setHabit, logSession, evaluateDay, redeem…
+    achievements.ts     # achievement defs + checker + listener
+  finance/
+    finance.ts          # PURE money math: balances, card status, month totals, hourly rates, pipeline
+  lib/
+    util.ts             # ids, dates (local YYYY-MM-DD keys), MXN formatting, cx()
+    hooks.ts            # usePlayer (derived from ledger), useNow, useToday
+    toast.tsx           # reward toasts (hooks into db.xp 'creating')
+    routine.ts          # IDEAL_DAY template + .ics generator
+    backup.ts           # JSON export/import
+  components/
+    ui.tsx              # Card, Button, Bar, Ring, Input, Select, Modal, Chip, Empty
+    Layout.tsx          # HUD + sidebar (lg) / bottom nav (mobile/tablet)
+    TaskBits.tsx        # TaskRow, TaskForm
+    ActiveTimerPill.tsx
+  pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings
+tests/                  # vitest
+docs/                   # this documentation
+.cursor/rules/          # rules Cursor loads automatically
+AGENTS.md               # entry point for any coding agent
+```
+
+## Data flow
+```
+ UI (pages/components)
+   │  reads  → useLiveQuery(() => db.table…)          (reactive, re-renders on change)
+   │  writes → game/engine.ts actions  (or db.table.put for plain CRUD)
+   ▼
+ engine.ts ── award()/revoke() ──► db.xp (append-only ledger)
+   │                                   │
+   └── evaluateDay(), checkAchievements()   └─► usePlayer() derives level/XP/coins
+```
+
+### Key invariants (do not break)
+1. **XP/coins only change via `award()` / `revoke()` / `redeem()`** in `game/engine.ts` (achievements write via `checkAchievements`). Never store XP totals anywhere.
+2. **Every award has a deterministic `refId`** (`task:<id>`, `habit:<habitId>:<date>`, `session:<id>`, `perfect:<date>`, `workday:<date>`, `tx:<id>`, `ach:<key>`). Undo = `revoke(refId)`.
+3. **`evaluateDay(date)` is idempotent.** Call it after anything that affects habits or sessions.
+4. **Dates are local `YYYY-MM-DD` strings** (`dateKey()`), never UTC ISO dates, so "today" means Mexico City today.
+5. **Money is signed MXN numbers** on the transaction (`+` in, `−` out). Credit-card balances are negative when you owe. Transfers are two legs sharing `transferId`.
+6. **Dexie schema:** never edit an existing `version(n)` block. Add `version(n+1).stores({...}).upgrade(tx => …)`.
+7. `game/rules.ts` and `finance/finance.ts` stay **pure** (no DB, no React) and are unit-tested.
+
+## Responsive strategy
+- `< lg` (phones, tablets portrait/landscape up to 1023 px): top HUD + bottom tab bar, single/2-column cards.
+- `≥ lg` (laptop): left sidebar + HUD, 2-column grids.
+- Modals become bottom sheets on small screens.
+
+## Sync design (Phase 2, planned)
+- Add `updatedAt: number` and `deletedAt?: number` to every syncable table (Dexie v2 upgrade backfills them).
+- Mirror tables in Supabase Postgres with `user_id` + RLS (`user_id = auth.uid()`).
+- Sync loop: push local rows with `updatedAt > lastPushedAt`; pull remote rows with `updated_at > lastPulledAt`; **last-write-wins** per row; soft-delete with tombstones.
+- The `xp` ledger is append-only: union by `id` (no conflicts).
+- Trigger sync on app focus, every 60 s while open, and after writes (debounced).
+- Alternative if you want zero backend work: **Dexie Cloud** (paid beyond free tier). Decide in Phase 2.
+
+## Security & privacy
+- No secrets in the client bundle, ever. AI keys live in a Supabase Edge Function (Phase 3).
+- Financial data stays on the device in the MVP. Remind yourself to export backups weekly.
+- Supabase: RLS on every table, no `service_role` key in the client.

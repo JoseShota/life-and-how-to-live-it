@@ -1,0 +1,11 @@
+---
+description: Dexie schema, migrations and data conventions
+globs: src/db/**,src/lib/backup.ts,src/sync/**
+alwaysApply: false
+---
+- NEVER modify an existing `this.version(n)` block in src/db/db.ts. Add `version(n+1).stores({...}).upgrade(...)` touching only changed tables.
+- Types live in src/db/types.ts; update docs/03-DATA-MODEL.md in the same change.
+- When adding a table, add it to ALL_TABLES (backup/export) and bump BACKUP_VERSION if the shape changes.
+- Dates: `dateKey()` local YYYY-MM-DD. Never toISOString().slice(0,10).
+- IDs via `uid()`.
+- Write a fake-indexeddb test for every migration that upgrades data.

@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { -webkit-tap-highlight-color: transparent; }
+body { font-family: Inter, system-ui, sans-serif; background: radial-gradient(1200px 600px at 10% -10%, #1b1440 0%, transparent 60%), #0b0f1a; min-height: 100vh; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-12px) scale(.96); } to { opacity: 1; transform: none; } }
+.toast-in { animation: toast-in .25s ease-out; }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.pop { animation: pop .3s ease-out; }
+input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); }

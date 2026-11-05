@@ -1,0 +1,93 @@
+import { db } from './db';
+import type { Area, Habit, Account, Reward, Goal, Opportunity } from './types';
+import { uid } from '@/lib/util';
+
+export const SEED_AREAS: Omit<Area, 'id'>[] = [
+  { name: 'Teaching · Introducción a la Economía (CIDE)', short: 'CIDE', emoji: '🎓', color: '#60a5fa', kind: 'work', weeklyHoursTarget: 8, monetizable: true, order: 0, archived: false },
+  { name: 'Weaving Memories (web, media, admin)', short: 'Weaving', emoji: '🧵', color: '#f472b6', kind: 'work', weeklyHoursTarget: 12, monetizable: true, order: 1, archived: false },
+  { name: 'Freelance web development', short: 'Freelance', emoji: '💻', color: '#34d399', kind: 'work', weeklyHoursTarget: 10, monetizable: true, order: 2, archived: false },
+  { name: 'AI automation skills', short: 'AI', emoji: '🤖', color: '#a78bfa', kind: 'growth', weeklyHoursTarget: 7, monetizable: true, order: 3, archived: false },
+  { name: 'Video editing (hobby)', short: 'Video', emoji: '🎬', color: '#fb923c', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 4, archived: false },
+  { name: 'Writing (hobby)', short: 'Writing', emoji: '✍️', color: '#facc15', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 5, archived: false },
+  { name: 'Personal webpage', short: 'Website', emoji: '🌐', color: '#22d3ee', kind: 'personal', weeklyHoursTarget: 2, monetizable: true, order: 6, archived: false },
+  { name: 'Wealth & life admin', short: 'Wealth', emoji: '💼', color: '#f5b83d', kind: 'personal', weeklyHoursTarget: 2, monetizable: false, order: 7, archived: false }
+];
+
+export const SEED_HABITS: Omit<Habit, 'id'>[] = [
+  { key: 'wake', name: 'Up by 5:45', emoji: '🌅', kind: 'check', xp: 20, core: true, order: 0, archived: false },
+  { key: 'sleep', name: 'Slept ≥ 7.5 h', emoji: '😴', kind: 'number', target: 7.5, unit: 'h', xp: 20, core: true, order: 1, archived: false },
+  { key: 'exercise', name: 'Exercise', emoji: '🏋️', kind: 'check', xp: 25, core: true, order: 2, archived: false },
+  { key: 'clean', name: 'Clean (15 min)', emoji: '🧹', kind: 'check', xp: 10, core: true, order: 3, archived: false },
+  { key: 'intel', name: 'Newsletters + econ videos', emoji: '📰', kind: 'check', xp: 15, core: true, order: 4, archived: false },
+  { key: 'work', name: 'Deep work 8 h', emoji: '⚒️', kind: 'auto', target: 8, unit: 'h', xp: 40, core: true, order: 5, archived: false },
+  { key: 'money', name: 'Money check-in (log + review)', emoji: '💰', kind: 'check', xp: 15, core: true, order: 6, archived: false }
+];
+
+export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
+  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#e11d48', archived: false, order: 0 },
+  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#be123c', archived: false, order: 1 },
+  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#9f1239', archived: false, order: 2 },
+  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#881337', archived: false, order: 3 },
+  { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#16a34a', archived: false, order: 4 }
+];
+
+export const SEED_REWARDS: Omit<Reward, 'id'>[] = [
+  { title: '1 episode of a series', emoji: '📺', cost: 40, archived: false },
+  { title: 'Fancy coffee', emoji: '☕', cost: 60, archived: false },
+  { title: 'Guilt-free gaming hour', emoji: '🎮', cost: 80, archived: false },
+  { title: 'Dinner out', emoji: '🍜', cost: 250, archived: false },
+  { title: 'Buy a book', emoji: '📚', cost: 300, archived: false },
+  { title: 'Full day off', emoji: '🏝️', cost: 1000, archived: false }
+];
+
+export const SEED_GOALS: Omit<Goal, 'id'>[] = [
+  { name: 'Emergency fund (1 month)', emoji: '🛡️', target: 25000, current: 0, order: 0 },
+  { name: 'Emergency fund (6 months)', emoji: '🏰', target: 150000, current: 0, order: 1 },
+  { name: 'Credit cards at 0 revolving debt', emoji: '💳', target: 1, current: 0, order: 2 },
+  { name: 'First 1,000,000 MXN invested', emoji: '🚀', target: 1000000, current: 0, order: 3 }
+];
+
+export const SEED_OPPS: Omit<Opportunity, 'id' | 'createdAt'>[] = [
+  { title: 'December opportunity #1 (rename me)', status: 'applied', monthlyValue: 0, probability: 0.5, expectedDate: '2026-12-15', nextAction: 'Define follow-up date and what I need to prepare' },
+  { title: 'December opportunity #2 (rename me)', status: 'applied', monthlyValue: 0, probability: 0.5, expectedDate: '2026-12-15', nextAction: 'Define follow-up date and what I need to prepare' }
+];
+
+/** Onboarding quest line, by area order. Turns setup into the first XP. */
+export const SEED_TASKS: [number, string, 1 | 2 | 3 | 4 | 5, 1 | 2 | 3][] = [
+  [0, 'List every remaining CIDE class, exam and grading deadline this semester', 2, 1],
+  [0, 'Turn my best lecture into a reusable asset (notes → post / video / mini-course)', 4, 3],
+  [1, 'Write down all open Weaving Memories deliverables with due dates', 2, 1],
+  [1, 'Propose one automation that saves Weaving Memories 5+ h/month', 3, 2],
+  [2, 'Define my freelance offer: 1 package, 1 price, 1 portfolio link', 3, 1],
+  [2, 'Contact 5 potential clients (warm network first)', 4, 2],
+  [3, 'Build my first paid-grade automation (n8n / Make / code + LLM)', 4, 2],
+  [3, 'Ship 1 AI-automation case study on my website', 3, 3],
+  [4, 'Edit 1 short video (≤60 s) from existing footage', 2, 3],
+  [5, 'Write 300 words', 2, 3],
+  [6, 'Update homepage: who I help, offer, contact button', 3, 2],
+  [7, 'Money setup: enter limits, cut-off and pay-by days for my 3 Banorte cards', 2, 1],
+  [7, 'Rename my two December opportunities and set their next actions', 1, 1]
+];
+
+export async function seedIfEmpty() {
+  const n = await db.areas.count();
+  if (n > 0) return false;
+  await db.transaction('rw', [db.tasks, db.areas, db.habits, db.accounts, db.rewards, db.goals, db.opportunities, db.settings], async () => {
+    const areas = SEED_AREAS.map(a => ({ ...a, id: uid() }));
+    await db.areas.bulkAdd(areas);
+    await db.tasks.bulkAdd(SEED_TASKS.map(([i, title, difficulty, priority]) => ({ id: uid(), areaId: areas[i].id, title, difficulty, priority, status: 'todo' as const, createdAt: Date.now() })));
+    await db.habits.bulkAdd(SEED_HABITS.map(h => ({ ...h, id: uid() })));
+    await db.accounts.bulkAdd(SEED_ACCOUNTS.map(a => ({ ...a, id: uid() })));
+    await db.rewards.bulkAdd(SEED_REWARDS.map(r => ({ ...r, id: uid() })));
+    await db.goals.bulkAdd(SEED_GOALS.map(g => ({ ...g, id: uid() })));
+    await db.opportunities.bulkAdd(SEED_OPPS.map(o => ({ ...o, id: uid(), createdAt: Date.now() })));
+    await db.settings.bulkPut([
+      { key: 'playerName', value: 'Economist' },
+      { key: 'wakeTime', value: '05:45' },
+      { key: 'bedTime', value: '21:45' },
+      { key: 'workTargetHours', value: 8 },
+      { key: 'createdAt', value: Date.now() }
+    ]);
+  });
+  return true;
+}

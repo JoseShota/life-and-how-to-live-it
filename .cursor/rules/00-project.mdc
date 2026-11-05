@@ -1,0 +1,10 @@
+---
+description: Ascenso core project rules (always on)
+alwaysApply: true
+---
+- Project: Ascenso, single-user offline-first life-RPG PWA. Stack: Vite 5, React 18, TS strict, Dexie 4, Tailwind 3, Recharts, vite-plugin-pwa.
+- Follow @AGENTS.md. Architecture & invariants: @docs/02-ARCHITECTURE.md.
+- Definition of done: `npm run typecheck && npm test && npm run build` pass; UI checked at 820px and 1366px; docs updated.
+- One ticket at a time; minimal diff; no new deps without justification; pin exact versions.
+- Propose a plan before multi-file or schema changes and wait for approval.
+- Never put secrets/API keys in frontend code.

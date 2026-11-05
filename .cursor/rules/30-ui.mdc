@@ -1,0 +1,12 @@
+---
+description: UI, design system and responsiveness
+globs: src/pages/**,src/components/**,src/index.css,tailwind.config.js
+alwaysApply: false
+---
+- Reuse primitives from src/components/ui.tsx (Card, Button, Bar, Ring, Input, Select, Modal, Chip, Empty) before creating new ones.
+- Tailwind tokens: bg, panel, panel2, line, xp (violet), gold, hp (red), ok (green). Fonts: font-display for headings.
+- Touch-first: tap targets ≥ 40px; bottom nav < lg, sidebar ≥ lg; modals are bottom sheets on small screens.
+- Read data with useLiveQuery; mutate via src/game/engine.ts actions when XP is involved.
+- Every list needs an empty state that tells the user what to do next.
+- Feedback for every action (toast, ring, animation). Respect prefers-reduced-motion for new animations.
+- Destructive actions require confirm().

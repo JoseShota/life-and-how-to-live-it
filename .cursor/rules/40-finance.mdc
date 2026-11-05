@@ -1,0 +1,10 @@
+---
+description: Finance domain rules (MXN, Banorte credit cards)
+globs: src/finance/**,src/pages/Money.tsx
+alwaysApply: false
+---
+- Currency MXN, format with mxn() (es-MX). Transaction.amount is signed: + inflow, − outflow.
+- Credit cards: balance negative = debt; purchases negative; payments are transfers INTO the card (two legs, same transferId).
+- Card status uses cutoffDay (fecha de corte) and paymentDueDay (fecha límite de pago); clamp to month length.
+- Income should carry areaId so the Wealth engine can compute MXN/hour per activity.
+- Keep src/finance/finance.ts pure and unit-tested. Finance XP rewards behavior (logging, paying in full, saving), never amounts.

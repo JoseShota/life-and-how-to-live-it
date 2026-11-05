@@ -1,0 +1,10 @@
+---
+description: Game economy and XP ledger rules
+globs: src/game/**,src/lib/hooks.ts,src/lib/toast.tsx
+alwaysApply: false
+---
+- XP/coins are derived from the append-only `db.xp` ledger. Only award()/revoke()/redeem()/checkAchievements() write it.
+- Every award has a deterministic refId (see docs/03-DATA-MODEL.md "Ledger refId scheme") so it is reversible and idempotent.
+- Balance numbers live ONLY in src/game/rules.ts (pure, unit-tested). Update docs/04-GAME-DESIGN.md tables when they change.
+- evaluateDay(date) must remain idempotent; call it after any change to habits or sessions.
+- Reward behavior, never money amounts. Never subtract XP as punishment.
