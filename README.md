@@ -38,8 +38,8 @@ npm run build
 **v0.1 MVP**: all screens working, data stored locally (IndexedDB), 13 unit tests passing. Next: Phase 0 (deploy + install), then Phase 1.
 
 ## Screenshots
-![Today on laptop](docs/screenshot-today.png)
-![The Scroll and the Cut-Up](docs/screenshot-scroll.png)
-![The Agora](docs/screenshot-agora.png)
-![The Archive](docs/screenshot-archive.png)
-![Treasury on tablet](docs/screenshot-tablet.png)
+![Today on laptop](docs/screenshot-today.jpg)
+![The Scroll and the Cut-Up](docs/screenshot-scroll.jpg)
+![The Agora](docs/screenshot-agora.jpg)
+![The Archive](docs/screenshot-archive.jpg)
+![Treasury on tablet](docs/screenshot-tablet.jpg)
