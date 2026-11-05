@@ -1,4 +1,6 @@
-# ⛰️ Ascenso — your life as an RPG
+# ☼ Life and How to Live It
+
+*a personal operating system · vaporwave × Win95 × internet-archive edition*
 
 A personal, offline-first app for **tablet + laptop** that turns your work, routine and money into a game.
 
@@ -28,8 +30,14 @@ npm run build
 | [`docs/05-ROADMAP.md`](docs/05-ROADMAP.md) | Phases P0–P5 as agent-sized tickets with acceptance criteria |
 | [`docs/06-AGENT-MANUAL.md`](docs/06-AGENT-MANUAL.md) | **How to build this with Cursor**: setup, loop, prompt templates, troubleshooting |
 | [`docs/07-DEPLOY.md`](docs/07-DEPLOY.md) | Deploy to Vercel/Cloudflare and install on iPad/Android/laptop |
+| [`docs/08-DESIGN-SYSTEM.md`](docs/08-DESIGN-SYSTEM.md) | The look: vaporwave × Win95 × Internet Archive (tokens, fonts, windows, voice) |
 | [`docs/prompts/`](docs/prompts) | Copy-paste prompts per phase |
 | [`AGENTS.md`](AGENTS.md) + [`.cursor/rules/`](.cursor/rules) | Rules any coding agent follows automatically |
 
 ## Status
 **v0.1 MVP**: all screens working, data stored locally (IndexedDB), 13 unit tests passing. Next: Phase 0 (deploy + install), then Phase 1.
+
+## Screenshots
+![Today on laptop](docs/screenshot-today.png)
+![Life Archive](docs/screenshot-archive.png)
+![Today on tablet](docs/screenshot-tablet.png)

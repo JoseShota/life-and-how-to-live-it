@@ -5,12 +5,13 @@ export const BACKUP_VERSION = 1;
 export async function exportAll() {
   const data: Record<string, unknown[]> = {};
   for (const t of ALL_TABLES) data[t] = await db.table(t).toArray();
-  return { app: 'ascenso', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data };
+  return { app: 'life-and-how-to-live-it', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data };
 }
 
 export async function importAll(json: unknown) {
   const b = json as { app?: string; data?: Record<string, unknown[]> };
-  if (b?.app !== 'ascenso' || !b.data) throw new Error('Not an Ascenso backup file');
+  // 'ascenso' = backups made before the rename
+  if (!['life-and-how-to-live-it', 'ascenso'].includes(b?.app ?? '') || !b.data) throw new Error('Not a Life and How to Live It backup file');
   await db.transaction('rw', ALL_TABLES.map(t => db.table(t)), async () => {
     for (const t of ALL_TABLES) {
       await db.table(t).clear();

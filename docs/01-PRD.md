@@ -1,7 +1,7 @@
-# 01 · Product Requirements — Ascenso
+# 01 · Product Requirements — Life and How to Live It
 
 ## Product
-**Ascenso** is a personal "life RPG". It's an installable web app (PWA) for one user, for use on a **tablet and a laptop**. It tracks work across 7+ activities, a daily routine, and personal finances, and rewards every good action with XP, coins, levels and achievements.
+**Life and How to Live It** is a personal "life RPG". It's an installable web app (PWA) for one user, for use on a **tablet and a laptop**. It tracks work across 7+ activities, a daily routine, and personal finances, and rewards every good action with XP, coins, levels and achievements.
 
 ## User
 One person: an economist with no steady job who teaches at CIDE, works at Weaving Memories, freelances in web development, is learning AI automation, and has hobbies (video, writing, personal website). Uses **Banorte**: 1 debit card and 3 credit cards. Currency: **MXN**. Timezone: America/Mexico_City.

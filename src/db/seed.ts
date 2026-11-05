@@ -3,14 +3,14 @@ import type { Area, Habit, Account, Reward, Goal, Opportunity } from './types';
 import { uid } from '@/lib/util';
 
 export const SEED_AREAS: Omit<Area, 'id'>[] = [
-  { name: 'Teaching · Introducción a la Economía (CIDE)', short: 'CIDE', emoji: '🎓', color: '#60a5fa', kind: 'work', weeklyHoursTarget: 8, monetizable: true, order: 0, archived: false },
-  { name: 'Weaving Memories (web, media, admin)', short: 'Weaving', emoji: '🧵', color: '#f472b6', kind: 'work', weeklyHoursTarget: 12, monetizable: true, order: 1, archived: false },
-  { name: 'Freelance web development', short: 'Freelance', emoji: '💻', color: '#34d399', kind: 'work', weeklyHoursTarget: 10, monetizable: true, order: 2, archived: false },
-  { name: 'AI automation skills', short: 'AI', emoji: '🤖', color: '#a78bfa', kind: 'growth', weeklyHoursTarget: 7, monetizable: true, order: 3, archived: false },
-  { name: 'Video editing (hobby)', short: 'Video', emoji: '🎬', color: '#fb923c', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 4, archived: false },
-  { name: 'Writing (hobby)', short: 'Writing', emoji: '✍️', color: '#facc15', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 5, archived: false },
-  { name: 'Personal webpage', short: 'Website', emoji: '🌐', color: '#22d3ee', kind: 'personal', weeklyHoursTarget: 2, monetizable: true, order: 6, archived: false },
-  { name: 'Wealth & life admin', short: 'Wealth', emoji: '💼', color: '#f5b83d', kind: 'personal', weeklyHoursTarget: 2, monetizable: false, order: 7, archived: false }
+  { name: 'Teaching · Introducción a la Economía (CIDE)', short: 'CIDE', emoji: '🎓', color: '#01cdfe', kind: 'work', weeklyHoursTarget: 8, monetizable: true, order: 0, archived: false },
+  { name: 'Weaving Memories (web, media, admin)', short: 'Weaving', emoji: '🧵', color: '#ff71ce', kind: 'work', weeklyHoursTarget: 12, monetizable: true, order: 1, archived: false },
+  { name: 'Freelance web development', short: 'Freelance', emoji: '💻', color: '#05ffa1', kind: 'work', weeklyHoursTarget: 10, monetizable: true, order: 2, archived: false },
+  { name: 'AI automation skills', short: 'AI', emoji: '🤖', color: '#b967ff', kind: 'growth', weeklyHoursTarget: 7, monetizable: true, order: 3, archived: false },
+  { name: 'Video editing (hobby)', short: 'Video', emoji: '🎬', color: '#ff9a3c', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 4, archived: false },
+  { name: 'Writing (hobby)', short: 'Writing', emoji: '✍️', color: '#ffc2e2', kind: 'hobby', weeklyHoursTarget: 3, monetizable: false, order: 5, archived: false },
+  { name: 'Personal webpage', short: 'Website', emoji: '🌐', color: '#7b8cff', kind: 'personal', weeklyHoursTarget: 2, monetizable: true, order: 6, archived: false },
+  { name: 'Wealth & life admin', short: 'Wealth', emoji: '💼', color: '#fffb96', kind: 'personal', weeklyHoursTarget: 2, monetizable: false, order: 7, archived: false }
 ];
 
 export const SEED_HABITS: Omit<Habit, 'id'>[] = [
@@ -24,11 +24,11 @@ export const SEED_HABITS: Omit<Habit, 'id'>[] = [
 ];
 
 export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
-  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#e11d48', archived: false, order: 0 },
-  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#be123c', archived: false, order: 1 },
-  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#9f1239', archived: false, order: 2 },
-  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#881337', archived: false, order: 3 },
-  { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#16a34a', archived: false, order: 4 }
+  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#ff4d6d', archived: false, order: 0 },
+  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#e0457f', archived: false, order: 1 },
+  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b8407f', archived: false, order: 2 },
+  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#8a3a85', archived: false, order: 3 },
+  { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#05ffa1', archived: false, order: 4 }
 ];
 
 export const SEED_REWARDS: Omit<Reward, 'id'>[] = [

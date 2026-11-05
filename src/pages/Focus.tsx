@@ -6,7 +6,7 @@ import { logSession, deleteSession } from '@/game/engine';
 import { sessionXp } from '@/game/rules';
 import { useNow, useToday } from '@/lib/hooks';
 import { hm } from '@/lib/util';
-import { Button, Card, Ring, Select, Label, Input, Modal, Empty } from '@/components/ui';
+import { Button, Card, Ring, Select, Label, Input, Modal, Empty, PageTitle } from '@/components/ui';
 
 export interface ActiveTimer { areaId: string; taskId?: string; start: number }
 
@@ -41,12 +41,12 @@ export default function Focus() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="font-display text-2xl font-bold">Focus</h1>
+      <PageTitle sub="FOCUS.EXE · 50-minute sprints · 20 XP per hour">Focus Mode</PageTitle>
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <Card className="flex flex-col items-center gap-5 py-8">
-          <Ring value={active ? (elapsed % block) / block : 0} size={220} stroke={14} color={area?.color ?? '#8b5cf6'}>
-            <div className="font-display text-5xl font-bold tabular-nums">{mm}:{ss}</div>
-            <div className="mt-1 text-sm text-slate-400">{active ? `${area?.emoji} ${area?.short} · +${sessionXp(Math.floor(elapsed / 60))} XP` : '50-min sprints · 20 XP/h'}</div>
+        <Card title="⏱ TIMER.EXE" className="[&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child]:items-center [&>div:last-child]:gap-5 [&>div:last-child]:py-8">
+          <Ring value={active ? (elapsed % block) / block : 0} size={220} stroke={14} color={area?.color ?? '#01cdfe'}>
+            <div className="neon-pink font-display text-7xl leading-none tabular-nums">{mm}:{ss}</div>
+            <div className="mt-1 max-w-[150px] text-xs text-slate-300">{active ? `${area?.emoji} ${area?.short} · +${sessionXp(Math.floor(elapsed / 60))} XP` : '50-min sprints · 20 XP/h'}</div>
           </Ring>
           {!active ? (
             <div className="grid w-full max-w-sm gap-3">
@@ -64,13 +64,13 @@ export default function Focus() {
           )}
         </Card>
 
-        <Card title={`Today: ${hm(total)} / ${target}h`} action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setManual(true)}><Plus size={16} />Log time</Button>}>
+        <Card title={`SESSIONS.LOG — ${hm(total)} / ${target}h`} action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setManual(true)}><Plus size={16} />Log time</Button>}>
           <div className="flex flex-col gap-2">
             {sessions.length === 0 ? <Empty>No focus logged yet. The first sprint is the hardest — start a 50-minute one.</Empty> :
               sessions.map(s => {
                 const a = areas.find(x => x.id === s.areaId);
                 return (
-                  <div key={s.id} className="flex items-center gap-3 rounded-xl bg-panel2/60 px-3 py-2 text-sm">
+                  <div key={s.id} className="flex items-center gap-3 bg-panel2/60 px-3 py-2 text-sm">
                     <span className="text-lg">{a?.emoji}</span>
                     <div className="flex-1"><div className="font-medium">{a?.short} · {hm(s.minutes)}</div>
                       <div className="text-[11px] text-slate-500">{new Date(s.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(s.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div>

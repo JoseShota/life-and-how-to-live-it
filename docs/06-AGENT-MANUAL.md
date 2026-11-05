@@ -1,4 +1,4 @@
-# 06 · Agent Manual — Building Ascenso with Cursor
+# 06 · Agent Manual — Building Life and How to Live It with Cursor
 
 This is your operating manual for driving an LLM coding agent (Cursor Agent, or Claude Code) to finish and extend this app **without breaking it**.
 
@@ -7,7 +7,7 @@ This is your operating manual for driving an LLM coding agent (Cursor Agent, or 
 ## 1. One-time setup (15 minutes)
 
 1. Install **Node.js 20+** and **Git**, and install **Cursor** (cursor.com).
-2. Unzip `ascenso.zip` → open the folder in Cursor (`File → Open Folder`).
+2. Unzip `life-and-how-to-live-it.zip` → open the folder in Cursor (`File → Open Folder`).
 3. In Cursor's terminal:
    ```bash
    git init && git add -A && git commit -m "MVP v0.1"

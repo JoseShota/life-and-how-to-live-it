@@ -1,4 +1,4 @@
-# 00 · Master Plan — "Ascenso"
+# 00 · Master Plan — "Life and How to Live It"
 
 > The app is just the dashboard. The plan is the engine.
 > This document is the strategy the app enforces. Read it once a week (Sunday review).
@@ -7,7 +7,7 @@
 
 ## 1. The idea in one paragraph
 
-You run seven activities and you don't have a steady job. That's a lot of plates. The danger isn't that you'll fail at one of them. It's that your hours spread across all seven, none of them compounds, and your money never gets beyond "survive the month". **Ascenso** turns your life into a game with three scoreboards:
+You run seven activities and you don't have a steady job. That's a lot of plates. The danger isn't that you'll fail at one of them. It's that your hours spread across all seven, none of them compounds, and your money never gets beyond "survive the month". **Life and How to Live It** turns your life into a game with three scoreboards:
 
 | Scoreboard | Question it answers | Main metric |
 |---|---|---|

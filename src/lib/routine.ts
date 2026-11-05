@@ -33,11 +33,11 @@ export function routineIcs(blocks: Block[] = IDEAL_DAY) {
   const d = new Date();
   const day = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
   const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascenso//Routine//EN', 'CALSCALE:GREGORIAN'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Life and How to Live It//Routine//EN', 'CALSCALE:GREGORIAN'];
   blocks.forEach((b, i) => {
     lines.push(
       'BEGIN:VEVENT',
-      `UID:ascenso-routine-${i}@ascenso.local`,
+      `UID:life-routine-${i}@life.local`,
       `DTSTAMP:${stamp}`,
       `DTSTART:${day}T${b.start.replace(':', '')}00`,
       `DTEND:${day}T${b.end.replace(':', '')}00`,

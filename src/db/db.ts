@@ -4,7 +4,7 @@ import type {
   Opportunity, Reward, XpEvent, Unlocked, Setting
 } from './types';
 
-export class AscensoDB extends Dexie {
+export class LifeDB extends Dexie {
   areas!: Table<Area, string>;
   tasks!: Table<Task, string>;
   habits!: Table<Habit, string>;
@@ -19,7 +19,7 @@ export class AscensoDB extends Dexie {
   unlocked!: Table<Unlocked, string>;
   settings!: Table<Setting, string>;
 
-  constructor(name = 'ascenso') {
+  constructor(name = 'life-and-how-to-live-it') {
     super(name);
     // NEVER edit an existing version block. Add version(N+1) with an upgrade() instead.
     this.version(1).stores({
@@ -40,7 +40,7 @@ export class AscensoDB extends Dexie {
   }
 }
 
-export const db = new AscensoDB();
+export const db = new LifeDB();
 
 export const ALL_TABLES = [
   'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',

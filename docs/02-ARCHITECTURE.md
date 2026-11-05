@@ -5,7 +5,7 @@
 |---|---|---|
 | Build | **Vite 5** + **TypeScript 5 (strict)** | Fast, simple, static output |
 | UI | **React 18** + **React Router 6** | Standard, Cursor knows it well |
-| Styling | **Tailwind CSS 3** | Fast iteration, consistent design tokens (`tailwind.config.js`) |
+| Styling | **Tailwind CSS 3** + retro CSS in `src/index.css` | Design tokens in `tailwind.config.js`; aesthetic rules in `08-DESIGN-SYSTEM.md` |
 | Icons | **lucide-react** | |
 | Charts | **Recharts** | |
 | Storage | **Dexie 4** (IndexedDB) + `dexie-react-hooks` (`useLiveQuery`) | Offline-first, reactive queries, schema versioning |
@@ -36,8 +36,8 @@ src/
     routine.ts          # IDEAL_DAY template + .ics generator
     backup.ts           # JSON export/import
   components/
-    ui.tsx              # Card, Button, Bar, Ring, Input, Select, Modal, Chip, Empty
-    Layout.tsx          # HUD + sidebar (lg) / bottom nav (mobile/tablet)
+    ui.tsx              # Card (Win95 window), Button, Bar (chunky), Ring, Input, Select, Textarea, Modal, Chip, Empty, PageTitle
+    Layout.tsx          # HUD + marquee ticker + vapor backdrop + Win95 taskbar/Start menu + archive footer
     TaskBits.tsx        # TaskRow, TaskForm
     ActiveTimerPill.tsx
   pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings
@@ -68,8 +68,8 @@ AGENTS.md               # entry point for any coding agent
 7. `game/rules.ts` and `finance/finance.ts` stay **pure** (no DB, no React) and are unit-tested.
 
 ## Responsive strategy
-- `< lg` (phones, tablets portrait/landscape up to 1023 px): top HUD + bottom tab bar, single/2-column cards.
-- `≥ lg` (laptop): left sidebar + HUD, 2-column grids.
+- All sizes: sticky HUD on top, Win95 taskbar (Start + 7 tabs + clock) at the bottom.
+- `< lg`: single-column windows. `≥ lg`: 2-column window grids.
 - Modals become bottom sheets on small screens.
 
 ## Sync design (Phase 2, planned)

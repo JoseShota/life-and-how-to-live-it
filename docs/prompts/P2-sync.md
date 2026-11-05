@@ -10,7 +10,7 @@ Enable Email (magic link) auth. **Export a backup from the app before starting.*
 ## P2-0 Design review (Plan mode)
 ```
 Read @docs/02-ARCHITECTURE.md "Sync design" and @docs/03-DATA-MODEL.md.
-Propose the final sync design for Ascenso with Supabase: SQL schema for every table (snake_case,
+Propose the final sync design for Life and How to Live It with Supabase: SQL schema for every table (snake_case,
 user_id uuid references auth.users, updated_at bigint, deleted_at bigint null, RLS policies),
 the client algorithm (push/pull cursors, LWW, tombstones, xp ledger union, settings per-key LWW,
 activeTimer excluded from sync), failure handling (offline, partial push), and a test strategy

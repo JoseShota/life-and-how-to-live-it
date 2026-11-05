@@ -24,21 +24,21 @@ export function TaskRow({ task, area, compact }: { task: Task; area?: Area; comp
     nav('/focus');
   };
   return (
-    <div className={cx('group flex items-center gap-3 rounded-xl border border-transparent bg-panel2/60 px-3 py-2.5 transition hover:border-line', done && 'opacity-50')}>
-      <button onClick={toggle} aria-label={done ? 'Reopen' : 'Complete'} className={cx('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 transition', done ? 'border-ok bg-ok text-bg' : 'border-slate-600 hover:border-xp', popping && 'pop')} onAnimationEnd={() => setPopping(false)}>
+    <div className={cx('group flex items-center gap-3 border border-line/50 bg-panel2/60 px-3 py-2 transition hover:border-cyan/60 hover:bg-panel2', done && 'opacity-50')}>
+      <button onClick={toggle} aria-label={done ? 'Reopen' : 'Complete'} className={cx('flex h-8 w-8 shrink-0 items-center justify-center transition', done ? 'bevel-in bg-ok text-bg' : 'bevel-in bg-[#0d0420] hover:shadow-glow', popping && 'pop')} onAnimationEnd={() => setPopping(false)}>
         {done && <Check size={16} strokeWidth={3} />}
       </button>
       <div className="min-w-0 flex-1">
         <div className={cx('truncate text-sm font-medium', done && 'line-through')}>{task.title}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           {area && !compact && <Chip color={area.color}>{area.emoji} {area.short}</Chip>}
-          <Chip color="#8b5cf6">+{TASK_XP[task.difficulty]} XP</Chip>
-          {task.priority === 1 && !done && <Chip color="#ef4444">Today</Chip>}
-          {task.dueDate && <Chip color={overdue ? '#ef4444' : '#64748b'}>{overdue ? 'Overdue ' : ''}{task.dueDate.slice(5)}</Chip>}
+          <Chip color="#b967ff">+{TASK_XP[task.difficulty]} XP</Chip>
+          {task.priority === 1 && !done && <Chip color="#ff4d6d">Today</Chip>}
+          {task.dueDate && <Chip color={overdue ? '#ff4d6d' : '#64748b'}>{overdue ? 'Overdue ' : ''}{task.dueDate.slice(5)}</Chip>}
         </div>
       </div>
-      {!done && <button onClick={startFocus} className="rounded-lg p-2 text-slate-500 hover:bg-panel hover:text-xp" aria-label="Focus on this"><Timer size={16} /></button>}
-      <button onClick={() => setEdit(true)} className="rounded-lg p-2 text-slate-500 hover:bg-panel hover:text-slate-200" aria-label="Edit"><Pencil size={16} /></button>
+      {!done && <button onClick={startFocus} className="p-2 text-slate-500 hover:bg-panel hover:text-xp" aria-label="Focus on this"><Timer size={16} /></button>}
+      <button onClick={() => setEdit(true)} className="p-2 text-slate-500 hover:bg-panel hover:text-slate-200" aria-label="Edit"><Pencil size={16} /></button>
       <TaskForm open={edit} onClose={() => setEdit(false)} task={task} />
     </div>
   );
@@ -83,7 +83,7 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
           </Label>
         </div>
         <Label text="Due date"><Input type="date" value={v.dueDate ?? ''} onChange={e => setF({ ...v, dueDate: e.target.value })} /></Label>
-        <Label text="Notes"><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="w-full rounded-xl border border-line bg-bg p-3 text-sm outline-none focus:border-xp" /></Label>
+        <Label text="Notes"><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="bevel-in w-full bg-[#0d0420] p-3 text-sm outline-none" /></Label>
         <div className="mt-2 flex gap-2">
           {task && <Button variant="danger" onClick={remove}><Trash2 size={16} /></Button>}
           <Button className="flex-1" onClick={save}>{task ? 'Save' : 'Add quest'}</Button>

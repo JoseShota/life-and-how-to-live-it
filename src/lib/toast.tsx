@@ -19,21 +19,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     // Every XP event anywhere in the app produces a floating reward toast.
     const fn = (_pk: unknown, e: { xp: number; coins: number; source: string; label: string }) => {
       if (e.source === 'achievement') return; // handled below with an epic toast
-      if (e.source === 'reward') setTimeout(() => push(`${e.label}  ${e.coins} 🪙`, 'gold'));
-      else if (e.xp > 0) setTimeout(() => push(`+${e.xp} XP  +${e.coins} 🪙 · ${e.label}`, e.source === 'perfect-day' ? 'epic' : 'xp'));
+      if (e.source === 'reward') setTimeout(() => push(`${e.label} (¢${e.coins})`, 'gold'));
+      else if (e.xp > 0) setTimeout(() => push(`+${e.xp} XP · +¢${e.coins} — ${e.label}`, e.source === 'perfect-day' ? 'epic' : 'xp'));
     };
     db.xp.hook('creating', fn as never);
     const off = onAchievement(a => push(`🏆 ${a.name} unlocked! +${a.xp} XP`, 'epic'));
     return () => { db.xp.hook('creating').unsubscribe(fn as never); off(); };
   }, [push]);
 
-  const tone = { xp: 'border-xp/60 bg-xp/15', gold: 'border-gold/60 bg-gold/15', bad: 'border-hp/60 bg-hp/15', epic: 'border-gold bg-gradient-to-r from-xp/40 to-gold/30 shadow-glow' };
+  const head = { xp: '✦ You\'ve got XP!', gold: '¢ Transaction complete', bad: '⚠ Error', epic: '★ A C H I E V E M E N T ★' };
+  const bar = { xp: 'titlebar', gold: 'bg-gold', bad: 'bg-hp', epic: 'titlebar' };
   return (
     <Ctx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex flex-col items-center gap-2 px-4">
+      <div className="pointer-events-none fixed bottom-[64px] right-2 z-50 flex w-[min(360px,calc(100vw-1rem))] flex-col gap-2" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
         {items.map(t => (
-          <div key={t.id} className={`toast-in rounded-xl border px-4 py-2 text-sm font-semibold backdrop-blur ${tone[t.tone]}`}>{t.text}</div>
+          <div key={t.id} className={`toast-in bevel-out bg-panel ${t.tone === 'epic' ? 'shadow-glow' : ''}`}>
+            <div className={`${bar[t.tone]} px-2 py-0.5 font-display text-lg leading-5 text-[#1d0b3d]`}>{head[t.tone]}</div>
+            <div className="px-3 py-2 text-sm font-semibold">{t.text}</div>
+          </div>
         ))}
       </div>
     </Ctx.Provider>

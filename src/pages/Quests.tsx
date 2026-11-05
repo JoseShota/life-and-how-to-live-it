@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Plus } from 'lucide-react';
 import { db } from '@/db/db';
-import { Button, Card, Empty, Bar } from '@/components/ui';
+import { Button, Card, Empty, Bar, PageTitle } from '@/components/ui';
 import { TaskRow, TaskForm } from '@/components/TaskBits';
 import { cx, dateKey } from '@/lib/util';
 import { startOfWeek } from 'date-fns';
@@ -26,27 +26,24 @@ export default function Quests() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Quest log</h1>
-        <Button onClick={() => setAdding(true)}><Plus size={16} />New quest</Button>
-      </div>
+      <PageTitle sub="C:\\LIFE\\QUESTS.TXT · every pending thing, by area" right={<Button onClick={() => setAdding(true)}><Plus size={16} />New quest</Button>}>Quest Log</PageTitle>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {areas.map(a => {
           const open = tasks.filter(t => t.areaId === a.id && t.status !== 'done').length;
           const hrs = (weekMinutes.get(a.id) ?? 0) / 60;
           return (
-            <button key={a.id} onClick={() => setAreaId(areaId === a.id ? 'all' : a.id)} className={cx('rounded-2xl border bg-panel p-3 text-left transition', areaId === a.id ? 'border-xp shadow-glow' : 'border-line hover:border-slate-500')}>
+            <button key={a.id} onClick={() => setAreaId(areaId === a.id ? 'all' : a.id)} className={cx('p-3 text-left transition', areaId === a.id ? 'bevel-in bg-[#0d0420] shadow-glow' : 'bevel-out bg-panel/95 hover:bg-panel2')}>
               <div className="text-2xl">{a.emoji}</div>
-              <div className="mt-1 truncate text-sm font-semibold">{a.short}</div>
+              <div className="mt-1 truncate font-display text-xl leading-5" style={{ color: a.color }}>{a.short}</div>
               <div className="text-[11px] text-slate-400">{open} open · {hrs.toFixed(1)}/{a.weeklyHoursTarget}h wk</div>
-              <Bar value={hrs / (a.weeklyHoursTarget || 1)} color={a.color} className="mt-2" height="h-1.5" />
+              <Bar value={hrs / (a.weeklyHoursTarget || 1)} color={a.color} className="mt-2" height="h-3" />
             </button>
           );
         })}
       </div>
 
-      <Card title={areaId === 'all' ? 'All quests' : areas.find(a => a.id === areaId)?.name} action={
+      <Card title={areaId === 'all' ? '⚔ ALL_QUESTS.TXT' : `⚔ ${areas.find(a => a.id === areaId)?.short.toUpperCase()}.TXT`} action={
         <label className="flex items-center gap-2 text-xs text-slate-400"><input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} />Show completed</label>
       }>
         <div className="flex flex-col gap-2">
