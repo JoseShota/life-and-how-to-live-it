@@ -27,9 +27,10 @@ export function levelFromXp(totalXp: number) {
   return { level: lvl, into: totalXp - base, needed: next - base, progress: (totalXp - base) / (next - base) };
 }
 
+// Classical ranks: from first step to philosopher-king.
 const TITLES: [number, string][] = [
-  [1, 'Apprentice'], [5, 'Disciplined'], [10, 'Operator'], [15, 'Builder'], [20, 'Strategist'],
-  [30, 'Capitalist'], [40, 'Tycoon'], [50, 'Sovereign']
+  [1, 'Neophyte'], [5, 'Ephebe'], [10, 'Hoplite'], [15, 'Artisan'], [20, 'Strategos'],
+  [30, 'Archon'], [40, 'Magnate'], [50, 'Philosopher-King']
 ];
 export const titleForLevel = (lvl: number) => TITLES.filter(([l]) => lvl >= l).pop()![1];
 

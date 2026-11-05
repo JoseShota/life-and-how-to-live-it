@@ -4,9 +4,10 @@ globs: src/pages/**,src/components/**,src/index.css,tailwind.config.js
 alwaysApply: false
 ---
 - Reuse primitives from src/components/ui.tsx (Card, Button, Bar, Ring, Input, Select, Modal, Chip, Empty) before creating new ones.
-- Follow @docs/08-DESIGN-SYSTEM.md (vaporwave × Win95 × Internet Archive). Tokens: bg, panel, panel2, line, xp (hot pink), cyan, lav, gold (vapor yellow), hp, ok (mint), silver.
-- Fonts: font-display (VT323) for titles/numbers, font-sans (IBM Plex Mono) body, font-pixel (Press Start 2P) only for tiny chrome, font-serif for archive/footer text.
-- Every content block is a `<Card title="NAME.EXT">` window. Use bevel-out / bevel-in / bevel-btn classes, square corners (no rounded-*).
+- Follow @docs/08-DESIGN-SYSTEM.md ("Floral Dream": Macintosh System 6 × Floral Shoppe vaporwave × Greek marble × dreamcore × Beat typewriter).
+- Tokens: fills use pink/mint/laurel; text uses ink/xp/cyan/gold/ok/hp (contrast ≥ 4.5:1).
+- Fonts: font-display (ChicagoFLF) chrome & numbers, font-sans (Courier Prime) body, .inscription/font-greek (Cinzel) titles, font-type (Special Elite) for scroll/poetry, font-jp (DotGothic16) for kanji.
+- Every content block is a `<Card title="Plain Words">` (System 6 window). Use mac-window / mac-inset / mac-btn; 1-bit borders and hard shadows; images 1-bit dithered.
 - Touch-first: tap targets ≥ 40px; taskbar at the bottom on all sizes; modals are bottom sheets on small screens.
 - Read data with useLiveQuery; mutate via src/game/engine.ts actions when XP is involved.
 - Every list needs an empty state that tells the user what to do next.

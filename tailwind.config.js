@@ -1,31 +1,43 @@
 /** @type {import('tailwindcss').Config} */
-// "Life and How to Live It" — vaporwave × Win95 × Internet Archive design tokens.
+// Life and How to Live It — "Floral Dream" edition:
+// Macintosh System 6 × Floral Shoppe vaporwave × Greek marble × dreamcore × Beat typewriter.
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
-        display: ['VT323', '"IBM Plex Mono"', 'monospace'],
-        pixel: ['"Press Start 2P"', 'VT323', 'monospace'],
+        sans: ['"Courier Prime"', 'ui-monospace', 'monospace'],       // body: typewriter (Beat)
+        display: ['ChicagoFLF', '"Courier Prime"', 'monospace'],      // Mac System 6 chrome + numbers
+        greek: ['Cinzel', '"Times New Roman"', 'serif'],              // inscriptions, page titles
+        type: ['"Special Elite"', '"Courier Prime"', 'monospace'],    // worn typewriter, the scroll
+        jp: ['"DotGothic16"', 'monospace'],                           // katakana subtitles
+        pixel: ['ChicagoFLF', 'monospace'],
         serif: ['"Times New Roman"', 'Times', 'serif']
       },
       colors: {
-        bg: '#130824',        // midnight
-        panel: '#1d1036',     // window body
-        panel2: '#2a1850',    // inset areas
-        line: '#4a2f7d',      // borders
-        xp: '#ff71ce',        // hot pink (primary)
-        cyan: '#01cdfe',      // electric cyan
-        lav: '#b967ff',       // lavender
-        gold: '#fffb96',      // vapor yellow (coins)
-        hp: '#ff4d6d',        // danger
-        ok: '#05ffa1',        // mint
-        silver: '#c0c0c0'     // Win95 chrome
+        ink: '#1b1530',       // 1-bit black (slightly violet)
+        paper: '#fdfaf3',     // typewriter paper
+        bg: '#efe9f7',        // haze
+        panel: '#ffffff',     // window body
+        panel2: '#f6f0ff',    // inset / rows
+        line: '#1b1530',      // 1-bit borders
+        xp: '#e8399a',        // Floral Shoppe pink (text-safe)
+        pink: '#ffb3dd',      // pink fills
+        cyan: '#0e9c97',      // teal (text-safe)
+        mint: '#7ff0d8',      // teal fills
+        lav: '#6c4fc4',       // lavender (labels)
+        sky: '#bfe3ff',
+        gold: '#a87b00',      // coins / drachmae (text-safe)
+        laurel: '#e9c46a',    // gold fills
+        hp: '#d2264a',
+        ok: '#0f8a6d',
+        marble: '#ece6dc',
+        silver: '#d9d9d9'
       },
       boxShadow: {
-        glow: '0 0 18px -2px rgba(255,113,206,.65)',
-        cyanglow: '0 0 18px -2px rgba(1,205,254,.6)'
+        mac: '3px 3px 0 0 #1b1530',
+        glow: '0 0 0 3px #ffb3dd, 3px 3px 0 3px #1b1530',
+        dream: '0 0 40px 6px rgba(255,255,255,.8)'
       }
     }
   },

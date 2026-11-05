@@ -12,7 +12,7 @@ export function usePlayer() {
     const lvl = levelFromXp(xp);
     const name = (await db.settings.get('playerName'))?.value as string | undefined;
     return { xp, coins, todayXp, ...lvl, title: titleForLevel(lvl.level), name: name ?? 'Player' };
-  }, [], { xp: 0, coins: 0, todayXp: 0, level: 1, into: 0, needed: 1, progress: 0, title: 'Apprentice', name: 'Player' });
+  }, [], { xp: 0, coins: 0, todayXp: 0, level: 1, into: 0, needed: 1, progress: 0, title: 'Neophyte', name: 'Player' });
 }
 
 /** Re-render every `ms` (for clocks/timers). */

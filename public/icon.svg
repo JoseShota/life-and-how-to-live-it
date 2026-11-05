@@ -1,17 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b0f54"/><stop offset="1" stop-color="#ff71ce"/></linearGradient>
-    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffb96"/><stop offset=".55" stop-color="#ff9a8b"/><stop offset="1" stop-color="#ff71ce"/></linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset=".6" stop-color="#ffd9ee"/><stop offset="1" stop-color="#ffb3dd"/></linearGradient>
+    <pattern id="chk" width="64" height="64" patternUnits="userSpaceOnUse"><rect width="64" height="64" fill="#fff"/><rect width="32" height="32" fill="#1b1530"/><rect x="32" y="32" width="32" height="32" fill="#1b1530"/></pattern>
     <clipPath id="c"><rect width="512" height="512" rx="96"/></clipPath>
   </defs>
   <g clip-path="url(#c)">
     <rect width="512" height="512" fill="url(#sky)"/>
-    <circle cx="256" cy="250" r="150" fill="url(#sun)"/>
-    <g fill="#2b0f54"><rect x="80" y="262" width="352" height="10"/><rect x="80" y="292" width="352" height="14"/><rect x="80" y="324" width="352" height="18"/><rect x="80" y="358" width="352" height="22"/></g>
-    <rect y="380" width="512" height="132" fill="#130824"/>
-    <g stroke="#01cdfe" stroke-width="5" opacity=".9">
-      <line x1="0" y1="392" x2="512" y2="392"/><line x1="0" y1="420" x2="512" y2="420"/><line x1="0" y1="458" x2="512" y2="458"/><line x1="0" y1="508" x2="512" y2="508"/>
-      <line x1="256" y1="380" x2="256" y2="512"/><line x1="200" y1="380" x2="110" y2="512"/><line x1="312" y1="380" x2="402" y2="512"/><line x1="144" y1="380" x2="-30" y2="512"/><line x1="368" y1="380" x2="542" y2="512"/>
+    <ellipse cx="150" cy="120" rx="90" ry="30" fill="#fff" opacity=".9"/><ellipse cx="380" cy="170" rx="70" ry="22" fill="#fff" opacity=".8"/>
+    <path d="M0 360 L512 360 L512 512 L0 512 Z" fill="url(#chk)" transform="matrix(1 0 0 1 0 0)"/>
+    <!-- Ionic column -->
+    <g fill="#fff" stroke="#1b1530" stroke-width="10" stroke-linejoin="round">
+      <path d="M176 150 h160 v26 h-160 z"/>
+      <circle cx="176" cy="163" r="22"/><circle cx="336" cy="163" r="22"/>
+      <rect x="200" y="176" width="112" height="190"/>
+      <path d="M180 366 h152 v26 h-152 z"/>
     </g>
+    <g stroke="#1b1530" stroke-width="6"><line x1="228" y1="186" x2="228" y2="356"/><line x1="256" y1="186" x2="256" y2="356"/><line x1="284" y1="186" x2="284" y2="356"/></g>
+    <text x="256" y="470" text-anchor="middle" font-family="serif" font-size="64" font-weight="700" fill="#e8399a" stroke="#1b1530" stroke-width="3">✿</text>
   </g>
 </svg>

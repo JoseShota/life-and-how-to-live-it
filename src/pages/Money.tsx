@@ -12,7 +12,7 @@ import { FINANCE_XP } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
 import { Bar, Button, Card, Chip, Empty, Input, Label, Modal, Select, PageTitle } from '@/components/ui';
 
-const PIE = ['#ff71ce', '#01cdfe', '#05ffa1', '#b967ff', '#fffb96', '#ff9a3c', '#7b8cff', '#ff4d6d', '#c0c0c0'];
+const PIE = ['#ff8fcf', '#7ff0d8', '#b9a3ff', '#7cc7ff', '#e9c46a', '#ffb27a', '#9fb4ff', '#d2264a', '#d9d9d9'];
 
 export default function Money() {
   const accounts = useLiveQuery(() => db.accounts.orderBy('order').filter(a => !a.archived).toArray(), [], []);
@@ -35,7 +35,7 @@ export default function Money() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle sub="TREASURY.XLS · banorte ×4 · cash · the road to the first million" right={<Button variant="gold" onClick={() => setTxOpen(true)}><Plus size={16} />Transaction</Button>}>Treasury</PageTitle>
+      <PageTitle jp="宝庫" sub="banorte ×4, cash, and the long road to the first million" right={<Button variant="gold" onClick={() => setTxOpen(true)}><Plus size={16} />Transaction</Button>}>Treasury</PageTitle>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Net worth" value={mxn(nw)} tone={nw >= 0 ? 'text-ok' : 'text-hp'} />
@@ -44,21 +44,21 @@ export default function Money() {
         <Stat label="Savings rate" value={`${Math.round(month.savingsRate * 100)}%`} tone={month.savingsRate >= 0.3 ? 'text-ok' : month.savingsRate > 0 ? 'text-gold' : 'text-hp'} sub={`Spent ${mxn(month.expense)}`} />
       </div>
 
-      <Card title="▤ ACCOUNTS.DIR">
+      <Card title="Accounts">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {accounts.map(a => {
             const bal = balanceOf(a, txs);
             const c = a.type === 'credit' ? cardStatus(a, txs) : null;
             return (
-              <div key={a.id} className="bevel-out p-3" style={{ background: `linear-gradient(135deg, ${a.color}40, #1d1036 70%)` }}>
+              <div key={a.id} className="mac-window p-3" style={{ background: `linear-gradient(135deg, ${a.color}66, #ffffff 75%)` }}>
                 <div className="flex items-start justify-between">
-                  <div><div className="text-sm font-semibold">{a.name}</div><div className="text-[11px] uppercase tracking-wider text-slate-400">{a.type}</div></div>
-                  <button onClick={() => setEditAcc(a)} className="p-1 text-slate-400 hover:text-white" aria-label="Edit account"><Pencil size={14} /></button>
+                  <div><div className="text-sm font-semibold">{a.name}</div><div className="text-[11px] uppercase tracking-wider text-ink/60">{a.type}</div></div>
+                  <button onClick={() => setEditAcc(a)} className="p-1 text-ink/60 hover:text-xp" aria-label="Edit account"><Pencil size={14} /></button>
                 </div>
                 <div className={cx('mt-2 font-display text-3xl leading-8', bal < 0 ? 'text-hp' : 'text-ok')}>{mxn(bal, 2)}</div>
                 {c && (
-                  <div className="mt-2 space-y-1 text-[11px] text-slate-400">
-                    {a.creditLimit ? <><Bar value={c.utilization} color={c.utilization > 0.3 ? '#ff4d6d' : '#05ffa1'} height="h-3" /><div>{Math.round(c.utilization * 100)}% used · keep &lt;30%</div></> : <div className="text-gold">Set limit, cut-off & due day →</div>}
+                  <div className="mt-2 space-y-1 text-[11px] text-ink/60">
+                    {a.creditLimit ? <><Bar value={c.utilization} color={c.utilization > 0.3 ? '#d2264a' : '#7ff0d8'} height="h-3" /><div>{Math.round(c.utilization * 100)}% used · keep &lt;30%</div></> : <div className="text-gold">Set limit, cut-off & due day →</div>}
                     {c.nextCutoff && <div>Corte: {c.nextCutoff.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · Pago: {c.nextDue?.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} <b className={cx(c.daysToDue! <= 5 && c.debt > 0 && 'text-hp')}>({c.daysToDue}d)</b></div>}
                   </div>
                 )}
@@ -69,10 +69,10 @@ export default function Money() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="⚙ WEALTH_ENGINE.EXE — MXN per hour, 90 days">
+        <Card title="The Wealth Engine · MXN per hour, 90 days">
           {rates.every(r => r.income === 0) ? <Empty>Log income with its activity (e.g. “Freelance”) and track focus time. This table will rank which activity pays most per hour — that is where your next hour goes.</Empty> : (
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-[11px] uppercase text-slate-500"><th className="py-1">Activity</th><th>Income</th><th>Hours</th><th className="text-right">MXN/h</th></tr></thead>
+              <thead><tr className="text-left text-[11px] uppercase text-ink/55"><th className="py-1">Activity</th><th>Income</th><th>Hours</th><th className="text-right">MXN/h</th></tr></thead>
               <tbody>{rates.map(r => (
                 <tr key={r.area.id} className="border-t border-line"><td className="py-2">{r.area.emoji} {r.area.short}</td><td>{mxn(r.income)}</td><td>{r.hours.toFixed(1)}</td><td className="text-right font-bold text-gold">{r.rate ? mxn(r.rate) : '—'}</td></tr>
               ))}</tbody>
@@ -80,7 +80,7 @@ export default function Money() {
           )}
         </Card>
 
-        <Card title="◔ SPENDING.GIF — this month">
+        <Card title="Spending · this month">
           {cats.length === 0 ? <Empty>No expenses logged this month.</Empty> : (
             <div className="flex items-center gap-4">
               <div className="h-40 w-40 shrink-0">
@@ -91,25 +91,25 @@ export default function Money() {
           )}
         </Card>
 
-        <Card title="◎ PIPELINE.DOC" action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setEditOpp('new')}><Plus size={16} />Add</Button>}>
-          <p className="mb-3 text-xs text-slate-400">Expected: <b className="text-gold">{mxn(pipe.expectedMonthly)}/mo</b> · best case {mxn(pipe.bestCaseMonthly)}/mo · won {mxn(pipe.wonMonthly)}/mo</p>
+        <Card title="Opportunity Pipeline" action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setEditOpp('new')}><Plus size={16} />Add</Button>}>
+          <p className="mb-3 text-xs text-ink/60">Expected: <b className="text-gold">{mxn(pipe.expectedMonthly)}/mo</b> · best case {mxn(pipe.bestCaseMonthly)}/mo · won {mxn(pipe.wonMonthly)}/mo</p>
           <div className="flex flex-col gap-2">
             {opps.sort((a, b) => (a.expectedDate ?? 'z').localeCompare(b.expectedDate ?? 'z')).map(o => (
-              <button key={o.id} onClick={() => setEditOpp(o)} className="bevel-out bg-panel2/60 p-3 text-left hover:bg-panel2">
-                <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{o.title}</span><Chip color={{ lead: '#c0c0c0', applied: '#01cdfe', interview: '#b967ff', won: '#05ffa1', lost: '#ff4d6d' }[o.status]}>{o.status}</Chip></div>
-                <div className="mt-1 text-[11px] text-slate-400">{mxn(o.monthlyValue)}/mo · {Math.round(o.probability * 100)}% {o.expectedDate && `· ${o.expectedDate}`}</div>
-                {o.nextAction && <div className="mt-1 text-xs text-slate-300">→ {o.nextAction}</div>}
+              <button key={o.id} onClick={() => setEditOpp(o)} className="mac-window bg-panel2/60 p-3 text-left hover:bg-panel2">
+                <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{o.title}</span><Chip color={{ lead: '#d9d9d9', applied: '#7cc7ff', interview: '#b9a3ff', won: '#7ff0d8', lost: '#d2264a' }[o.status]}>{o.status}</Chip></div>
+                <div className="mt-1 text-[11px] text-ink/60">{mxn(o.monthlyValue)}/mo · {Math.round(o.probability * 100)}% {o.expectedDate && `· ${o.expectedDate}`}</div>
+                {o.nextAction && <div className="mt-1 text-xs text-ink/80">→ {o.nextAction}</div>}
               </button>
             ))}
           </div>
         </Card>
 
-        <Card title="♛ GOALS.INI">
+        <Card title="Wealth Goals">
           <div className="flex flex-col gap-3">{goals.map(g => <GoalRow key={g.id} g={g} />)}</div>
         </Card>
       </div>
 
-      <Card title="¶ LEDGER.TXT">
+      <Card title="The Ledger">
         {txs.length === 0 ? <Empty>Log every peso for 30 days — it unlocks “Bookkeeper” and gives the wealth engine real data.</Empty> : (
           <ul className="divide-y divide-line">
             {txs.slice(0, 30).map(t => {
@@ -117,10 +117,10 @@ export default function Money() {
               const area = areas.find(a => a.id === t.areaId);
               return (
                 <li key={t.id} className="flex items-center gap-3 py-2 text-sm">
-                  <span className="w-12 shrink-0 text-[11px] text-slate-500">{t.date.slice(5)}</span>
-                  <div className="min-w-0 flex-1"><div className="truncate">{t.description || t.category}</div><div className="text-[11px] text-slate-500">{acc?.name} · {t.category}{area ? ` · ${area.emoji} ${area.short}` : ''}</div></div>
-                  <span className={cx('shrink-0 font-semibold', t.amount >= 0 ? 'text-ok' : 'text-slate-200')}>{mxn(t.amount, 2)}</span>
-                  <button className="p-1 text-slate-600 hover:text-hp" aria-label="Delete transaction" onClick={async () => {
+                  <span className="w-12 shrink-0 text-[11px] text-ink/55">{t.date.slice(5)}</span>
+                  <div className="min-w-0 flex-1"><div className="truncate">{t.description || t.category}</div><div className="text-[11px] text-ink/55">{acc?.name} · {t.category}{area ? ` · ${area.emoji} ${area.short}` : ''}</div></div>
+                  <span className={cx('shrink-0 font-semibold', t.amount >= 0 ? 'text-ok' : 'text-ink/90')}>{mxn(t.amount, 2)}</span>
+                  <button className="p-1 text-ink/40 hover:text-hp" aria-label="Delete transaction" onClick={async () => {
                     if (!confirm('Delete transaction?')) return;
                     if (t.transferId) await db.transactions.where('transferId').equals(t.transferId).delete(); else await db.transactions.delete(t.id);
                     await revoke(`tx:${t.id}`);
@@ -140,15 +140,15 @@ export default function Money() {
 }
 
 function Stat({ label, value, tone, sub }: { label: string; value: string; tone?: string; sub?: string }) {
-  return <Card className="!p-3"><div className="text-[11px] uppercase tracking-wider text-lav">{label}</div><div className={cx('font-display text-3xl leading-8 sm:text-4xl', tone)}>{value}</div>{sub && <div className="text-[11px] text-slate-500">{sub}</div>}</Card>;
+  return <Card className="!p-3"><div className="text-[11px] uppercase tracking-wider text-lav">{label}</div><div className={cx('font-display text-3xl leading-8 sm:text-4xl', tone)}>{value}</div>{sub && <div className="text-[11px] text-ink/55">{sub}</div>}</Card>;
 }
 
 function GoalRow({ g }: { g: Goal }) {
   const [v, setV] = useState<string>('');
   return (
     <div>
-      <div className="flex items-center justify-between text-sm"><span>{g.emoji} {g.name}</span><span className="text-slate-400">{g.target === 1 ? (g.current >= 1 ? '✅' : '—') : `${mxn(g.current)} / ${mxn(g.target)}`}</span></div>
-      <Bar value={g.current / g.target} color="#fffb96" className="mt-1.5" />
+      <div className="flex items-center justify-between text-sm"><span>{g.emoji} {g.name}</span><span className="text-ink/60">{g.target === 1 ? (g.current >= 1 ? '✅' : '—') : `${mxn(g.current)} / ${mxn(g.target)}`}</span></div>
+      <Bar value={g.current / g.target} color="#e9c46a" className="mt-1.5" />
       <div className="mt-1.5 flex gap-2">
         <Input className="!min-h-[32px] text-xs" placeholder={g.target === 1 ? '1 = done' : 'Update current amount'} inputMode="decimal" value={v} onChange={e => setV(e.target.value)} />
         <Button variant="ghost" className="!min-h-[32px] !px-3 text-xs" onClick={async () => {
@@ -208,8 +208,8 @@ function TxForm({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Modal open={open} onClose={onClose} title="New transaction">
       <div className="flex flex-col gap-3">
-        <div className="bevel-in grid grid-cols-3 gap-1 bg-[#0d0420] p-1">
-          {(['expense', 'income', 'transfer'] as TxKind[]).map(k => <button key={k} onClick={() => setKind(k)} className={cx('py-2 text-sm font-semibold capitalize', kind === k ? 'bevel-btn bg-xp text-[#1d0b3d]' : 'text-slate-400')}>{k === 'transfer' ? 'Transfer / pay card' : k}</button>)}
+        <div className="mac-inset grid grid-cols-3 gap-1 bg-white p-1">
+          {(['expense', 'income', 'transfer'] as TxKind[]).map(k => <button key={k} onClick={() => setKind(k)} className={cx('py-2 text-sm font-semibold capitalize', kind === k ? 'mac-btn bg-xp text-ink' : 'text-ink/60')}>{k === 'transfer' ? 'Transfer / pay card' : k}</button>)}
         </div>
         <Label text="Amount (MXN)"><Input autoFocus inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="text-lg font-bold" /></Label>
         <Label text={kind === 'transfer' ? 'From' : kind === 'expense' ? 'Paid with' : 'Into'}>
@@ -264,10 +264,10 @@ function OppForm({ opp, onClose }: { opp?: Opportunity; onClose: () => void }) {
           <Label text="Status"><Select value={f.status} onChange={e => setF({ ...f, status: e.target.value as OpportunityStatus })}>{['lead', 'applied', 'interview', 'won', 'lost'].map(s => <option key={s}>{s}</option>)}</Select></Label>
           <Label text="Expected date"><Input type="date" value={f.expectedDate ?? ''} onChange={e => setF({ ...f, expectedDate: e.target.value || undefined })} /></Label>
           <Label text="Monthly value (MXN)"><Input inputMode="decimal" value={f.monthlyValue} onChange={e => setF({ ...f, monthlyValue: Number(e.target.value) || 0 })} /></Label>
-          <Label text={`Probability: ${Math.round(f.probability * 100)}%`}><input type="range" min={0} max={1} step={0.05} value={f.probability} onChange={e => setF({ ...f, probability: Number(e.target.value) })} className="mt-3 accent-pink-400" /></Label>
+          <Label text={`Probability: ${Math.round(f.probability * 100)}%`}><input type="range" min={0} max={1} step={0.05} value={f.probability} onChange={e => setF({ ...f, probability: Number(e.target.value) })} className="mt-3 accent-pink-500" /></Label>
         </div>
         <Label text="Next action"><Input value={f.nextAction ?? ''} onChange={e => setF({ ...f, nextAction: e.target.value })} /></Label>
-        <Label text="Notes"><textarea rows={3} value={f.notes ?? ''} onChange={e => setF({ ...f, notes: e.target.value })} className="bevel-in w-full bg-[#0d0420] p-3 text-sm outline-none" /></Label>
+        <Label text="Notes"><textarea rows={3} value={f.notes ?? ''} onChange={e => setF({ ...f, notes: e.target.value })} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
         <div className="flex gap-2">
           {opp && <Button variant="danger" onClick={async () => { await db.opportunities.delete(f.id); onClose(); }}><Trash2 size={16} /></Button>}
           <Button className="flex-1" onClick={async () => { if (!f.title.trim()) return; await db.opportunities.put(f); onClose(); }}>Save</Button>

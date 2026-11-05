@@ -16,7 +16,7 @@
 | Currency | Earned by | Used for |
 |---|---|---|
 | **XP** | Everything | Levels and titles (never spent) |
-| **🪙 Coins** | ≈ 1 per 5 XP | Reward shop |
+| **₯ Drachmae (coins)** | ≈ 1 per 5 XP | Reward shop |
 
 ## XP table (tune in `src/game/rules.ts`)
 | Action | XP |
@@ -37,14 +37,16 @@
 ## Levels
 `xpForLevel(n) = 50 × (n − 1)^1.8` (total XP needed to reach level *n*).
 
+Level 1 title: Neophyte. Levels show as Roman numerals in the HUD.
+
 | Level | Total XP | ≈ perfect days | Title |
 |---|---|---|---|
-| 5 | 606 | 1 | Disciplined |
-| 10 | 2,610 | 5 | Operator |
-| 20 | 10,017 | 18 | Strategist |
-| 30 | 21,443 | 39 | Capitalist |
-| 40 | 36,550 | 66 | Tycoon |
-| 50 | 55,122 | 100 | Sovereign |
+| 5 | 606 | 1 | Ephebe |
+| 10 | 2,610 | 5 | Hoplite |
+| 20 | 10,017 | 18 | Strategos |
+| 30 | 21,443 | 39 | Archon |
+| 40 | 36,550 | 66 | Magnate |
+| 50 | 55,122 | 100 | Philosopher-King |
 
 Level 50 ≈ 100 perfect days, about a year of real consistency. That's on purpose.
 

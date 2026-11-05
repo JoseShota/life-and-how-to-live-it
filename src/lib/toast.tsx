@@ -19,24 +19,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     // Every XP event anywhere in the app produces a floating reward toast.
     const fn = (_pk: unknown, e: { xp: number; coins: number; source: string; label: string }) => {
       if (e.source === 'achievement') return; // handled below with an epic toast
-      if (e.source === 'reward') setTimeout(() => push(`${e.label} (¢${e.coins})`, 'gold'));
-      else if (e.xp > 0) setTimeout(() => push(`+${e.xp} XP · +¢${e.coins} — ${e.label}`, e.source === 'perfect-day' ? 'epic' : 'xp'));
+      if (e.source === 'reward') setTimeout(() => push(`${e.label} (₯${e.coins})`, 'gold'));
+      else if (e.xp > 0) setTimeout(() => push(`+${e.xp} XP · +₯${e.coins} — ${e.label}`, e.source === 'perfect-day' ? 'epic' : 'xp'));
     };
     db.xp.hook('creating', fn as never);
     const off = onAchievement(a => push(`🏆 ${a.name} unlocked! +${a.xp} XP`, 'epic'));
     return () => { db.xp.hook('creating').unsubscribe(fn as never); off(); };
   }, [push]);
 
-  const head = { xp: '✦ You\'ve got XP!', gold: '¢ Transaction complete', bad: '⚠ Error', epic: '★ A C H I E V E M E N T ★' };
-  const bar = { xp: 'titlebar', gold: 'bg-gold', bad: 'bg-hp', epic: 'titlebar' };
+  const head = { xp: '✿ the universe noticed', gold: '₯ the agora thanks you', bad: '⚠ an error occurred', epic: '★ ACHIEVEMENT ★' };
+  const tint = { xp: 'bg-white', gold: 'bg-laurel/40', bad: 'bg-white text-hp', epic: 'dither-pink' };
   return (
     <Ctx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed bottom-[64px] right-2 z-50 flex w-[min(360px,calc(100vw-1rem))] flex-col gap-2" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="pointer-events-none fixed bottom-[70px] right-2 z-50 flex w-[min(360px,calc(100vw-1rem))] flex-col gap-2 md:bottom-4" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
         {items.map(t => (
-          <div key={t.id} className={`toast-in bevel-out bg-panel ${t.tone === 'epic' ? 'shadow-glow' : ''}`}>
-            <div className={`${bar[t.tone]} px-2 py-0.5 font-display text-lg leading-5 text-[#1d0b3d]`}>{head[t.tone]}</div>
-            <div className="px-3 py-2 text-sm font-semibold">{t.text}</div>
+          <div key={t.id} className="toast-in mac-window">
+            <div className="mac-titlebar"><span className="mac-close" /><span className="mac-title !text-[13px]">{head[t.tone]}</span></div>
+            <div className={`${tint[t.tone]} px-3 py-2 font-type text-[15px]`}><span className="bg-white/90 px-0.5">{t.text}</span></div>
           </div>
         ))}
       </div>

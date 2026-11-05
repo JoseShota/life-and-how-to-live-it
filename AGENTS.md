@@ -9,7 +9,7 @@ You are working on **Life and How to Live It**, a single-user, offline-first "li
 4. `docs/04-GAME-DESIGN.md`: XP economy (change numbers only in `src/game/rules.ts`).
 5. `docs/05-ROADMAP.md`: the ticket you're implementing.
 6. `docs/00-MASTER-PLAN.md`: the user's life/wealth strategy. Features must serve it.
-7. `docs/08-DESIGN-SYSTEM.md`: the visual language (vaporwave × Win95 × Internet Archive). New UI must match it.
+7. `docs/08-DESIGN-SYSTEM.md`: the visual language ("Floral Dream": Mac System 6 × vaporwave × Greek × dreamcore × Beat). New UI must match it.
 
 ## Commands
 ```bash
@@ -28,7 +28,7 @@ npm run build        # production build + service worker
 - **Money:** signed MXN on transactions. Credit card debt is negative. Transfers = two legs with the same `transferId`.
 - Keep `src/game/rules.ts` and `src/finance/finance.ts` **pure** and covered by tests in `tests/`.
 - Types live in `src/db/types.ts`. Reuse UI primitives from `src/components/ui.tsx` before creating new ones.
-- Tailwind only, using the design tokens in `tailwind.config.js` (`bg`, `panel`, `panel2`, `line`, `xp` pink, `cyan`, `lav`, `gold`, `hp`, `ok`, `silver`) and the retro rules in `docs/08-DESIGN-SYSTEM.md`. Tap targets ≥ 40 px.
+- Tailwind only, using the design tokens in `tailwind.config.js` (`ink`, `paper`, `panel`, `panel2`, `xp`, `pink`, `cyan`, `mint`, `lav`, `gold`, `laurel`, `hp`, `ok`) and the "Floral Dream" rules in `docs/08-DESIGN-SYSTEM.md`. Tap targets ≥ 40 px.
 - **No secrets in the frontend.** Anything needing an API key goes through a server/edge function.
 - No new dependencies without a one-line justification in the PR/commit message. Pin exact versions.
 - Don't delete user data paths (export/import/reset) or weaken confirmations on destructive actions.

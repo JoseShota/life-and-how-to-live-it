@@ -1,6 +1,6 @@
 # ☼ Life and How to Live It
 
-*a personal operating system · vaporwave × Win95 × internet-archive edition*
+*人生とその生き方 · a personal operating system: Macintosh Plus × vaporwave × Greek marble × dreamcore × Beat typewriter*
 
 A personal, offline-first app for **tablet + laptop** that turns your work, routine and money into a game.
 
@@ -30,7 +30,7 @@ npm run build
 | [`docs/05-ROADMAP.md`](docs/05-ROADMAP.md) | Phases P0–P5 as agent-sized tickets with acceptance criteria |
 | [`docs/06-AGENT-MANUAL.md`](docs/06-AGENT-MANUAL.md) | **How to build this with Cursor**: setup, loop, prompt templates, troubleshooting |
 | [`docs/07-DEPLOY.md`](docs/07-DEPLOY.md) | Deploy to Vercel/Cloudflare and install on iPad/Android/laptop |
-| [`docs/08-DESIGN-SYSTEM.md`](docs/08-DESIGN-SYSTEM.md) | The look: vaporwave × Win95 × Internet Archive (tokens, fonts, windows, voice) |
+| [`docs/08-DESIGN-SYSTEM.md`](docs/08-DESIGN-SYSTEM.md) | The look: "Floral Dream" (tokens, fonts, windows, imagery, voice) |
 | [`docs/prompts/`](docs/prompts) | Copy-paste prompts per phase |
 | [`AGENTS.md`](AGENTS.md) + [`.cursor/rules/`](.cursor/rules) | Rules any coding agent follows automatically |
 
@@ -39,5 +39,7 @@ npm run build
 
 ## Screenshots
 ![Today on laptop](docs/screenshot-today.png)
-![Life Archive](docs/screenshot-archive.png)
-![Today on tablet](docs/screenshot-tablet.png)
+![The Scroll and the Cut-Up](docs/screenshot-scroll.png)
+![The Agora](docs/screenshot-agora.png)
+![The Archive](docs/screenshot-archive.png)
+![Treasury on tablet](docs/screenshot-tablet.png)
