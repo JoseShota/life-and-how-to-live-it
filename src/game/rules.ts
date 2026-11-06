@@ -10,6 +10,13 @@ export const coinsFor = (xp: number) => Math.round(xp / 5);
 /** XP for a focus session: 20 XP per hour, rounded per 15 minutes. */
 export const sessionXp = (minutes: number) => Math.floor(minutes / 15) * 5;
 
+/** Only this many Epic quests per day pay Epic XP; the rest pay Hard (difficulty is self-rated). */
+export const MAX_FULL_EPICS_PER_DAY = 1;
+/** A single focus session never counts more than this (a forgotten timer). */
+export const MAX_SESSION_MINUTES = 12 * 60;
+/** After this long the Focus screen asks "still working?". */
+export const STILL_WORKING_MINUTES = 3 * 60;
+
 export const PERFECT_DAY_XP = 100;
 export const WORKDAY_BONUS_XP = 60; // hit the daily hour target
 

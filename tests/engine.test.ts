@@ -20,7 +20,8 @@ describe('engine', () => {
     expect(t1.xp).toBeGreaterThanOrEqual(35); // + first-quest achievement
     await reopenTask(task);
     const t2 = await totals();
-    expect(t2.xp).toBe(t1.xp - 35);
+    // The quest XP and the First Blood achievement it unlocked are both taken back.
+    expect(t2.xp).toBe(0);
   });
 
   it('toggling a habit twice nets zero habit XP', async () => {

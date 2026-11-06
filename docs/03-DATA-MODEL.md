@@ -58,8 +58,8 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | perfect-day | `perfect:<date>` | any core habit becomes undone |
 | workday | `workday:<date>` | deleting sessions below target |
 | session | `session:<sessionId>` | deleting session |
-| finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<ts>` | deleting transaction (revokes every leg). Editing never changes XP |
-| achievement | `ach:<key>` | (permanent) |
+| finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<yyyy-mm>` (once per goal per month) | deleting transaction (revokes every leg). Editing never changes XP |
+| achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |
 
 ## Migration recipe (Dexie)

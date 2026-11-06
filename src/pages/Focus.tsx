@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
-import { logSession, deleteSession } from '@/game/engine';
-import { sessionXp } from '@/game/rules';
+import { logSession, deleteSession, SessionOverlapError } from '@/game/engine';
+import { sessionXp, STILL_WORKING_MINUTES, MAX_SESSION_MINUTES } from '@/game/rules';
+import { useToast } from '@/lib/toast';
 import { useNow, useToday } from '@/lib/hooks';
 import { hm } from '@/lib/util';
 import { Button, Card, Ring, Select, Label, Input, Modal, Empty, PageTitle } from '@/components/ui';
@@ -31,11 +32,29 @@ export default function Focus() {
     if (!a) return;
     await db.settings.put({ key: 'activeTimer', value: { areaId: a, taskId: taskId || undefined, start: Date.now() } });
   };
-  const stop = async () => {
+  const toast = useToast();
+  const [stoppedAt, setStoppedAt] = useState('');
+  const stop = async (end = Date.now()) => {
     if (!active) return;
-    await db.settings.delete('activeTimer');
-    await logSession(active.areaId, active.start, Date.now(), active.taskId);
+    try {
+      await logSession(active.areaId, active.start, end, active.taskId);
+      await db.settings.delete('activeTimer');
+    } catch (e) {
+      if (!(e instanceof SessionOverlapError)) throw e;
+      toast(e.message, 'bad');
+      await db.settings.delete('activeTimer');
+    }
   };
+  /** "I actually stopped at HH:MM": for a timer left running. */
+  const stopAt = async () => {
+    if (!active || !stoppedAt) return;
+    const [h, m] = stoppedAt.split(':').map(Number);
+    const d = new Date(active.start); d.setHours(h, m, 0, 0);
+    if (d.getTime() <= active.start) d.setDate(d.getDate() + 1);
+    await stop(Math.min(Date.now(), d.getTime()));
+    setStoppedAt('');
+  };
+  const longRun = active && elapsed / 60 >= STILL_WORKING_MINUTES;
   const area = areas.find(a => a.id === selArea);
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0'), ss = String(elapsed % 60).padStart(2, '0');
 
@@ -60,7 +79,19 @@ export default function Focus() {
               <Button onClick={start} className="h-14 text-base"><Glyph name="play" size={20}/>Start focus</Button>
             </div>
           ) : (
-            <Button variant="danger" onClick={stop} className="h-14 w-full max-w-sm text-base"><Glyph name="stop" size={18}/>Stop & claim XP</Button>
+            <div className="grid w-full max-w-sm gap-3">
+              {longRun && (
+                <div role="status" className="mac-inset bg-laurel/40 p-3 text-sm">
+                  <p className="font-display">Still working?</p>
+                  <p className="mt-1 text-ink/70">This timer has run for {hm(elapsed / 60)}. If you stopped earlier, log the real end time. Sessions count {MAX_SESSION_MINUTES / 60} h at most.</p>
+                  <div className="mt-2 flex gap-2">
+                    <Input type="time" aria-label="I stopped at" value={stoppedAt} onChange={e => setStoppedAt(e.target.value)} />
+                    <Button variant="ghost" onClick={stopAt} disabled={!stoppedAt}>Stop at this time</Button>
+                  </div>
+                </div>
+              )}
+              <Button variant="danger" onClick={() => stop()} className="h-14 w-full text-base"><Glyph name="stop" size={18}/>Stop & claim XP</Button>
+            </div>
           )}
         </Card>
 
@@ -87,6 +118,7 @@ export default function Focus() {
 }
 
 function ManualSession({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [err, setErr] = useState('');
   const areas = useLiveQuery(() => db.areas.orderBy('order').filter(a => !a.archived).toArray(), [], []);
   const [areaId, setAreaId] = useState('');
   const [from, setFrom] = useState('09:00');
@@ -96,8 +128,14 @@ function ManualSession({ open, onClose }: { open: boolean; onClose: () => void }
     const [fh, fm] = from.split(':').map(Number), [th, tm] = to.split(':').map(Number);
     const s = new Date(d.getFullYear(), d.getMonth(), d.getDate(), fh, fm).getTime();
     const e = new Date(d.getFullYear(), d.getMonth(), d.getDate(), th, tm).getTime();
-    if (e <= s) return;
-    await logSession(areaId || areas[0].id, s, e);
+    if (e <= s) { setErr('"To" must be after "From".'); return; }
+    try {
+      await logSession(areaId || areas[0].id, s, e);
+    } catch (x) {
+      if (x instanceof SessionOverlapError) { setErr(x.message); return; }
+      throw x;
+    }
+    setErr('');
     onClose();
   };
   return (
@@ -108,6 +146,7 @@ function ManualSession({ open, onClose }: { open: boolean; onClose: () => void }
           <Label text="From"><Input type="time" value={from} onChange={e => setFrom(e.target.value)} /></Label>
           <Label text="To"><Input type="time" value={to} onChange={e => setTo(e.target.value)} /></Label>
         </div>
+        {err && <p role="alert" className="font-type text-sm text-hp">{err}</p>}
         <Button onClick={save}>Save</Button>
       </div>
     </Modal>

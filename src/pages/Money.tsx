@@ -6,7 +6,7 @@ import { subDays } from 'date-fns';
 import { db } from '@/db/db';
 import type { Account, Goal, Opportunity, OpportunityStatus, Transaction, TxKind } from '@/db/types';
 import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, transferLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/finance/finance';
-import { award, deleteTransaction, editTransaction, rewardTransactionLogged } from '@/game/engine';
+import { award, deleteTransaction, editTransaction, rewardGoalProgress, rewardTransactionLogged } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
 import { FINANCE_XP } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
@@ -159,7 +159,7 @@ function GoalRow({ g }: { g: Goal }) {
           const n = Number(v); if (Number.isNaN(n) || v === '') return;
           const before = g.current;
           await db.goals.update(g.id, { current: n });
-          if (n > before) await award('finance', `goal:${g.id}:${Date.now()}`, FINANCE_XP.saveDeposit, `Progress: ${g.name}`);
+          if (n > before) await rewardGoalProgress(g.id, g.name);
           setV('');
         }}>Update</Button>
       </div>

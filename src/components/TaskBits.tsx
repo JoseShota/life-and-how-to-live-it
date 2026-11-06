@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Area, Difficulty, Task } from '@/db/types';
 import { completeTask, reopenTask, revoke } from '@/game/engine';
+import { checkAchievements } from '@/game/achievements';
 import { DIFFICULTY_LABEL, TASK_XP } from '@/game/rules';
 import { cx, dateKey, uid } from '@/lib/util';
 import { Button, Chip, Input, Label, Modal, Select } from './ui';
@@ -47,9 +48,13 @@ export function TaskRow({ task, area, compact }: { task: Task; area?: Area; comp
 export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority = 2 }: { open: boolean; onClose: () => void; task?: Task; defaultAreaId?: string; defaultPriority?: 1 | 2 | 3 }) {
   const areas = useLiveQuery(() => db.areas.orderBy('order').filter(a => !a.archived).toArray(), [], []);
   const [f, setF] = useState<Partial<Task>>(task ?? {});
+  const [err, setErr] = useState('');
   const v = { title: '', areaId: defaultAreaId ?? areas[0]?.id, difficulty: 2 as Difficulty, priority: defaultPriority, ...f };
   const save = async () => {
     if (!v.title?.trim() || !v.areaId) return;
+    // Epic is self-rated and pays the most, so it has to say what "done" looks like.
+    if (v.difficulty === 5 && !v.notes?.trim()) { setErr('An Epic quest needs a note: what does "done" look like?'); return; }
+    setErr('');
     if (task) await db.tasks.update(task.id, { title: v.title.trim(), areaId: v.areaId, difficulty: v.difficulty, priority: v.priority, dueDate: v.dueDate || undefined, notes: v.notes });
     else await db.tasks.add({ id: uid(), title: v.title.trim(), areaId: v.areaId, difficulty: v.difficulty as Difficulty, priority: v.priority as 1 | 2 | 3, dueDate: v.dueDate || undefined, notes: v.notes, status: 'todo', createdAt: Date.now() });
     setF({});
@@ -59,6 +64,7 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
     if (!task || !confirm('Delete this quest?')) return;
     await revoke(`task:${task.id}`);
     await db.tasks.delete(task.id);
+    await checkAchievements();
     onClose();
   };
   return (
@@ -83,7 +89,9 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
           </Label>
         </div>
         <Label text="Due date"><Input type="date" value={v.dueDate ?? ''} onChange={e => setF({ ...v, dueDate: e.target.value })} /></Label>
-        <Label text="Notes"><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
+        <Label text={v.difficulty === 5 ? 'Done means… (required for Epic)' : 'Notes'}><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
+        {err && <p role="alert" className="font-type text-sm text-hp">{err}</p>}
+        {v.difficulty === 5 && <p className="text-xs text-ink/60">Only your first Epic each day pays Epic XP; later ones pay Hard.</p>}
         <div className="mt-2 flex gap-2">
           {task && <Button variant="danger" onClick={remove}><Glyph name="trash" size={16}/></Button>}
           <Button className="flex-1" onClick={save}>{task ? 'Save' : 'Add quest'}</Button>

@@ -4,7 +4,8 @@ import type { Difficulty, Habit, Task, Transaction, XpSource } from '@/db/types'
 import { splitLegs, transferLegs } from '@/finance/finance';
 import { dateKey, uid } from '@/lib/util';
 import {
-  TASK_XP, coinsFor, sessionXp, PERFECT_DAY_XP, WORKDAY_BONUS_XP, streakMultiplier, FINANCE_XP
+  TASK_XP, coinsFor, sessionXp, PERFECT_DAY_XP, WORKDAY_BONUS_XP, streakMultiplier, FINANCE_XP,
+  MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES
 } from './rules';
 import { checkAchievements } from './achievements';
 
@@ -16,6 +17,18 @@ export async function revoke(refId: string) {
   await db.xp.where('refId').equals(refId).delete();
 }
 
+/** Awards once per refId: a no-op if that refId is already in the ledger. */
+export async function awardOnce(source: XpSource, refId: string, xp: number, label: string, coins = coinsFor(xp), date = dateKey()) {
+  if (await db.xp.where('refId').equals(refId).count()) return false;
+  await award(source, refId, xp, label, coins, date);
+  return true;
+}
+
+/** Goal progress pays once per goal per month, however often the number is updated. */
+export async function rewardGoalProgress(goalId: string, goalName: string) {
+  return awardOnce('finance', `goal:${goalId}:${dateKey().slice(0, 7)}`, FINANCE_XP.saveDeposit, `Progress: ${goalName}`);
+}
+
 export async function totals() {
   let xp = 0, coins = 0;
   await db.xp.each(e => { xp += e.xp; coins += e.coins; });
@@ -23,9 +36,14 @@ export async function totals() {
 }
 
 // ---------- Tasks ----------
+/** Epic quests are self-rated, so only the first Epic of the day pays Epic XP; later ones pay Hard. */
 export async function completeTask(task: Task) {
   await db.tasks.update(task.id, { status: 'done', completedAt: Date.now() });
-  const xp = TASK_XP[task.difficulty as Difficulty];
+  let xp = TASK_XP[task.difficulty as Difficulty];
+  if (task.difficulty === 5) {
+    const today = await db.xp.where('date').equals(dateKey()).filter(e => e.source === 'task' && e.xp === TASK_XP[5] && e.refId !== `task:${task.id}`).count();
+    if (today >= MAX_FULL_EPICS_PER_DAY) xp = TASK_XP[4];
+  }
   await award('task', `task:${task.id}`, xp, `Quest: ${task.title}`);
   await checkAchievements();
 }
@@ -33,6 +51,7 @@ export async function completeTask(task: Task) {
 export async function reopenTask(task: Task) {
   await db.tasks.update(task.id, { status: 'todo', completedAt: undefined });
   await revoke(`task:${task.id}`);
+  await checkAchievements();
 }
 
 // ---------- Habits ----------
@@ -89,11 +108,20 @@ export async function evaluateDay(date: string = dateKey()) {
 }
 
 // ---------- Focus sessions ----------
+/** Thrown when a session would overlap time that's already logged, so the same hour can't pay twice. */
+export class SessionOverlapError extends Error {
+  constructor() { super('That time overlaps a session you already logged.'); }
+}
+
 export async function logSession(areaId: string, start: number, end: number, taskId?: string, note?: string) {
+  // A forgotten timer must not pay all night: cap any single session.
+  end = Math.min(end, start + MAX_SESSION_MINUTES * 60000);
   const minutes = Math.max(0, Math.round((end - start) / 60000));
   if (minutes < 1) return null;
-  const id = uid();
   const date = dateKey(start);
+  const sameDay = await db.sessions.where('date').anyOf(date, dateKey(start - 864e5)).toArray();
+  if (sameDay.some(s => s.start < end && s.end > start)) throw new SessionOverlapError();
+  const id = uid();
   await db.sessions.add({ id, areaId, taskId, date, start, end, minutes, note });
   const xp = sessionXp(minutes);
   if (xp > 0) {
@@ -168,6 +196,7 @@ export async function deleteTransaction(tx: Transaction) {
     await db.transactions.bulkDelete(legs.map(t => t.id));
     for (const t of legs) await revoke(`tx:${t.id}`);
   });
+  await checkAchievements();
 }
 
 // ---------- Rewards ----------

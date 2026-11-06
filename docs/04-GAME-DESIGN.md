@@ -50,6 +50,12 @@ Level 1 title: Neophyte. Levels show as Roman numerals in the HUD.
 
 Level 50 ≈ 100 perfect days, about a year of real consistency. That's on purpose.
 
+## Integrity rules (V-1)
+- Focus sessions can't overlap time already logged, and one session counts 12 h at most. After 3 h the Focus screen asks "still working?" and lets you log the real end time.
+- Only the first Epic quest of the day pays Epic XP; later ones pay Hard. An Epic needs a "done means…" note.
+- Achievements are re-locked, and their XP revoked, when what earned them is undone.
+- Wealth-goal progress pays once per goal per month.
+
 ## Achievements (MVP)
 First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn Patrol (7-day wake streak), Centurion (100 h focus), Grinder (5 full workdays), Bookkeeper (30 transactions), Paid (income linked to an activity).
 

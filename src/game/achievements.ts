@@ -26,7 +26,8 @@ async function conditions(): Promise<Record<string, boolean>> {
   const perfect = await db.xp.where('source').equals('perfect-day').count();
   const workdays = await db.xp.where('source').equals('workday').count();
   const minutes = (await db.sessions.toArray()).reduce((s, x) => s + x.minutes, 0);
-  const txs = await db.transactions.count();
+  // A transfer has two legs but is one logged transaction.
+  const txs = new Set((await db.transactions.toArray()).map(t => t.transferId ?? t.id)).size;
   const income = await db.transactions.filter(t => t.kind === 'income' && !!t.areaId).count();
   const wake = await db.habits.where('key').equals('wake').first();
   let early7 = false;
@@ -66,6 +67,12 @@ export async function checkAchievements() {
     const c = await conditions();
     const have = new Set((await db.unlocked.toArray()).map(u => u.key));
     for (const a of ACHIEVEMENTS) {
+      // Undoing what earned an achievement takes it back, so the Hall of Laurels stays honest.
+      if (!c[a.key] && have.has(a.key)) {
+        await db.unlocked.delete(a.key);
+        await db.xp.where('refId').equals(`ach:${a.key}`).delete();
+        continue;
+      }
       if (c[a.key] && !have.has(a.key)) {
         await db.unlocked.put({ key: a.key, unlockedAt: Date.now() });
         await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'achievement', refId: `ach:${a.key}`, xp: a.xp, coins: Math.round(a.xp / 5), label: `Achievement: ${a.name}` });
