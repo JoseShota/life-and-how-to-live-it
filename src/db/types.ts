@@ -82,6 +82,8 @@ export interface Session {
 }
 
 export type AccountType = 'debit' | 'credit' | 'cash' | 'savings' | 'investment';
+/** Bank presets carry rules like "payment due N days after the cut-off" (see BANKS in finance.ts). */
+export type BankKey = 'banorte' | 'other';
 
 export interface Account {
   id: ID;
@@ -92,8 +94,12 @@ export interface Account {
   creditLimit?: number;
   /** Day of month the statement closes (fecha de corte) */
   cutoffDay?: number;
-  /** Day of month payment is due (fecha límite de pago) */
+  /** Day of month payment is due (fecha límite de pago). Legacy: v4+ derives the due date from the cut-off. */
   paymentDueDay?: number;
+  /** v4: bank preset for credit cards. */
+  bank?: BankKey;
+  /** v4: days from the cut-off to the payment due date (Banorte: 20). */
+  dueDaysAfterCutoff?: number;
   openingBalance: number; // credit: negative = debt
   color: string;
   archived: boolean;
@@ -115,6 +121,42 @@ export interface Transaction {
   description?: string;
   /** Both legs of a transfer share this id */
   transferId?: ID;
+  /** v4: a credit-card purchase at meses sin intereses links to its Installment plan */
+  installmentId?: ID;
+  createdAt: number;
+}
+
+/**
+ * v4: one credit-card statement (estado de cuenta), with the exact amounts printed on it.
+ * Amounts are positive MXN owed.
+ */
+export interface Statement {
+  id: ID;
+  accountId: ID;
+  /** Fecha de corte */
+  cutoffDate: DateKey;
+  /** Fecha límite de pago */
+  dueDate: DateKey;
+  /** Saldo al corte */
+  statementBalance: number;
+  /** Pago para no generar intereses: what a totalero pays by the due date */
+  noInterestPayment: number;
+  /** Pago mínimo */
+  minimumPayment: number;
+  notes?: string;
+  createdAt: number;
+}
+
+/** v4: a purchase at meses sin intereses (MSI). Each statement bills total / months. */
+export interface Installment {
+  id: ID;
+  accountId: ID;
+  description: string;
+  total: number;
+  months: number;
+  /** Cut-off of the first statement that bills an installment */
+  firstCutoff: DateKey;
+  txId?: ID;
   createdAt: number;
 }
 

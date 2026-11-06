@@ -3,7 +3,7 @@ import { legacyIcon, ICON_TABLES } from './legacy';
 import { DEFAULT_WORK_TARGETS } from '@/game/rules';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
-  Opportunity, Reward, XpEvent, Unlocked, Setting
+  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment
 } from './types';
 
 export class LifeDB extends Dexie {
@@ -20,6 +20,8 @@ export class LifeDB extends Dexie {
   xp!: Table<XpEvent, string>;
   unlocked!: Table<Unlocked, string>;
   settings!: Table<Setting, string>;
+  statements!: Table<Statement, string>;
+  installments!: Table<Installment, string>;
 
   constructor(name = 'life-and-how-to-live-it') {
     super(name);
@@ -49,6 +51,13 @@ export class LifeDB extends Dexie {
       await tx.table('habits').toCollection().modify(migrateHabitV3);
       if (!(await tx.table('settings').get('workTargets'))) await tx.table('settings').put({ key: 'workTargets', value: DEFAULT_WORK_TARGETS });
     });
+    // v4: credit-card statements with exact amounts, MSI plans, and bank presets on cards.
+    this.version(4).stores({
+      statements: 'id, accountId, cutoffDate, dueDate',
+      installments: 'id, accountId, txId'
+    }).upgrade(async tx => {
+      await tx.table('accounts').toCollection().modify(migrateAccountV4);
+    });
   }
 }
 
@@ -60,11 +69,18 @@ export function migrateHabitV3(h: { key: string; core: boolean; intrinsic?: bool
   if (h.key === 'work') { h.name = 'Deep work'; h.target = DEFAULT_WORK_TARGETS.weekday.done; }
 }
 
+/** v4: credit cards get a bank preset and "due N days after the cut-off". Exported for tests. */
+export function migrateAccountV4(a: { type: string; institution: string; cutoffDay?: number; paymentDueDay?: number; bank?: string; dueDaysAfterCutoff?: number }) {
+  if (a.type !== 'credit' || a.bank) return;
+  a.bank = /banorte/i.test(a.institution) ? 'banorte' : 'other';
+  a.dueDaysAfterCutoff = a.cutoffDay && a.paymentDueDay ? ((a.paymentDueDay - a.cutoffDay + 30) % 30) || 20 : 20;
+}
+
 export const db = new LifeDB();
 
 export const ALL_TABLES = [
   'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',
-  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings'
+  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments'
 ] as const;
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {

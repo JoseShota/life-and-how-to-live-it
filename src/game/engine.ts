@@ -1,7 +1,7 @@
 // Side-effectful game actions. Every reward goes through `award` so the ledger stays the single source of truth.
 import { db } from '@/db/db';
-import type { Difficulty, Habit, Task, Transaction, XpSource } from '@/db/types';
-import { splitLegs, transferLegs } from '@/finance/finance';
+import type { Difficulty, Habit, Statement, Task, Transaction, XpSource } from '@/db/types';
+import { cutoffOnOrAfter, splitLegs, statementStatus, transferLegs } from '@/finance/finance';
 import { dateKey, parseKey, uid } from '@/lib/util';
 import {
   TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
@@ -219,6 +219,8 @@ export interface TxEdit {
   toAccountId?: string;
   category?: string;
   areaId?: string;
+  /** Credit-card expenses: meses sin intereses (null or < 2 = a normal purchase). Undefined = leave as is. */
+  msiMonths?: number | null;
 }
 
 /**
@@ -228,6 +230,7 @@ export interface TxEdit {
 export async function editTransaction(tx: Transaction, e: TxEdit) {
   const n = Math.abs(e.amount);
   if (!n) return;
+  const legsBefore = tx.transferId ? await db.transactions.where('transferId').equals(tx.transferId).toArray() : [];
   await db.transaction('rw', db.transactions, db.accounts, async () => {
     if (tx.kind === 'transfer' && tx.transferId) {
       if (!e.toAccountId || e.toAccountId === e.accountId) return;
@@ -246,6 +249,15 @@ export async function editTransaction(tx: Transaction, e: TxEdit) {
       });
     }
   });
+  if (tx.kind === 'expense') {
+    const updated = (await db.transactions.get(tx.id))!;
+    const months = e.msiMonths !== undefined ? e.msiMonths : tx.installmentId ? (await db.installments.get(tx.installmentId))?.months ?? null : null;
+    await setInstallments(updated, months);
+  }
+  // Payments and purchases move statement balances: re-check every card this edit touched.
+  const touched = new Set([tx.accountId, e.accountId, e.toAccountId, ...legsBefore.map(t => t.accountId)].filter(Boolean) as string[]);
+  if (tx.transferId) (await db.transactions.where('transferId').equals(tx.transferId).toArray()).forEach(t => touched.add(t.accountId));
+  for (const id of touched) await evaluateStatements(id);
 }
 
 /**
@@ -258,7 +270,57 @@ export async function deleteTransaction(tx: Transaction) {
     await db.transactions.bulkDelete(legs.map(t => t.id));
     for (const t of legs) await revoke(`tx:${t.id}`);
   });
+  for (const t of legs) if (t.installmentId) await db.installments.delete(t.installmentId);
+  for (const t of legs) await evaluateStatements(t.accountId);
   await checkAchievements();
+}
+
+// ---------- Credit-card statements (v4) ----------
+
+/**
+ * The card reward follows the statement: +50 once per statement when the pago para no generar intereses
+ * was paid by the due date. Idempotent; call after any change to statements or card transactions.
+ */
+export async function evaluateStatements(accountId?: string) {
+  const statements = accountId ? await db.statements.where('accountId').equals(accountId).toArray() : await db.statements.toArray();
+  for (const st of statements) {
+    const acc = await db.accounts.get(st.accountId);
+    if (!acc) continue;
+    const txs = await db.transactions.where('accountId').equals(acc.id).toArray();
+    const status = statementStatus(acc, txs, st);
+    await syncAward('finance', `stmt:${st.id}`, status.state === 'paid' ? FINANCE_XP.payCardInFull : null,
+      `Paid ${acc.name} statement (pago para no generar intereses)`, coinsFor(FINANCE_XP.payCardInFull), st.dueDate > dateKey() ? dateKey() : st.dueDate);
+  }
+  await checkAchievements();
+}
+
+export async function saveStatement(st: Statement) {
+  await db.statements.put(st);
+  await evaluateStatements(st.accountId);
+}
+
+export async function deleteStatement(st: Statement) {
+  await db.statements.delete(st.id);
+  await revoke(`stmt:${st.id}`);
+  await checkAchievements();
+}
+
+/** Turns a card purchase into an MSI plan: each statement from the purchase's cut-off bills total / months. */
+export async function setInstallments(tx: Transaction, months: number | null) {
+  const existing = tx.installmentId ? await db.installments.get(tx.installmentId) : undefined;
+  if (!months || months < 2) {
+    if (existing) await db.installments.delete(existing.id);
+    if (tx.installmentId) await db.transactions.update(tx.id, { installmentId: undefined });
+    return;
+  }
+  const acc = await db.accounts.get(tx.accountId);
+  if (!acc || acc.type !== 'credit' || !acc.cutoffDay) return;
+  const id = existing?.id ?? uid();
+  await db.installments.put({
+    id, accountId: acc.id, description: tx.description || tx.category, total: Math.abs(tx.amount), months,
+    firstCutoff: cutoffOnOrAfter(acc.cutoffDay, tx.date), txId: tx.id, createdAt: existing?.createdAt ?? Date.now()
+  });
+  if (tx.installmentId !== id) await db.transactions.update(tx.id, { installmentId: id });
 }
 
 // ---------- Rewards ----------

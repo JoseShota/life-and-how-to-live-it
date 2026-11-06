@@ -26,9 +26,9 @@ export const SEED_HABITS: Omit<Habit, 'id'>[] = [
 
 export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
   { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#d8a7a0', archived: false, order: 0 },
-  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#c99790', archived: false, order: 1 },
-  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b98a8a', archived: false, order: 2 },
-  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#a98088', archived: false, order: 3 },
+  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#c99790', archived: false, order: 1 },
+  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b98a8a', archived: false, order: 2 },
+  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#a98088', archived: false, order: 3 },
   { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#a6d9d1', archived: false, order: 4 }
 ];
 

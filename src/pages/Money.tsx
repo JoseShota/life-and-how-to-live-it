@@ -4,9 +4,10 @@ import { Glyph } from '@/components/Glyph';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { subDays } from 'date-fns';
 import { db } from '@/db/db';
-import type { Account, Goal, Opportunity, OpportunityStatus, Transaction, TxKind } from '@/db/types';
-import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, transferLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/finance/finance';
-import { award, deleteTransaction, editTransaction, rewardGoalProgress, rewardTransactionLogged } from '@/game/engine';
+import type { Account, BankKey, Goal, Installment, Opportunity, OpportunityStatus, Statement, Transaction, TxKind } from '@/db/types';
+import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, transferLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
+  BANKS, dueDaysFor, lastCutoff, dueDateFor, estimateStatement, statementStatus, newSinceCutoff, installmentRemaining } from '@/finance/finance';
+import { deleteStatement, deleteTransaction, editTransaction, evaluateStatements, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
 import { FINANCE_XP } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
@@ -25,6 +26,10 @@ export default function Money() {
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [editAcc, setEditAcc] = useState<Account | null>(null);
   const [editOpp, setEditOpp] = useState<Opportunity | 'new' | null>(null);
+  const [stmtFor, setStmtFor] = useState<{ acc: Account; st?: Statement } | null>(null);
+  const [payFor, setPayFor] = useState<{ acc: Account; amount: number } | null>(null);
+  const statements = useLiveQuery(() => db.statements.toArray(), [], []);
+  const installments = useLiveQuery(() => db.installments.toArray(), [], []);
 
   const month = monthTotals(txs);
   const cats = expenseByCategory(txs);
@@ -33,6 +38,12 @@ export default function Money() {
   const rates = useMemo(() => hourlyRates(areas.filter(a => a.monetizable), txs, sessions, since), [areas, txs, sessions, since]);
   const pipe = pipelineValue(opps);
   const debt = accounts.filter(a => a.type === 'credit').reduce((s, a) => s + Math.max(0, -balanceOf(a, txs)), 0);
+  // What's actually due now: the unpaid part of each card's latest statement (pago para no generar intereses).
+  const latest = (accId: string) => statements.filter(x => x.accountId === accId).sort((a, b) => b.cutoffDate.localeCompare(a.cutoffDate))[0];
+  const dueNow = accounts.filter(a => a.type === 'credit').reduce((sum, a) => {
+    const st = latest(a.id);
+    return sum + (st ? statementStatus(a, txs, st).remaining : 0);
+  }, 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -40,32 +51,25 @@ export default function Money() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Net worth" value={mxn(nw)} tone={nw >= 0 ? 'text-ok' : 'text-hp'} />
-        <Stat label="Card debt" value={mxn(debt)} tone={debt > 0 ? 'text-hp' : 'text-ok'} />
+        <Stat label="Statements due" value={mxn(dueNow)} tone={dueNow > 0 ? 'text-gold' : 'text-ok'} sub={`Total card balance ${mxn(debt)}`} />
         <Stat label="Income · this month" value={mxn(month.income)} />
         <Stat label="Savings rate" value={`${Math.round(month.savingsRate * 100)}%`} tone={month.savingsRate >= 0.3 ? 'text-ok' : month.savingsRate > 0 ? 'text-gold' : 'text-hp'} sub={`Spent ${mxn(month.expense)}`} />
       </div>
 
       <Card title="Accounts">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {accounts.map(a => {
-            const bal = balanceOf(a, txs);
-            const c = a.type === 'credit' ? cardStatus(a, txs) : null;
-            return (
+          {accounts.map(a => a.type === 'credit'
+            ? <CardTile key={a.id} acc={a} txs={txs} statements={statements.filter(x => x.accountId === a.id)} installments={installments.filter(i => i.accountId === a.id)}
+                onEdit={() => setEditAcc(a)} onStatement={st => setStmtFor({ acc: a, st })} onPay={amount => setPayFor({ acc: a, amount })} />
+            : (
               <div key={a.id} className="mac-window p-3" style={{ background: `linear-gradient(135deg, ${a.color}66, #ffffff 75%)` }}>
                 <div className="flex items-start justify-between">
                   <div><div className="text-sm font-semibold">{a.name}</div><div className="text-[11px] uppercase tracking-wider text-ink/60">{a.type}</div></div>
-                  <button onClick={() => setEditAcc(a)} className="p-1 text-ink/60 hover:text-xp" aria-label="Edit account"><Glyph name="pencil" size={14}/></button>
+                  <button onClick={() => setEditAcc(a)} className="-m-2 flex h-10 w-10 items-center justify-center text-ink/60 hover:text-xp" aria-label={`Edit ${a.name}`}><Glyph name="pencil" size={14}/></button>
                 </div>
-                <div className={cx('mt-2 font-display text-3xl leading-8', bal < 0 ? 'text-hp' : 'text-ok')}>{mxn(bal, 2)}</div>
-                {c && (
-                  <div className="mt-2 space-y-1 text-[11px] text-ink/60">
-                    {a.creditLimit ? <><Bar value={c.utilization} color={c.utilization > 0.3 ? '#a8383a' : '#a6d9d1'} height="h-3" /><div>{Math.round(c.utilization * 100)}% used · keep &lt;30%</div></> : <div className="text-gold">Set limit, cut-off & due day →</div>}
-                    {c.nextCutoff && <div>Corte: {c.nextCutoff.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · Pago: {c.nextDue?.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} <b className={cx(c.daysToDue! <= 5 && c.debt > 0 && 'text-hp')}>({c.daysToDue}d)</b></div>}
-                  </div>
-                )}
+                <div className={cx('mt-2 font-display text-3xl leading-8', balanceOf(a, txs) < 0 ? 'text-hp' : 'text-ok')}>{mxn(balanceOf(a, txs), 2)}</div>
               </div>
-            );
-          })}
+            ))}
         </div>
       </Card>
 
@@ -136,6 +140,8 @@ export default function Money() {
       </Card>
 
       <TxForm open={txOpen} onClose={() => setTxOpen(false)} />
+      {payFor && <TxForm open preset={{ kind: 'transfer', toId: payFor.acc.id, amount: payFor.amount, description: `Pago ${payFor.acc.name}` }} onClose={() => setPayFor(null)} />}
+      {stmtFor && <StatementForm acc={stmtFor.acc} st={stmtFor.st} txs={txs} installments={installments} onClose={() => setStmtFor(null)} />}
       {editTx && <TxForm open tx={editTx} legs={editTx.transferId ? txs.filter(x => x.transferId === editTx.transferId) : [editTx]} onClose={() => setEditTx(null)} />}
       {editAcc && <AccountForm acc={editAcc} onClose={() => setEditAcc(null)} />}
       {editOpp && <OppForm opp={editOpp === 'new' ? undefined : editOpp} onClose={() => setEditOpp(null)} />}
@@ -167,29 +173,131 @@ function GoalRow({ g }: { g: Goal }) {
   );
 }
 
+const MSI_MONTHS = [3, 6, 9, 12, 18, 24];
+const fmtDay = (k: string) => new Date(k + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+
+/**
+ * A credit card, read like its Banorte statement: what's due to avoid interest, by when, how much is paid,
+ * and what's new since the cut-off (that goes on the next statement).
+ */
+function CardTile({ acc, txs, statements, installments, onEdit, onStatement, onPay }: {
+  acc: Account; txs: Transaction[]; statements: Statement[]; installments: Installment[];
+  onEdit: () => void; onStatement: (st?: Statement) => void; onPay: (amount: number) => void;
+}) {
+  const c = cardStatus(acc, txs);
+  const st = [...statements].sort((a, b) => b.cutoffDate.localeCompare(a.cutoffDate))[0];
+  const status = st ? statementStatus(acc, txs, st) : null;
+  const cut = acc.cutoffDay ? lastCutoff(acc.cutoffDay) : undefined;
+  // Only ask for a statement when something was owed at that cut-off.
+  const missing = cut && (!st || st.cutoffDate < cut) && estimateStatement(acc, txs, installments, cut).statementBalance > 0;
+  const newCharges = newSinceCutoff(acc, txs, st?.cutoffDate ?? cut ?? '0000-00-00');
+  const msiPending = installments.reduce((s, i) => s + installmentRemaining(i, cut ?? '0000-00-00'), 0);
+  const chip = status && { paid: ['paid in full', '#a6d9d1'], due: [`due in ${status.daysToDue}d`, status.daysToDue <= 5 ? '#e3b9b2' : '#e5d6a1'], late: ['late: interest', '#a8383a'], 'nothing-due': ['nothing due', '#d4d9d6'] }[status.state];
+  return (
+    <div className="mac-window p-3" style={{ background: `linear-gradient(135deg, ${acc.color}66, #ffffff 75%)` }}>
+      <div className="flex items-start justify-between">
+        <div><div className="text-sm font-semibold">{acc.name}</div><div className="text-[11px] uppercase tracking-wider text-ink/60">{acc.bank ? BANKS[acc.bank].name : acc.institution} · credit</div></div>
+        <button onClick={onEdit} className="-m-2 flex h-10 w-10 items-center justify-center text-ink/60 hover:text-xp" aria-label={`Edit ${acc.name}`}><Glyph name="pencil" size={14}/></button>
+      </div>
+      <div className={cx('mt-2 font-display text-3xl leading-8', c.balance < 0 ? 'text-hp' : 'text-ok')}>{mxn(c.balance, 2)}</div>
+      <div className="text-[11px] text-ink/60">total balance{acc.creditLimit ? ` · ${Math.round(c.utilization * 100)}% of limit used (keep < 30%)` : ''}</div>
+      {acc.creditLimit ? <Bar value={c.utilization} color={c.utilization > 0.3 ? '#a8383a' : '#a6d9d1'} height="h-3" className="mt-1" /> : <div className="mt-1 text-[11px] text-gold">Set limit and cut-off day (pencil)</div>}
+
+      {st && status && (
+        <div className="mac-inset mt-3 bg-white/80 p-2 text-[12px]">
+          <div className="flex items-center justify-between gap-2"><span className="font-display text-[13px]">Statement · corte {fmtDay(st.cutoffDate)}</span>{chip && <Chip color={chip[1]}>{chip[0]}</Chip>}</div>
+          <div className="mt-1 flex items-baseline justify-between"><span>Pago para no generar intereses</span><b className="font-display text-base">{mxn(st.noInterestPayment, 2)}</b></div>
+          <div className="flex justify-between text-ink/70"><span>Paid since corte</span><span>{mxn(status.paid, 2)}</span></div>
+          {status.remaining > 0 && <div className="flex justify-between text-hp"><span>Left to pay by {fmtDay(st.dueDate)}</span><b>{mxn(status.remaining, 2)}</b></div>}
+          <div className="flex justify-between text-ink/55"><span>Pago mínimo (emergencies only)</span><span>{mxn(st.minimumPayment, 2)}</span></div>
+        </div>
+      )}
+      <div className="mt-2 space-y-0.5 text-[11px] text-ink/60">
+        {newCharges > 0 && <div>New since corte: {mxn(newCharges, 2)} (next statement)</div>}
+        {msiPending > 0 && <div>Meses sin intereses still to bill: {mxn(msiPending, 2)}</div>}
+        {acc.cutoffDay && <div>Next corte {c.nextCutoff ? fmtDay(dateKey(c.nextCutoff)) : '—'} · pay {dueDaysFor(acc)} days after each corte</div>}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {missing && <Button variant="gold" className="!px-3 text-sm" onClick={() => onStatement()}><Glyph name="scroll" size={14}/>Enter statement · corte {fmtDay(cut!)}</Button>}
+        {st && <Button variant="ghost" className="!px-3 text-sm" onClick={() => onStatement(st)}>Statement</Button>}
+        {status && status.remaining > 0 && <Button className="!px-3 text-sm" onClick={() => onPay(status.remaining)}>Pay {mxn(status.remaining, 2)}</Button>}
+      </div>
+    </div>
+  );
+}
+
+/** Enter the exact amounts from the bank statement. The ledger only prefills an estimate. */
+function StatementForm({ acc, st, txs, installments, onClose }: { acc: Account; st?: Statement; txs: Transaction[]; installments: Installment[]; onClose: () => void }) {
+  const cut = st?.cutoffDate ?? (acc.cutoffDay ? lastCutoff(acc.cutoffDay) : dateKey());
+  const [cutoffDate, setCutoff] = useState(cut);
+  const [dueDate, setDue] = useState(st?.dueDate ?? dueDateFor(acc, cut));
+  const est = estimateStatement(acc, txs, installments, cutoffDate);
+  const [balance, setBalance] = useState(st ? String(st.statementBalance) : String(est.statementBalance));
+  const [noInt, setNoInt] = useState(st ? String(st.noInterestPayment) : String(est.noInterestPayment));
+  const [minimum, setMinimum] = useState(st ? String(st.minimumPayment) : '');
+  const [err, setErr] = useState('');
+  const save = async () => {
+    const n = (v: string) => Number(v.replace(/[,$\s]/g, ''));
+    if ([balance, noInt].some(v => v === '' || Number.isNaN(n(v)))) { setErr('Type the amounts from your statement.'); return; }
+    if (dueDate <= cutoffDate) { setErr('The due date must be after the cut-off.'); return; }
+    await saveStatement({ id: st?.id ?? uid(), accountId: acc.id, cutoffDate, dueDate, statementBalance: n(balance), noInterestPayment: n(noInt), minimumPayment: n(minimum || '0'), createdAt: st?.createdAt ?? Date.now() });
+    onClose();
+  };
+  return (
+    <Modal open onClose={onClose} title={`Statement · ${acc.name}`}>
+      <div className="flex flex-col gap-3">
+        <p className="font-type text-sm text-ink/70">Copy the numbers from your {acc.bank ? BANKS[acc.bank].name : ''} statement (estado de cuenta). The ledger estimate is prefilled: pago para no generar intereses ≈ {mxn(est.noInterestPayment, 2)}{est.msiFuture > 0 ? `, after leaving out ${mxn(est.msiFuture, 2)} of meses sin intereses not billed yet` : ''}.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Label text="Fecha de corte"><Input type="date" value={cutoffDate} onChange={e => { setCutoff(e.target.value); if (!st) setDue(dueDateFor(acc, e.target.value)); }} /></Label>
+          <Label text="Fecha límite de pago"><Input type="date" value={dueDate} onChange={e => setDue(e.target.value)} /></Label>
+        </div>
+        <Label text="Pago para no generar intereses"><Input inputMode="decimal" value={noInt} onChange={e => setNoInt(e.target.value)} className="text-lg font-bold" /></Label>
+        <div className="grid grid-cols-2 gap-3">
+          <Label text="Saldo al corte"><Input inputMode="decimal" value={balance} onChange={e => setBalance(e.target.value)} /></Label>
+          <Label text="Pago mínimo"><Input inputMode="decimal" value={minimum} onChange={e => setMinimum(e.target.value)} placeholder="0.00" /></Label>
+        </div>
+        {err && <p role="alert" className="font-type text-sm text-hp">{err}</p>}
+        <p className="text-xs text-ink/60">Paying the pago para no generar intereses by the due date earns +{FINANCE_XP.payCardInFull} XP for this statement and keeps you a totalero.</p>
+        <div className="flex gap-2">
+          {st && <Button variant="danger" aria-label="Delete statement" onClick={async () => { if (confirm('Delete this statement?')) { await deleteStatement(st); onClose(); } }}><Glyph name="trash" size={16}/></Button>}
+          <Button variant="gold" className="flex-1" onClick={save}>Save statement</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+interface TxPreset { kind: TxKind; toId?: string; amount?: number; description?: string }
+
 /** Add a transaction, or edit `tx` (with all its `legs` when it's a transfer). Editing keeps the kind and the XP. */
-function TxForm({ open, onClose, tx, legs = [] }: { open: boolean; onClose: () => void; tx?: Transaction; legs?: Transaction[] }) {
+function TxForm({ open, onClose, tx, legs = [], preset }: { open: boolean; onClose: () => void; tx?: Transaction; legs?: Transaction[]; preset?: TxPreset }) {
   const { from, to: toLeg } = tx?.transferId ? splitLegs(legs) : { from: tx, to: undefined };
   // Keep the accounts this transaction already uses selectable even if they've been archived since.
   const accounts = useLiveQuery(() => db.accounts.orderBy('order').filter(a => !a.archived || a.id === from?.accountId || a.id === toLeg?.accountId).toArray(), [from?.accountId, toLeg?.accountId], []);
   const areas = useLiveQuery(() => db.areas.orderBy('order').filter(a => a.monetizable && !a.archived).toArray(), [], []);
-  const [kind, setKind] = useState<TxKind>(tx?.kind ?? 'expense');
-  const [amount, setAmount] = useState(tx ? String(Math.abs(tx.amount)) : '');
+  const plan = useLiveQuery(() => (tx?.installmentId ? db.installments.get(tx.installmentId) : undefined), [tx?.installmentId]);
+  const [kind, setKind] = useState<TxKind>(tx?.kind ?? preset?.kind ?? 'expense');
+  const [amount, setAmount] = useState(tx ? String(Math.abs(tx.amount)) : preset?.amount ? String(preset.amount) : '');
   const [accountId, setAccountId] = useState(from?.accountId ?? '');
-  const [toId, setToId] = useState(toLeg?.accountId ?? '');
+  const [toId, setToId] = useState(toLeg?.accountId ?? preset?.toId ?? '');
   const [category, setCategory] = useState(tx && tx.kind !== 'transfer' ? tx.category : '');
   const [areaId, setAreaId] = useState(tx?.areaId ?? '');
   const [date, setDate] = useState(tx?.date ?? dateKey());
-  const [desc, setDesc] = useState(tx?.description ?? '');
-  const acc = accountId || accounts[0]?.id;
+  const [desc, setDesc] = useState(tx?.description ?? preset?.description ?? '');
+  const [msi, setMsi] = useState<string | null>(null);
+  const acc = accountId || accounts.find(a => a.type !== 'credit' && a.id !== preset?.toId)?.id || accounts[0]?.id;
+  const accObj = accounts.find(a => a.id === acc);
   const to = toId || accounts.find(a => a.id !== acc)?.id;
+  const msiValue = msi ?? (plan ? String(plan.months) : '');
+  const isCardExpense = kind === 'expense' && accObj?.type === 'credit';
 
   const save = async () => {
     const n = Math.abs(Number(amount));
     if (!n || !acc) return;
+    const months = isCardExpense && msiValue ? Number(msiValue) : null;
     if (tx) {
       if (kind === 'transfer' && (!to || to === acc)) return;
-      await editTransaction(tx, { amount: n, date, description: desc || undefined, accountId: acc, toAccountId: to, category: category || tx.category, areaId: areaId || undefined });
+      await editTransaction(tx, { amount: n, date, description: desc || undefined, accountId: acc, toAccountId: to, category: category || tx.category, areaId: areaId || undefined, msiMonths: months });
       onClose();
       return;
     }
@@ -197,31 +305,31 @@ function TxForm({ open, onClose, tx, legs = [] }: { open: boolean; onClose: () =
     if (kind === 'transfer') {
       if (!to || to === acc) return;
       const toAcc = await db.accounts.get(to);
-      const isCardPayment = toAcc?.type === 'credit';
       const id1 = uid();
-      await db.transactions.bulkAdd(transferLegs({ fromId: acc, toId: to, amount: n, date, description: base.description, isCardPayment, transferId: uid(), ids: [id1, uid()], createdAt: base.createdAt }));
-      if (isCardPayment && toAcc) {
-        const txs = await db.transactions.where('accountId').equals(to).toArray();
-        if (balanceOf(toAcc, txs) >= 0) await award('finance', `tx:${id1}`, FINANCE_XP.payCardInFull, `Paid ${toAcc.name} in full`);
-        else await rewardTransactionLogged(id1);
-      } else await rewardTransactionLogged(id1);
+      await db.transactions.bulkAdd(transferLegs({ fromId: acc, toId: to, amount: n, date, description: base.description, isCardPayment: toAcc?.type === 'credit', transferId: uid(), ids: [id1, uid()], createdAt: base.createdAt }));
+      await rewardTransactionLogged(id1);
+      // A card payment counts toward its statement; the statement reward is evaluated there, not here.
+      await evaluateStatements(to);
+      await evaluateStatements(acc);
     } else {
       const id = uid();
       await db.transactions.add({ ...base, id, accountId: acc, amount: kind === 'income' ? n : -n, kind, category: category || (kind === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]), areaId: kind === 'income' ? (areaId || undefined) : undefined });
       await rewardTransactionLogged(id);
+      if (months) await setInstallments((await db.transactions.get(id))!, months);
+      if (accObj?.type === 'credit') await evaluateStatements(acc);
     }
     await checkAchievements();
-    setAmount(''); setDesc(''); onClose();
+    setAmount(''); setDesc(''); setMsi(null); onClose();
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={tx ? 'Edit transaction' : 'New transaction'}>
+    <Modal open={open} onClose={onClose} title={tx ? 'Edit transaction' : preset?.kind === 'transfer' ? 'Pay card' : 'New transaction'}>
       <div className="flex flex-col gap-3">
         {tx ? (
           <p className="font-type text-sm text-ink/70">{kind === 'transfer' ? 'Transfer / pay card' : <span className="capitalize">{kind}</span>} · to change the kind, delete it and log it again.</p>
         ) : (
           <div className="mac-inset grid grid-cols-3 gap-1 bg-white p-1">
-            {(['expense', 'income', 'transfer'] as TxKind[]).map(k => <button key={k} onClick={() => setKind(k)} className={cx('py-2 text-sm font-semibold capitalize', kind === k ? 'mac-btn bg-xp text-ink' : 'text-ink/60')}>{k === 'transfer' ? 'Transfer / pay card' : k}</button>)}
+            {(['expense', 'income', 'transfer'] as TxKind[]).map(k => <button key={k} onClick={() => setKind(k)} className={cx('min-h-[40px] py-2 text-sm font-semibold capitalize', kind === k ? 'mac-btn bg-xp text-ink' : 'text-ink/60')}>{k === 'transfer' ? 'Transfer / pay card' : k}</button>)}
           </div>
         )}
         <Label text="Amount (MXN)"><Input autoFocus inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="text-lg font-bold" /></Label>
@@ -234,6 +342,7 @@ function TxForm({ open, onClose, tx, legs = [] }: { open: boolean; onClose: () =
           <div className="grid grid-cols-2 gap-3">
             <Label text="Category"><Select value={category} onChange={e => setCategory(e.target.value)}>{(kind === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</Select></Label>
             {kind === 'income' && <Label text="Earned by"><Select value={areaId} onChange={e => setAreaId(e.target.value)}><option value="">—</option>{areas.map(a => <option key={a.id} value={a.id}>{a.short}</option>)}</Select></Label>}
+            {isCardExpense && <Label text="Meses sin intereses"><Select value={msiValue} onChange={e => setMsi(e.target.value)}><option value="">No (one payment)</option>{MSI_MONTHS.map(m => <option key={m} value={m}>{m} MSI · {mxn(Math.abs(Number(amount) || 0) / m, 2)}/mo</option>)}</Select></Label>}
           </div>
         )}
         <div className="grid grid-cols-2 gap-3">
@@ -249,19 +358,24 @@ function TxForm({ open, onClose, tx, legs = [] }: { open: boolean; onClose: () =
 function AccountForm({ acc, onClose }: { acc: Account; onClose: () => void }) {
   const [f, setF] = useState(acc);
   const num = (s: string) => (s === '' ? undefined : Number(s));
+  const bank: BankKey = f.bank ?? 'other';
   return (
     <Modal open onClose={onClose} title={`Edit ${acc.name}`}>
       <div className="flex flex-col gap-3">
         <Label text="Name"><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Label>
         <Label text={f.type === 'credit' ? 'Current balance when you start (debt as negative, e.g. -4500)' : 'Opening balance'}><Input inputMode="decimal" value={f.openingBalance} onChange={e => setF({ ...f, openingBalance: Number(e.target.value) || 0 })} /></Label>
-        {f.type === 'credit' && (
+        {f.type === 'credit' && (<>
+          <Label text="Bank"><Select value={bank} onChange={e => { const b = e.target.value as BankKey; setF({ ...f, bank: b, institution: b === 'other' ? f.institution : BANKS[b].name, dueDaysAfterCutoff: BANKS[b].dueDaysAfterCutoff ?? f.dueDaysAfterCutoff }); }}>
+            {(Object.keys(BANKS) as BankKey[]).map(k => <option key={k} value={k}>{BANKS[k].name}</option>)}
+          </Select></Label>
+          <p className="text-xs text-ink/60">{BANKS[bank].note}</p>
           <div className="grid grid-cols-3 gap-3">
             <Label text="Limit"><Input inputMode="decimal" value={f.creditLimit ?? ''} onChange={e => setF({ ...f, creditLimit: num(e.target.value) })} /></Label>
             <Label text="Cut-off day"><Input inputMode="numeric" value={f.cutoffDay ?? ''} onChange={e => setF({ ...f, cutoffDay: num(e.target.value) })} /></Label>
-            <Label text="Pay-by day"><Input inputMode="numeric" value={f.paymentDueDay ?? ''} onChange={e => setF({ ...f, paymentDueDay: num(e.target.value) })} /></Label>
+            <Label text="Due (days after)"><Input inputMode="numeric" value={f.dueDaysAfterCutoff ?? dueDaysFor(f)} disabled={bank !== 'other'} onChange={e => setF({ ...f, dueDaysAfterCutoff: num(e.target.value) })} /></Label>
           </div>
-        )}
-        <Button onClick={async () => { await db.accounts.put(f); onClose(); }}>Save</Button>
+        </>)}
+        <Button onClick={async () => { await db.accounts.put(f); await evaluateStatements(f.id); onClose(); }}>Save</Button>
       </div>
     </Modal>
   );

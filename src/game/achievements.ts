@@ -1,5 +1,6 @@
 import { db } from '@/db/db';
 import { dateKey, uid } from '@/lib/util';
+import { totaleroStreak } from '@/finance/finance';
 
 export interface AchievementDef {
   key: string;
@@ -19,6 +20,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'workday-5', icon: 'anvil', name: 'Grinder', description: '5 full workdays (full deep-work target)', xp: 200 },
   { key: 'good-30', icon: 'laurel', name: 'Steady Hand', description: '30 Good or Perfect days', xp: 250 },
   { key: 'week-1', icon: 'scales', name: 'Scorecard', description: 'Earn a weekly scorecard', xp: 100 },
+  { key: 'totalero-3', icon: 'card', name: 'Totalero', description: '3 card statements in a row paid in full on time', xp: 150 },
   { key: 'ledger-30', icon: 'tablet', name: 'Bookkeeper', description: 'Log 30 transactions', xp: 100 },
   { key: 'first-income', icon: 'drachma', name: 'Paid', description: 'Register income linked to an activity', xp: 50 }
 ];
@@ -33,6 +35,7 @@ async function conditions(): Promise<Record<string, boolean>> {
   // A transfer has two legs but is one logged transaction.
   const txs = new Set((await db.transactions.toArray()).map(t => t.transferId ?? t.id)).size;
   const income = await db.transactions.filter(t => t.kind === 'income' && !!t.areaId).count();
+  const totalero = totaleroStreak(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray());
   const wake = await db.habits.where('key').equals('wake').first();
   let early7 = false;
   if (wake) {
@@ -57,6 +60,7 @@ async function conditions(): Promise<Record<string, boolean>> {
     'good-30': goodDays >= 30,
     'week-1': weeks >= 1,
     'ledger-30': txs >= 30,
+    'totalero-3': totalero >= 3,
     'first-income': income >= 1
   };
 }

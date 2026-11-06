@@ -31,7 +31,7 @@
 | **Perfect Day** (all 4 core habits, full versions) | 60 | 12 |
 | **Weekly scorecard** (3 of 4: focus ≥ 30 h, exercise ≥ 4 days, money check-in ≥ 5 days, ≥ 5 Good/Perfect days) | 150 | 30 |
 | Log a transaction | +2 (daily cap 20) | 1 |
-| Pay a credit card in full | +50 | 10 |
+| Pay a card statement in full (the *pago para no generar intereses* by the due date) | +50 once per statement | 10 |
 | Wealth goal progress | +25 (once per goal per month) | 5 |
 | Achievement | 25–500 | XP ÷ 5 |
 
@@ -64,7 +64,7 @@ Level 50 ≈ 100 perfect days, about a year of real consistency. That's on purpo
 - Wealth-goal progress pays once per goal per month.
 
 ## Achievements (MVP)
-First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn Patrol (7-day wake streak), Centurion (100 h focus), Grinder (5 full workdays), Steady Hand (30 Good or Perfect days), Scorecard (first weekly scorecard), Bookkeeper (30 transactions), Paid (income linked to an activity).
+First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn Patrol (7-day wake streak), Centurion (100 h focus), Grinder (5 full workdays), Steady Hand (30 Good or Perfect days), Scorecard (first weekly scorecard), Totalero (3 statements in a row paid in full on time), Bookkeeper (30 transactions), Paid (income linked to an activity).
 
 **To add (P1/P4):** Iron Body (30-day exercise streak), Debt Slayer (all cards at 0 for 3 statements), Shieldbearer (1-month fund), Fortress (6-month fund), Rainmaker (first retainer), Polymath (hours in all 8 areas in one week), Night Owl Reformed (21 nights in bed by 21:45), Season Champion.
 

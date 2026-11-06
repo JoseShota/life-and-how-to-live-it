@@ -1,5 +1,5 @@
-import type { Account, Transaction, Session, Area, Opportunity } from '@/db/types';
-import { dateKey } from '@/lib/util';
+import type { Account, BankKey, Installment, Statement, Transaction, Session, Area, Opportunity } from '@/db/types';
+import { dateKey, parseKey } from '@/lib/util';
 
 export function balanceOf(acc: Account, txs: Transaction[]) {
   return acc.openingBalance + txs.filter(t => t.accountId === acc.id).reduce((s, t) => s + t.amount, 0);
@@ -118,4 +118,138 @@ export function transferLegs(i: TransferInput): [Transaction, Transaction] {
 /** Splits a transfer's legs into [from, to] by sign (from is the negative leg). */
 export function splitLegs(legs: Transaction[]): { from?: Transaction; to?: Transaction } {
   return { from: legs.find(t => t.amount < 0), to: legs.find(t => t.amount >= 0) };
+}
+
+// ---------- Credit cards: statements, due dates, MSI (v4) ----------
+
+/** Bank presets. Add a bank here when you open a card with it; every card then follows the same statement model. */
+export const BANKS: Record<BankKey, { name: string; dueDaysAfterCutoff?: number; note: string }> = {
+  banorte: { name: 'Banorte', dueDaysAfterCutoff: 20, note: 'Payment is due 20 calendar days after the cut-off (Banorte card terms).' },
+  other: { name: 'Other bank', note: 'Enter how many days after the cut-off your payment is due.' }
+};
+
+const addDays = (key: string, n: number) => { const d = parseKey(key); d.setDate(d.getDate() + n); return dateKey(d); };
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+/** Days from the cut-off to the due date: the bank preset, the card's own value, or the legacy day-of-month pair. */
+export function dueDaysFor(acc: Account) {
+  if (acc.dueDaysAfterCutoff) return acc.dueDaysAfterCutoff;
+  if (acc.bank && BANKS[acc.bank].dueDaysAfterCutoff) return BANKS[acc.bank].dueDaysAfterCutoff!;
+  if (acc.cutoffDay && acc.paymentDueDay) return ((acc.paymentDueDay - acc.cutoffDay + 30) % 30) || 20;
+  return 20;
+}
+
+/** The most recent cut-off on or before `today` (clamped to short months). */
+export function lastCutoff(cutoffDay: number, today = dateKey()) {
+  const t = parseKey(today);
+  const make = (y: number, m: number) => new Date(y, m, Math.min(cutoffDay, new Date(y, m + 1, 0).getDate()));
+  let d = make(t.getFullYear(), t.getMonth());
+  if (d > t) d = make(t.getFullYear(), t.getMonth() - 1);
+  return dateKey(d);
+}
+
+/** The first cut-off on or after `key`: the statement that will bill a purchase made on `key`. */
+export function cutoffOnOrAfter(cutoffDay: number, key: string) {
+  const last = lastCutoff(cutoffDay, key);
+  if (last === key) return key;
+  const d = parseKey(key);
+  const make = (y: number, m: number) => new Date(y, m, Math.min(cutoffDay, new Date(y, m + 1, 0).getDate()));
+  let n = make(d.getFullYear(), d.getMonth());
+  if (n < d) n = make(d.getFullYear(), d.getMonth() + 1);
+  return dateKey(n);
+}
+
+export const dueDateFor = (acc: Account, cutoffDate: string) => addDays(cutoffDate, dueDaysFor(acc));
+
+/** Card balance at the end of day `key` (negative = owed). */
+export function balanceAt(acc: Account, txs: Transaction[], key: string) {
+  return acc.openingBalance + txs.filter(t => t.accountId === acc.id && t.date <= key).reduce((s, t) => s + t.amount, 0);
+}
+
+const monthsBetween = (a: string, b: string) => { const x = parseKey(a), y = parseKey(b); return (y.getFullYear() - x.getFullYear()) * 12 + y.getMonth() - x.getMonth(); };
+
+/** Installments billed up to and including the statement cut on `cutoffDate`. */
+export function installmentsBilled(i: Installment, cutoffDate: string) {
+  if (cutoffDate < i.firstCutoff) return 0;
+  return Math.min(i.months, monthsBetween(i.firstCutoff, cutoffDate) + 1);
+}
+export const installmentAmount = (i: Installment) => cents(i.total / i.months);
+/** MSI still to be billed after the statement cut on `cutoffDate`. */
+export const installmentRemaining = (i: Installment, cutoffDate: string) => cents(i.total - installmentAmount(i) * installmentsBilled(i, cutoffDate));
+
+/**
+ * Estimate of a statement from the ledger. The bank's number is the truth (the user types it in); this only prefills.
+ * Pago para no generar intereses = everything owed at the cut-off minus MSI installments not billed yet.
+ */
+export function estimateStatement(acc: Account, txs: Transaction[], installments: Installment[], cutoffDate: string) {
+  const owed = Math.max(0, -balanceAt(acc, txs, cutoffDate));
+  // A plan whose first cut-off is later was bought after this cut-off, so it isn't owed on this statement.
+  const msiFuture = installments.filter(i => i.accountId === acc.id && i.firstCutoff <= cutoffDate).reduce((s, i) => s + installmentRemaining(i, cutoffDate), 0);
+  return { statementBalance: cents(owed), noInterestPayment: cents(Math.max(0, owed - msiFuture)), msiFuture: cents(msiFuture) };
+}
+
+/** Payments into the card after the cut-off and up to `until` (inclusive). Only transfers count; refunds don't. */
+export function paidSince(acc: Account, txs: Transaction[], cutoffDate: string, until = '9999-12-31') {
+  return cents(txs.filter(t => t.accountId === acc.id && t.kind === 'transfer' && t.amount > 0 && t.date > cutoffDate && t.date <= until).reduce((s, t) => s + t.amount, 0));
+}
+
+export type StatementState = 'paid' | 'due' | 'late' | 'nothing-due';
+export interface StatementStatus { paid: number; paidOnTime: number; remaining: number; state: StatementState; daysToDue: number }
+
+/** Status of a statement against the pago para no generar intereses. Half a peso of rounding counts as paid. */
+export function statementStatus(acc: Account, txs: Transaction[], st: Statement, today = dateKey()): StatementStatus {
+  const paid = paidSince(acc, txs, st.cutoffDate);
+  const paidOnTime = paidSince(acc, txs, st.cutoffDate, st.dueDate);
+  const remaining = cents(Math.max(0, st.noInterestPayment - paid));
+  const daysToDue = Math.round((parseKey(st.dueDate).getTime() - parseKey(today).getTime()) / 864e5);
+  let state: StatementState;
+  if (st.noInterestPayment <= 0) state = 'nothing-due';
+  else if (st.noInterestPayment - paidOnTime <= 0.5) state = 'paid';
+  else if (today > st.dueDate) state = 'late';
+  else state = 'due';
+  return { paid, paidOnTime, remaining: state === 'paid' ? 0 : remaining, state, daysToDue };
+}
+
+/** Purchases (and other charges) posted after the cut-off: they go on the next statement. */
+export function newSinceCutoff(acc: Account, txs: Transaction[], cutoffDate: string) {
+  return cents(-txs.filter(t => t.accountId === acc.id && t.amount < 0 && t.date > cutoffDate).reduce((s, t) => s + t.amount, 0));
+}
+
+/** Statements paid in full on time, counted back from the most recent one that's settled (paid or late). */
+export function totaleroStreak(accounts: Account[], txs: Transaction[], statements: Statement[], today = dateKey()) {
+  const byId = new Map(accounts.map(a => [a.id, a]));
+  const settled = statements
+    .filter(s => byId.has(s.accountId) && s.noInterestPayment > 0)
+    .map(s => ({ s, st: statementStatus(byId.get(s.accountId)!, txs, s, today) }))
+    .filter(x => x.st.state === 'paid' || x.st.state === 'late')
+    .sort((a, b) => b.s.dueDate.localeCompare(a.s.dueDate));
+  let n = 0;
+  for (const x of settled) { if (x.st.state !== 'paid') break; n++; }
+  return n;
+}
+
+export type CardAlert =
+  | { kind: 'pay' | 'late'; account: Account; amount: number; dueDate: string; daysToDue: number }
+  | { kind: 'enter-statement'; account: Account; cutoffDate: string; estimate: number };
+
+/**
+ * What Today should say about cards: pay the pago para no generar intereses when the due date is within
+ * `withinDays` (or already passed), or enter the statement for a cut-off that has no statement yet.
+ */
+export function cardAlerts(accounts: Account[], txs: Transaction[], statements: Statement[], installments: Installment[], today = dateKey(), withinDays = 5): CardAlert[] {
+  const out: CardAlert[] = [];
+  for (const acc of accounts.filter(a => a.type === 'credit' && !a.archived)) {
+    const st = statements.filter(s => s.accountId === acc.id).sort((a, b) => b.cutoffDate.localeCompare(a.cutoffDate))[0];
+    if (st) {
+      const s = statementStatus(acc, txs, st, today);
+      if (s.state === 'late') out.push({ kind: 'late', account: acc, amount: s.remaining, dueDate: st.dueDate, daysToDue: s.daysToDue });
+      else if (s.state === 'due' && s.daysToDue <= withinDays) out.push({ kind: 'pay', account: acc, amount: s.remaining, dueDate: st.dueDate, daysToDue: s.daysToDue });
+    }
+    if (acc.cutoffDay) {
+      const cut = lastCutoff(acc.cutoffDay, today);
+      const est = estimateStatement(acc, txs, installments, cut);
+      if ((!st || st.cutoffDate < cut) && est.statementBalance > 0) out.push({ kind: 'enter-statement', account: acc, cutoffDate: cut, estimate: est.noInterestPayment });
+    }
+  }
+  return out;
 }

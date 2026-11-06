@@ -9,7 +9,7 @@ import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type 
 import { usePlayer, useToday, useNow, useWorkTargets } from '@/lib/hooks';
 import { IDEAL_DAY, currentBlockIndex } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
-import { cardStatus } from '@/finance/finance';
+import { cardAlerts } from '@/finance/finance';
 import { cx, hm, mxn } from '@/lib/util';
 import { Card, Ring, Button, Bar, Empty, PageTitle } from '@/components/ui';
 import { TaskRow, TaskForm } from '@/components/TaskBits';
@@ -67,11 +67,7 @@ export default function Today() {
   const minutes = useLiveQuery(async () => (await db.sessions.where('date').equals(today).toArray()).reduce((s, x) => s + x.minutes, 0), [today], 0);
   const { today: targets } = useWorkTargets(today);
   const week = useLiveQuery(() => weekStats(weekStartKey(today)), [today, logs, minutes]);
-  const alerts = useLiveQuery(async () => {
-    const accs = await db.accounts.filter(a => a.type === 'credit' && !a.archived).toArray();
-    const txs = await db.transactions.toArray();
-    return accs.map(a => cardStatus(a, txs)).filter(c => c.daysToDue !== undefined && c.daysToDue <= 5 && c.debt > 0);
-  }, [], []);
+  const alerts = useLiveQuery(async () => cardAlerts(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray(), await db.installments.toArray(), today), [today], []);
   const xpLog = useLiveQuery(() => db.xp.where('date').equals(today).reverse().sortBy('ts'), [today], []);
 
   const coreDone = habits.filter(h => h.core && logs.find(l => l.habitId === h.id)?.done).length;
@@ -101,8 +97,14 @@ export default function Today() {
       {alerts.length > 0 && (
         <Card title="A Gentle Warning" className="bg-pink/40">
           {alerts.map(a => (
-            <div key={a.account.id} className="flex items-center gap-2 text-sm"><Glyph name="alert" size={16} className="text-hp"/>
-              <b>{a.account.name}</b>: pay {mxn(a.debt)} {a.daysToDue === 0 ? 'TODAY' : `in ${a.daysToDue} days`} → <Link to="/money" className="underline">Money</Link>
+            <div key={a.account.id + a.kind} className="flex min-h-[40px] flex-wrap items-center gap-x-2 text-sm"><Glyph name="alert" size={16} className="text-hp"/>
+              <b>{a.account.name}</b>:
+              {a.kind === 'enter-statement'
+                ? <span>enter the statement for corte {a.cutoffDate.slice(5)} (estimate {mxn(a.estimate)})</span>
+                : a.kind === 'late'
+                  ? <span className="text-hp">{mxn(a.amount, 2)} of the pago para no generar intereses is late; pay it now to stop interest</span>
+                  : <span>pay {mxn(a.amount, 2)} (pago para no generar intereses) {a.daysToDue === 0 ? 'TODAY' : `in ${a.daysToDue} days`}</span>}
+              <Link to="/money" className="underline">Treasury</Link>
             </div>
           ))}
         </Card>
