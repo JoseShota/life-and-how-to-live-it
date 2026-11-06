@@ -199,6 +199,8 @@ export interface Goal {
 }
 
 export type OpportunityStatus = 'lead' | 'applied' | 'interview' | 'won' | 'lost';
+/** v7: what kind of income an opportunity would bring. Retainers are the plan's key to steady income. */
+export type OpportunityKind = 'job' | 'project' | 'retainer';
 
 export interface Opportunity {
   id: ID;
@@ -211,7 +213,22 @@ export interface Opportunity {
   probability: number;
   expectedDate?: DateKey;
   nextAction?: string;
+  /** v7: when the next action is due; past it, the lead is flagged as stale */
+  nextActionDate?: DateKey;
+  /** v7 */
+  kind?: OpportunityKind;
   notes?: string;
+  createdAt: number;
+}
+
+/** v7: leading indicators of the income engine (00-MASTER-PLAN.md §4 Level 3). */
+export type PipelineEventKind = 'conversation' | 'proposal' | 'case-study' | 'stage';
+export interface PipelineEvent {
+  id: ID;
+  kind: PipelineEventKind;
+  opportunityId?: ID;
+  date: DateKey;
+  note?: string;
   createdAt: number;
 }
 
@@ -232,6 +249,7 @@ export type XpSource =
   | 'weekly'
   | 'milestone'
   | 'shield'
+  | 'pipeline'
   | 'session'
   | 'workday'
   | 'finance'

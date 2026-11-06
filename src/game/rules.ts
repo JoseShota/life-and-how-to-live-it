@@ -109,3 +109,10 @@ export const FINANCE_XP = {
   payCardInFull: 50,
   saveDeposit: 25
 };
+
+/** Leading indicators of the income engine: reward the actions that build income, not the income itself. */
+export const LEAD_XP = { conversation: 15, proposal: 40, 'case-study': 75, stage: 10 } as const;
+/** Conversations pay at most this much XP a day (3 conversations). */
+export const CONVERSATION_DAILY_CAP_XP = 45;
+/** The plan's weekly target: 5 new conversations. */
+export const WEEKLY_CONVERSATIONS = 5;

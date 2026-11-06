@@ -24,6 +24,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'week-1', icon: 'scales', name: 'Scorecard', description: 'Earn a weekly scorecard', xp: 100 },
   { key: 'totalero-3', icon: 'card', name: 'Totalero', description: '3 card statements in a row paid in full on time', xp: 150 },
   { key: 'ledger-30', icon: 'tablet', name: 'Bookkeeper', description: 'Log 30 transactions', xp: 100 },
+  { key: 'rainmaker', icon: 'amphora', name: 'Rainmaker', description: 'Win your first retainer client', xp: 500 },
+  { key: 'conversations-20', icon: 'scroll', name: 'Agora Regular', description: 'Log 20 conversations with potential clients', xp: 150 },
   { key: 'first-income', icon: 'drachma', name: 'Paid', description: 'Register income linked to an activity', xp: 50 }
 ];
 
@@ -37,6 +39,8 @@ async function conditions(): Promise<Record<string, boolean>> {
   // A transfer has two legs but is one logged transaction.
   const txs = new Set((await db.transactions.toArray()).map(t => t.transferId ?? t.id)).size;
   const income = await db.transactions.filter(t => t.kind === 'income' && !!t.areaId).count();
+  const retainerWon = await db.opportunities.filter(o => o.kind === 'retainer' && o.status === 'won').count();
+  const conversations = await db.pipelineEvents.where('kind').equals('conversation').count();
   const totalero = totaleroStreak(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray());
   const wake = await db.habits.where('key').equals('wake').first();
   let early7 = false;
@@ -63,7 +67,9 @@ async function conditions(): Promise<Record<string, boolean>> {
     'week-1': weeks >= 1,
     'ledger-30': txs >= 30,
     'totalero-3': totalero >= 3,
-    'first-income': income >= 1
+    'first-income': income >= 1,
+    rainmaker: retainerWon >= 1,
+    'conversations-20': conversations >= 20
   };
 }
 

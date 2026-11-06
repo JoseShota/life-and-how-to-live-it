@@ -34,6 +34,8 @@
 | Pay a card statement in full (the *pago para no generar intereses* by the due date) | +50 once per statement | 10 |
 | Wealth goal progress | +25 (once per goal per month) | 5 |
 | Savings deposit (transfer into the shield or investments, e.g. from "split it") | +25, max 4 a month | 5 |
+| **Income engine** (Treasury → Pipeline, one tap): conversation / proposal / case study | 15 (max 45 a day) / 40 / 75 | XP ÷ 5 |
+| Lead moves to a new stage | +10 once per lead and stage | 2 |
 | Achievement | 25–500 | XP ÷ 5 |
 | Wealth level (Treasury → The Road) | 150 / 250 / 400 / 600 / 1,000 for levels 1–5, once | XP ÷ 5 |
 
@@ -72,7 +74,7 @@ Level 50 ≈ 100 perfect days, about a year of real consistency. That's on purpo
 - Wealth-goal progress pays once per goal per month.
 
 ## Achievements (MVP)
-First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn Patrol (7-day wake streak), Centurion (100 h focus), Grinder (5 full workdays), Steady Hand (30 Good or Perfect days), Scorecard (first weekly scorecard), Totalero (3 statements in a row paid in full on time), Bookkeeper (30 transactions), Paid (income linked to an activity).
+First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn Patrol (7-day wake streak), Centurion (100 h focus), Grinder (5 full workdays), Steady Hand (30 Good or Perfect days), Scorecard (first weekly scorecard), Totalero (3 statements in a row paid in full on time), Rainmaker (first retainer won), Agora Regular (20 conversations), Bookkeeper (30 transactions), Paid (income linked to an activity).
 
 **To add (P1/P4):** Iron Body (30-day exercise streak), Debt Slayer (all cards at 0 for 3 statements), Shieldbearer (1-month fund), Fortress (6-month fund), Rainmaker (first retainer), Polymath (hours in all 8 areas in one week), Night Owl Reformed (21 nights in bed by 21:45), Season Champion.
 

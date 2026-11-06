@@ -1,6 +1,6 @@
 // Side-effectful game actions. Every reward goes through `award` so the ledger stays the single source of truth.
 import { db } from '@/db/db';
-import type { Difficulty, Habit, IncomeTax, Statement, Task, Transaction, XpSource } from '@/db/types';
+import type { Difficulty, Habit, IncomeTax, Opportunity, PipelineEventKind, Statement, Task, Transaction, XpSource } from '@/db/types';
 import { DEFAULT_TAX_PROFILE, monthTax, monthlyDueDate, type TaxProfile } from '@/finance/tax';
 import { mxn } from '@/lib/util';
 import { cutoffOnOrAfter, splitLegs, statementStatus, transferLegs } from '@/finance/finance';
@@ -8,7 +8,7 @@ import { dateKey, parseKey, uid } from '@/lib/util';
 import {
   TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
   MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, DEFAULT_WORK_TARGETS, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
-  MIN_VERSION_SHARE, WORK_MIN_HOURS, SHIELD_EVERY, SHIELD_MAX,
+  MIN_VERSION_SHARE, WORK_MIN_HOURS, SHIELD_EVERY, SHIELD_MAX, LEAD_XP, CONVERSATION_DAILY_CAP_XP,
   type WorkTargets
 } from './rules';
 import { checkAchievements } from './achievements';
@@ -464,6 +464,50 @@ export async function setInstallments(tx: Transaction, months: number | null) {
   });
   if (tx.installmentId !== id) await db.transactions.update(tx.id, { installmentId: id });
 }
+
+// ---------- Income engine: leading indicators (v7) ----------
+const LEAD_LABEL: Record<PipelineEventKind, string> = { conversation: 'Conversation', proposal: 'Proposal sent', 'case-study': 'Case study published', stage: 'Pipeline moved' };
+
+/** Logs a conversation, proposal or case study (one tap). Conversations pay at most 45 XP a day. */
+export async function logPipelineEvent(kind: Exclude<PipelineEventKind, 'stage'>, opts: { opportunityId?: string; note?: string; date?: string } = {}) {
+  const id = uid();
+  const date = opts.date ?? dateKey();
+  await db.pipelineEvents.add({ id, kind, opportunityId: opts.opportunityId, note: opts.note, date, createdAt: Date.now() });
+  let xp: number = LEAD_XP[kind];
+  if (kind === 'conversation') {
+    const today = (await db.xp.where('date').equals(date).filter(e => e.source === 'pipeline' && e.refId.startsWith('pipe:') && e.label.startsWith(LEAD_LABEL.conversation)).toArray()).reduce((s, e) => s + e.xp, 0);
+    xp = Math.max(0, Math.min(xp, CONVERSATION_DAILY_CAP_XP - today));
+  }
+  if (xp > 0) await award('pipeline', `pipe:${id}`, xp, `${LEAD_LABEL[kind]}${opts.note ? `: ${opts.note}` : ''}`, coinsFor(xp), date);
+  await checkAchievements();
+  return id;
+}
+
+export async function deletePipelineEvent(id: string) {
+  await db.pipelineEvents.delete(id);
+  await revoke(`pipe:${id}`);
+  await checkAchievements();
+}
+
+/** Saves an opportunity; moving it to a new stage pays once per opportunity and stage (lost included: closing loops counts). */
+export async function saveOpportunity(o: Opportunity) {
+  const before = await db.opportunities.get(o.id);
+  await db.opportunities.put(o);
+  if (before && before.status !== o.status) {
+    await db.pipelineEvents.add({ id: uid(), kind: 'stage', opportunityId: o.id, date: dateKey(), note: `${before.status} → ${o.status}`, createdAt: Date.now() });
+    await awardOnce('pipeline', `pipe:stage:${o.id}:${o.status}`, LEAD_XP.stage, `${LEAD_LABEL.stage}: ${o.title} → ${o.status}`);
+  }
+  await checkAchievements();
+}
+
+export async function deleteOpportunity(o: Opportunity) {
+  await db.opportunities.delete(o.id);
+  await db.xp.where('refId').startsWith(`pipe:stage:${o.id}:`).delete();
+  await checkAchievements();
+}
+
+/** True when a lead's next action date has passed (and it's still open). */
+export const isStale = (o: Opportunity, today = dateKey()) => o.status !== 'won' && o.status !== 'lost' && !!o.nextActionDate && o.nextActionDate < today;
 
 // ---------- Rewards ----------
 export async function redeem(rewardId: string) {

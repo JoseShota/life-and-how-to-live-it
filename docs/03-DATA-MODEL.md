@@ -2,7 +2,10 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v6)
+## Tables (Dexie v7)
+
+v7: new table `pipelineEvents` (conversations, proposals, case studies, stage changes); opportunities gain `kind` (`job`, `project`, `retainer`) and `nextActionDate`. Backups are `BACKUP_VERSION` 3.
+
 
 v6 (no index changes): habits get `minLabel` and `plan`; a new "Eat well" ritual (`eat`). Plans live in `src/db/habitPlans.ts`.
 
@@ -33,6 +36,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `xp` | `id` | `date, source, refId, ts` | **Append-only ledger** of XP/coin events |
 | `statements` | `id` | `accountId, cutoffDate, dueDate` | v4: one credit-card statement with the exact amounts (saldo al corte, pago para no generar intereses, pago mínimo) |
 | `installments` | `id` | `accountId, txId` | v4: meses sin intereses plans (total, months, first cut-off) |
+| `pipelineEvents` | `id` | `date, kind, opportunityId` | v7: leading indicators of the income engine |
 | `unlocked` | `key` | — | Unlocked achievements |
 | `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
@@ -53,8 +57,9 @@ Transaction { id, accountId, date, amount (signed MXN), kind: 'income'|'expense'
 Statement   { id, accountId, cutoffDate, dueDate, statementBalance, noInterestPayment, minimumPayment, notes?, createdAt }
 Installment { id, accountId, description, total, months, firstCutoff, txId?, createdAt }
 Goal        { id, name, icon, target, current, deadline?, order }
-Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', monthlyValue,
-              probability 0..1, expectedDate?, nextAction?, notes?, createdAt }
+Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', kind?: 'job'|'project'|'retainer', monthlyValue,
+              probability 0..1, expectedDate?, nextAction?, nextActionDate?, notes?, createdAt }
+PipelineEvent { id, kind: 'conversation'|'proposal'|'case-study'|'stage', opportunityId?, date, note?, createdAt }
 Reward      { id, title, icon, cost, archived }
 XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ```
@@ -77,6 +82,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | workday | `workday:<date>` | sessions drop below the full target |
 | session | `session:<sessionId>` | deleting session; `evaluateDay` re-allocates the day's focus XP (nothing past the full target) |
 | finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<yyyy-mm>` (once per goal per month), `stmt:<statementId>` (statement paid in full on time; re-evaluated by `evaluateStatements`), `save:<legId>` (deposit into the shield or investments, max 4 a month) | deleting transaction (revokes every leg). Editing never changes XP |
+| pipeline | `pipe:<eventId>`, `pipe:stage:<oppId>:<status>` (once per stage) | deleting the event / opportunity |
 | shield | `shield:earn:<date>` (0 XP; revoked if the 7-day run breaks), `shield:use:<habitId>:<date>` | earn: re-evaluated by `evaluateDay`; use: permanent |
 | milestone | `wl:<n>` (wealth level reached) | permanent: spending the shield in an emergency never costs XP |
 | achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |

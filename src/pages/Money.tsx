@@ -4,15 +4,16 @@ import { Glyph } from '@/components/Glyph';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { subDays } from 'date-fns';
 import { db } from '@/db/db';
-import type { Account, AccountRole, BankKey, Goal, IncomeTax, IncomeTaxKind, Installment, Opportunity, OpportunityStatus, Statement, Transaction, TxKind } from '@/db/types';
+import type { Account, AccountRole, BankKey, Goal, IncomeTax, IncomeTaxKind, Installment, Opportunity, OpportunityKind, OpportunityStatus, PipelineEventKind, Statement, Transaction, TxKind } from '@/db/types';
 import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
   BANKS, dueDaysFor, lastCutoff, dueDateFor, estimateStatement, statementStatus, newSinceCutoff, installmentRemaining } from '@/finance/finance';
-import { deleteStatement, deleteTransaction, editTransaction, evaluateStatements, getTaxProfile, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments, transfer } from '@/game/engine';
+import { deleteOpportunity, deletePipelineEvent, deleteStatement, deleteTransaction, editTransaction, evaluateStatements, getTaxProfile, isStale, weekStartKey, logPipelineEvent, saveOpportunity, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments, transfer } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
-import { FINANCE_XP } from '@/game/rules';
+import { FINANCE_XP, LEAD_XP, WEEKLY_CONVERSATIONS } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
 import { Bar, Button, Card, Chip, Empty, Input, Label, Modal, Select, PageTitle } from '@/components/ui';
 import { WealthRoad } from '@/components/WealthRoad';
+import { useToast } from '@/lib/toast';
 import { SplitSheet, TaxCard } from '@/components/TaxBits';
 import { IVA_RATE, invoiceFromSubtotal } from '@/finance/tax';
 
@@ -40,7 +41,6 @@ export default function Money() {
   const nw = netWorth(accounts, txs);
   const since = dateKey(subDays(new Date(), 90));
   const rates = useMemo(() => hourlyRates(areas.filter(a => a.monetizable), txs, sessions, since), [areas, txs, sessions, since]);
-  const pipe = pipelineValue(opps);
   const debt = accounts.filter(a => a.type === 'credit').reduce((s, a) => s + Math.max(0, -balanceOf(a, txs)), 0);
   // What's actually due now: the unpaid part of each card's latest statement (pago para no generar intereses).
   const latest = (accId: string) => statements.filter(x => x.accountId === accId).sort((a, b) => b.cutoffDate.localeCompare(a.cutoffDate))[0];
@@ -103,18 +103,7 @@ export default function Money() {
           )}
         </Card>
 
-        <Card title="Opportunity Pipeline" action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setEditOpp('new')}><Glyph name="plus" size={16}/>Add</Button>}>
-          <p className="mb-3 text-xs text-ink/60">Expected: <b className="text-gold">{mxn(pipe.expectedMonthly)}/mo</b> · best case {mxn(pipe.bestCaseMonthly)}/mo · won {mxn(pipe.wonMonthly)}/mo</p>
-          <div className="flex flex-col gap-2">
-            {opps.sort((a, b) => (a.expectedDate ?? 'z').localeCompare(b.expectedDate ?? 'z')).map(o => (
-              <button key={o.id} onClick={() => setEditOpp(o)} className="mac-window bg-panel2/60 p-3 text-left hover:bg-panel2">
-                <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{o.title}</span><Chip color={{ lead: '#d4d9d6', applied: '#b9cfe0', interview: '#c7c2e3', won: '#a6d9d1', lost: '#a8383a' }[o.status]}>{o.status}</Chip></div>
-                <div className="mt-1 text-[11px] text-ink/60">{mxn(o.monthlyValue)}/mo · {Math.round(o.probability * 100)}% {o.expectedDate && `· ${o.expectedDate}`}</div>
-                {o.nextAction && <div className="mt-1 text-xs text-ink/80">→ {o.nextAction}</div>}
-              </button>
-            ))}
-          </div>
-        </Card>
+        <PipelineCard opps={opps} onEdit={setEditOpp} />
 
         <Card title="Wealth Goals">
           <div className="flex flex-col gap-3">{goals.map(g => <GoalRow key={g.id} g={g} />)}</div>
@@ -431,6 +420,38 @@ function AccountForm({ acc, onClose }: { acc: Account; onClose: () => void }) {
   );
 }
 
+/** The income engine's leading indicators: one tap per conversation, proposal or case study, plus the leads. */
+function PipelineCard({ opps, onEdit }: { opps: Opportunity[]; onEdit: (o: Opportunity | 'new') => void }) {
+  const toast = useToast();
+  const monday = weekStartKey(dateKey());
+  const week = useLiveQuery(() => db.pipelineEvents.where('date').aboveOrEqual(monday).toArray(), [monday], []);
+  const count = (k: PipelineEventKind) => week.filter(e => e.kind === k).length;
+  const pipe = pipelineValue(opps);
+  const last = [...week].filter(e => e.kind !== 'stage').sort((a, b) => b.createdAt - a.createdAt)[0];
+  const log = async (k: Exclude<PipelineEventKind, 'stage'>) => { await logPipelineEvent(k); };
+  return (
+    <Card title="Opportunity Pipeline" action={<Button variant="ghost" className="!px-3" onClick={() => onEdit('new')}><Glyph name="plus" size={16}/>Add lead</Button>}>
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {([['conversation', 'Conversation'], ['proposal', 'Proposal'], ['case-study', 'Case study']] as const).map(([k, label]) => (
+          <Button key={k} variant="cyan" className="!px-2 text-sm" onClick={() => log(k)}><Glyph name="plus" size={14}/>{label} · {LEAD_XP[k]}</Button>
+        ))}
+      </div>
+      <p className="mb-1 text-xs text-ink/70">This week: <b className={cx(count('conversation') >= WEEKLY_CONVERSATIONS && 'text-ok')}>{count('conversation')}/{WEEKLY_CONVERSATIONS} conversations</b> · {count('proposal')} proposals · {count('case-study')} case studies</p>
+      {last && <p className="mb-2 flex items-center gap-2 text-[11px] text-ink/55">Last: {last.kind} · {last.date.slice(5)}<button className="-my-2 min-h-[40px] px-2 underline" onClick={async () => { await deletePipelineEvent(last.id); toast('Removed the last entry', 'bad'); }}>undo</button></p>}
+      <p className="mb-3 text-xs text-ink/60">Expected: <b className="text-gold">{mxn(pipe.expectedMonthly)}/mo</b> · best case {mxn(pipe.bestCaseMonthly)}/mo · won {mxn(pipe.wonMonthly)}/mo</p>
+      <div className="flex flex-col gap-2">
+        {[...opps].sort((a, b) => (a.nextActionDate ?? a.expectedDate ?? 'z').localeCompare(b.nextActionDate ?? b.expectedDate ?? 'z')).map(o => (
+          <button key={o.id} onClick={() => onEdit(o)} className={cx('mac-window p-3 text-left hover:bg-panel2', isStale(o) ? 'bg-pink/30' : 'bg-panel2/60')}>
+            <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{o.title}</span><span className="flex gap-1">{o.kind && <Chip color="#e5d6a1">{o.kind}</Chip>}<Chip color={{ lead: '#d4d9d6', applied: '#b9cfe0', interview: '#c7c2e3', won: '#a6d9d1', lost: '#a8383a' }[o.status]}>{o.status}</Chip></span></div>
+            <div className="mt-1 text-[11px] text-ink/60">{mxn(o.monthlyValue)}/mo · {Math.round(o.probability * 100)}% {o.expectedDate && `· ${o.expectedDate}`}</div>
+            {o.nextAction && <div className={cx('mt-1 text-xs', isStale(o) ? 'text-hp' : 'text-ink/80')}>→ {o.nextAction}{o.nextActionDate && ` · by ${o.nextActionDate.slice(5)}`}{isStale(o) && ' · overdue'}</div>}
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function OppForm({ opp, onClose }: { opp?: Opportunity; onClose: () => void }) {
   const [f, setF] = useState<Opportunity>(opp ?? { id: uid(), title: '', status: 'lead', monthlyValue: 0, probability: 0.3, createdAt: Date.now() });
   return (
@@ -439,15 +460,18 @@ function OppForm({ opp, onClose }: { opp?: Opportunity; onClose: () => void }) {
         <Label text="Title"><Input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></Label>
         <div className="grid grid-cols-2 gap-3">
           <Label text="Status"><Select value={f.status} onChange={e => setF({ ...f, status: e.target.value as OpportunityStatus })}>{['lead', 'applied', 'interview', 'won', 'lost'].map(s => <option key={s}>{s}</option>)}</Select></Label>
-          <Label text="Expected date"><Input type="date" value={f.expectedDate ?? ''} onChange={e => setF({ ...f, expectedDate: e.target.value || undefined })} /></Label>
+          <Label text="Kind"><Select value={f.kind ?? ''} onChange={e => setF({ ...f, kind: (e.target.value || undefined) as OpportunityKind | undefined })}><option value="">—</option><option value="job">Job</option><option value="project">Project</option><option value="retainer">Retainer (monthly)</option></Select></Label>
           <Label text="Monthly value (MXN)"><Input inputMode="decimal" value={f.monthlyValue} onChange={e => setF({ ...f, monthlyValue: Number(e.target.value) || 0 })} /></Label>
-          <Label text={`Probability: ${Math.round(f.probability * 100)}%`}><input type="range" min={0} max={1} step={0.05} value={f.probability} onChange={e => setF({ ...f, probability: Number(e.target.value) })} className="mt-3 accent-pink-500" /></Label>
+          <Label text={`Probability: ${Math.round(f.probability * 100)}%`}><input type="range" min={0} max={1} step={0.05} value={f.probability} onChange={e => setF({ ...f, probability: Number(e.target.value) })} className="mt-3 min-h-[40px] accent-pink-500" /></Label>
+          <Label text="Expected date"><Input type="date" value={f.expectedDate ?? ''} onChange={e => setF({ ...f, expectedDate: e.target.value || undefined })} /></Label>
+          <Label text="Next action by"><Input type="date" value={f.nextActionDate ?? ''} onChange={e => setF({ ...f, nextActionDate: e.target.value || undefined })} /></Label>
         </div>
         <Label text="Next action"><Input value={f.nextAction ?? ''} onChange={e => setF({ ...f, nextAction: e.target.value })} /></Label>
         <Label text="Notes"><textarea rows={3} value={f.notes ?? ''} onChange={e => setF({ ...f, notes: e.target.value })} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
+        <p className="text-xs text-ink/60">Moving a lead to a new stage pays +{LEAD_XP.stage} XP once per stage. Winning a retainer unlocks Rainmaker.</p>
         <div className="flex gap-2">
-          {opp && <Button variant="danger" onClick={async () => { await db.opportunities.delete(f.id); onClose(); }}><Glyph name="trash" size={16}/></Button>}
-          <Button className="flex-1" onClick={async () => { if (!f.title.trim()) return; await db.opportunities.put(f); onClose(); }}>Save</Button>
+          {opp && <Button variant="danger" aria-label="Delete opportunity" onClick={async () => { if (confirm('Delete this opportunity?')) { await deleteOpportunity(f); onClose(); } }}><Glyph name="trash" size={16}/></Button>}
+          <Button className="flex-1" onClick={async () => { if (!f.title.trim()) return; await saveOpportunity(f); onClose(); }}>Save</Button>
         </div>
       </div>
     </Modal>
