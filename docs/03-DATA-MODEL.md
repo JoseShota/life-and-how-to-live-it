@@ -58,7 +58,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | perfect-day | `perfect:<date>` | any core habit becomes undone |
 | workday | `workday:<date>` | deleting sessions below target |
 | session | `session:<sessionId>` | deleting session |
-| finance | `tx:<txId>`, `goal:<goalId>:<ts>` | deleting transaction |
+| finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<ts>` | deleting transaction (revokes every leg). Editing never changes XP |
 | achievement | `ach:<key>` | (permanent) |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |
 

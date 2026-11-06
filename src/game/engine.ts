@@ -1,6 +1,7 @@
 // Side-effectful game actions. Every reward goes through `award` so the ledger stays the single source of truth.
 import { db } from '@/db/db';
-import type { Difficulty, Habit, Task, XpSource } from '@/db/types';
+import type { Difficulty, Habit, Task, Transaction, XpSource } from '@/db/types';
+import { splitLegs, transferLegs } from '@/finance/finance';
 import { dateKey, uid } from '@/lib/util';
 import {
   TASK_XP, coinsFor, sessionXp, PERFECT_DAY_XP, WORKDAY_BONUS_XP, streakMultiplier, FINANCE_XP
@@ -116,6 +117,57 @@ export async function rewardTransactionLogged(txId: string) {
   const todays = await db.xp.where('date').equals(today).filter(e => e.source === 'finance' && e.refId.startsWith('tx:')).toArray();
   const earned = todays.reduce((s, e) => s + e.xp, 0);
   if (earned < FINANCE_XP.logTransactionDailyCap) await award('finance', `tx:${txId}`, FINANCE_XP.logTransaction, 'Logged a transaction', 1);
+}
+
+export interface TxEdit {
+  /** Positive MXN; the sign follows the transaction's kind. */
+  amount: number;
+  date: string;
+  description?: string;
+  accountId: string;
+  /** Transfers only: the receiving account. */
+  toAccountId?: string;
+  category?: string;
+  areaId?: string;
+}
+
+/**
+ * Edits a transaction in place. The kind can't change, and XP never changes: the award was for the act
+ * of logging, so its `tx:<id>` refId is kept. Transfers update both legs together, keeping their ids.
+ */
+export async function editTransaction(tx: Transaction, e: TxEdit) {
+  const n = Math.abs(e.amount);
+  if (!n) return;
+  await db.transaction('rw', db.transactions, db.accounts, async () => {
+    if (tx.kind === 'transfer' && tx.transferId) {
+      if (!e.toAccountId || e.toAccountId === e.accountId) return;
+      const { from, to } = splitLegs(await db.transactions.where('transferId').equals(tx.transferId).toArray());
+      const toAcc = await db.accounts.get(e.toAccountId);
+      await db.transactions.bulkPut(transferLegs({
+        fromId: e.accountId, toId: e.toAccountId, amount: n, date: e.date, description: e.description,
+        isCardPayment: toAcc?.type === 'credit', transferId: tx.transferId,
+        ids: [from?.id ?? uid(), to?.id ?? uid()], createdAt: from?.createdAt ?? tx.createdAt
+      }));
+    } else {
+      await db.transactions.put({
+        ...tx, amount: tx.kind === 'income' ? n : -n, date: e.date, description: e.description,
+        accountId: e.accountId, category: e.category ?? tx.category,
+        areaId: tx.kind === 'income' ? e.areaId : undefined
+      });
+    }
+  });
+}
+
+/**
+ * Deletes a transaction (both legs for a transfer) and revokes its XP. The award sits on the first leg's
+ * id, so revoke every leg: tapping delete on the second leg must not leave orphaned XP.
+ */
+export async function deleteTransaction(tx: Transaction) {
+  const legs = tx.transferId ? await db.transactions.where('transferId').equals(tx.transferId).toArray() : [tx];
+  await db.transaction('rw', db.transactions, db.xp, async () => {
+    await db.transactions.bulkDelete(legs.map(t => t.id));
+    for (const t of legs) await revoke(`tx:${t.id}`);
+  });
 }
 
 // ---------- Rewards ----------

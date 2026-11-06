@@ -89,3 +89,33 @@ export const EXPENSE_CATEGORIES = [
   'Fun', 'Clothes', 'Gifts', 'Card payment', 'Taxes', 'Other'
 ];
 export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Class', 'Royalties/Content', 'Interest', 'Refund', 'Other'];
+
+export interface TransferInput {
+  fromId: string;
+  toId: string;
+  /** Positive MXN; the sign is applied per leg. */
+  amount: number;
+  date: string;
+  description?: string;
+  /** True when `toId` is a credit card, so both legs read "Card payment". */
+  isCardPayment: boolean;
+  transferId: string;
+  /** Leg ids [from, to]. Editing passes the existing ids so the `tx:<fromId>` XP refId stays valid. */
+  ids: [string, string];
+  createdAt: number;
+}
+
+/** The two legs of a transfer / card payment: −n out of `from`, +n into `to`, sharing `transferId`. */
+export function transferLegs(i: TransferInput): [Transaction, Transaction] {
+  const n = Math.abs(i.amount);
+  const shared = { date: i.date, description: i.description, kind: 'transfer' as const, category: i.isCardPayment ? 'Card payment' : 'Transfer', transferId: i.transferId, createdAt: i.createdAt };
+  return [
+    { ...shared, id: i.ids[0], accountId: i.fromId, amount: -n },
+    { ...shared, id: i.ids[1], accountId: i.toId, amount: n }
+  ];
+}
+
+/** Splits a transfer's legs into [from, to] by sign (from is the negative leg). */
+export function splitLegs(legs: Transaction[]): { from?: Transaction; to?: Transaction } {
+  return { from: legs.find(t => t.amount < 0), to: legs.find(t => t.amount >= 0) };
+}

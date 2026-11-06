@@ -4,9 +4,9 @@ import { Glyph } from '@/components/Glyph';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { subDays } from 'date-fns';
 import { db } from '@/db/db';
-import type { Account, Goal, Opportunity, OpportunityStatus, TxKind } from '@/db/types';
-import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/finance/finance';
-import { award, revoke, rewardTransactionLogged } from '@/game/engine';
+import type { Account, Goal, Opportunity, OpportunityStatus, Transaction, TxKind } from '@/db/types';
+import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, transferLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/finance/finance';
+import { award, deleteTransaction, editTransaction, rewardTransactionLogged } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
 import { FINANCE_XP } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
@@ -22,6 +22,7 @@ export default function Money() {
   const goals = useLiveQuery(() => db.goals.orderBy('order').toArray(), [], []);
   const opps = useLiveQuery(() => db.opportunities.toArray(), [], []);
   const [txOpen, setTxOpen] = useState(false);
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
   const [editAcc, setEditAcc] = useState<Account | null>(null);
   const [editOpp, setEditOpp] = useState<Opportunity | 'new' | null>(null);
 
@@ -120,11 +121,13 @@ export default function Money() {
                   <span className="w-12 shrink-0 text-[11px] text-ink/55">{t.date.slice(5)}</span>
                   <div className="min-w-0 flex-1"><div className="truncate">{t.description || t.category}</div><div className="text-[11px] text-ink/55">{acc?.name} · {t.category}{area ? ` · ${area.short}` : ''}</div></div>
                   <span className={cx('shrink-0 font-semibold', t.amount >= 0 ? 'text-ok' : 'text-ink/90')}>{mxn(t.amount, 2)}</span>
-                  <button className="p-1 text-ink/40 hover:text-hp" aria-label="Delete transaction" onClick={async () => {
-                    if (!confirm('Delete transaction?')) return;
-                    if (t.transferId) await db.transactions.where('transferId').equals(t.transferId).delete(); else await db.transactions.delete(t.id);
-                    await revoke(`tx:${t.id}`);
-                  }}><Glyph name="trash" size={14}/></button>
+                  <div className="-my-1 flex shrink-0">
+                    <button className="flex h-10 w-10 items-center justify-center text-ink/45 hover:text-xp focus-visible:text-xp" aria-label="Edit transaction" onClick={() => setEditTx(t)}><Glyph name="pencil" size={16}/></button>
+                    <button className="flex h-10 w-10 items-center justify-center text-ink/40 hover:text-hp focus-visible:text-hp" aria-label="Delete transaction" onClick={async () => {
+                      if (!confirm(t.transferId ? 'Delete this transfer (both sides)?' : 'Delete transaction?')) return;
+                      await deleteTransaction(t);
+                    }}><Glyph name="trash" size={16}/></button>
+                  </div>
                 </li>
               );
             })}
@@ -133,6 +136,7 @@ export default function Money() {
       </Card>
 
       <TxForm open={txOpen} onClose={() => setTxOpen(false)} />
+      {editTx && <TxForm open tx={editTx} legs={editTx.transferId ? txs.filter(x => x.transferId === editTx.transferId) : [editTx]} onClose={() => setEditTx(null)} />}
       {editAcc && <AccountForm acc={editAcc} onClose={() => setEditAcc(null)} />}
       {editOpp && <OppForm opp={editOpp === 'new' ? undefined : editOpp} onClose={() => setEditOpp(null)} />}
     </div>
@@ -163,34 +167,39 @@ function GoalRow({ g }: { g: Goal }) {
   );
 }
 
-function TxForm({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const accounts = useLiveQuery(() => db.accounts.orderBy('order').filter(a => !a.archived).toArray(), [], []);
+/** Add a transaction, or edit `tx` (with all its `legs` when it's a transfer). Editing keeps the kind and the XP. */
+function TxForm({ open, onClose, tx, legs = [] }: { open: boolean; onClose: () => void; tx?: Transaction; legs?: Transaction[] }) {
+  const { from, to: toLeg } = tx?.transferId ? splitLegs(legs) : { from: tx, to: undefined };
+  // Keep the accounts this transaction already uses selectable even if they've been archived since.
+  const accounts = useLiveQuery(() => db.accounts.orderBy('order').filter(a => !a.archived || a.id === from?.accountId || a.id === toLeg?.accountId).toArray(), [from?.accountId, toLeg?.accountId], []);
   const areas = useLiveQuery(() => db.areas.orderBy('order').filter(a => a.monetizable && !a.archived).toArray(), [], []);
-  const [kind, setKind] = useState<TxKind>('expense');
-  const [amount, setAmount] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [toId, setToId] = useState('');
-  const [category, setCategory] = useState('');
-  const [areaId, setAreaId] = useState('');
-  const [date, setDate] = useState(dateKey());
-  const [desc, setDesc] = useState('');
+  const [kind, setKind] = useState<TxKind>(tx?.kind ?? 'expense');
+  const [amount, setAmount] = useState(tx ? String(Math.abs(tx.amount)) : '');
+  const [accountId, setAccountId] = useState(from?.accountId ?? '');
+  const [toId, setToId] = useState(toLeg?.accountId ?? '');
+  const [category, setCategory] = useState(tx && tx.kind !== 'transfer' ? tx.category : '');
+  const [areaId, setAreaId] = useState(tx?.areaId ?? '');
+  const [date, setDate] = useState(tx?.date ?? dateKey());
+  const [desc, setDesc] = useState(tx?.description ?? '');
   const acc = accountId || accounts[0]?.id;
   const to = toId || accounts.find(a => a.id !== acc)?.id;
 
   const save = async () => {
     const n = Math.abs(Number(amount));
     if (!n || !acc) return;
+    if (tx) {
+      if (kind === 'transfer' && (!to || to === acc)) return;
+      await editTransaction(tx, { amount: n, date, description: desc || undefined, accountId: acc, toAccountId: to, category: category || tx.category, areaId: areaId || undefined });
+      onClose();
+      return;
+    }
     const base = { date, description: desc || undefined, createdAt: Date.now() };
     if (kind === 'transfer') {
       if (!to || to === acc) return;
-      const tid = uid();
       const toAcc = await db.accounts.get(to);
       const isCardPayment = toAcc?.type === 'credit';
       const id1 = uid();
-      await db.transactions.bulkAdd([
-        { ...base, id: id1, accountId: acc, amount: -n, kind: 'transfer', category: isCardPayment ? 'Card payment' : 'Transfer', transferId: tid },
-        { ...base, id: uid(), accountId: to, amount: n, kind: 'transfer', category: isCardPayment ? 'Card payment' : 'Transfer', transferId: tid }
-      ]);
+      await db.transactions.bulkAdd(transferLegs({ fromId: acc, toId: to, amount: n, date, description: base.description, isCardPayment, transferId: uid(), ids: [id1, uid()], createdAt: base.createdAt }));
       if (isCardPayment && toAcc) {
         const txs = await db.transactions.where('accountId').equals(to).toArray();
         if (balanceOf(toAcc, txs) >= 0) await award('finance', `tx:${id1}`, FINANCE_XP.payCardInFull, `Paid ${toAcc.name} in full`);
@@ -206,11 +215,15 @@ function TxForm({ open, onClose }: { open: boolean; onClose: () => void }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="New transaction">
+    <Modal open={open} onClose={onClose} title={tx ? 'Edit transaction' : 'New transaction'}>
       <div className="flex flex-col gap-3">
-        <div className="mac-inset grid grid-cols-3 gap-1 bg-white p-1">
-          {(['expense', 'income', 'transfer'] as TxKind[]).map(k => <button key={k} onClick={() => setKind(k)} className={cx('py-2 text-sm font-semibold capitalize', kind === k ? 'mac-btn bg-xp text-ink' : 'text-ink/60')}>{k === 'transfer' ? 'Transfer / pay card' : k}</button>)}
-        </div>
+        {tx ? (
+          <p className="font-type text-sm text-ink/70">{kind === 'transfer' ? 'Transfer / pay card' : <span className="capitalize">{kind}</span>} · to change the kind, delete it and log it again.</p>
+        ) : (
+          <div className="mac-inset grid grid-cols-3 gap-1 bg-white p-1">
+            {(['expense', 'income', 'transfer'] as TxKind[]).map(k => <button key={k} onClick={() => setKind(k)} className={cx('py-2 text-sm font-semibold capitalize', kind === k ? 'mac-btn bg-xp text-ink' : 'text-ink/60')}>{k === 'transfer' ? 'Transfer / pay card' : k}</button>)}
+          </div>
+        )}
         <Label text="Amount (MXN)"><Input autoFocus inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="text-lg font-bold" /></Label>
         <Label text={kind === 'transfer' ? 'From' : kind === 'expense' ? 'Paid with' : 'Into'}>
           <Select value={acc} onChange={e => setAccountId(e.target.value)}>{accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</Select>
@@ -227,7 +240,7 @@ function TxForm({ open, onClose }: { open: boolean; onClose: () => void }) {
           <Label text="Date"><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></Label>
           <Label text="Note"><Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional" /></Label>
         </div>
-        <Button variant="gold" onClick={save}>Save · +{FINANCE_XP.logTransaction} XP</Button>
+        <Button variant="gold" onClick={save}>{tx ? 'Save changes' : `Save · +${FINANCE_XP.logTransaction} XP`}</Button>
       </div>
     </Modal>
   );
