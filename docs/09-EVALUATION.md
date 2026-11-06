@@ -36,6 +36,22 @@ With D-2 the approved targets are stricter than the proposal in E2 (which used a
 
 Perfect Days are now rare by design (a real stretch), and the metric that should reach about 60 % is **Good-or-Perfect days**. The tickets that implement these decisions are Phase V in `05-ROADMAP.md`.
 
+### Implementation status (2026-11-06)
+All Phase V tickets are built, one commit each, with tests (91 → 92 with the upgrade test) and browser checks at 820 and 1366 px:
+
+| Ticket | Closes findings | What changed |
+|---|---|---|
+| V-1 Integrity | #2, #8 | Overlapping focus refused, 12 h session cap, one full Epic a day, achievements re-lock, goal XP monthly |
+| V-2 Economy B | #1, #3 (part), #11 | Done/full deep-work targets, focus XP capped at the full target, 4 core habits, Good Day, weekly scorecard, no coins for hobbies and intel |
+| V-3 Habit science | #10, #13 (part) | Minimum versions, if-then plans, log yesterday, streak shields, Eat well |
+| V-4 Card statements | #2, #4 | Exact statements per card with bank presets (Banorte +20 days), MSI plans, reward per statement paid in full on time |
+| V-5 Wealth levels | #7 (part) | Bucket roles, levels 1–5 from real data, investing unlocks at 3 and 6 months of spending |
+| V-6 RESICO + split it | #6, #7 | Invoice tax fields, monthly ISR/IVA estimate, exact reserve, filing quests, SMarT step |
+| V-7 Leading indicators | #3 | One-tap conversations, proposals, case studies; stale leads; Rainmaker |
+| V-8 Usability | #5, #9, #12, #13, #15, #16 | Now card, tap targets, plain names, category memory, savings-rate edge cases, redeem undo |
+
+Not done (still open): Option C (coins backed by the fun budget), the weekly review screen (P1-4), and a real-hourly-wage column in the Wealth Engine (E-10).
+
 ### D4. Why investing unlocks at 3 and 6 months
 - Irregular income needs a buffer: Housel's room for error and the master plan both point at 6 months.
 - The shield sits in CETES (28-day 6.50 % on 3 Nov 2026), so waiting costs little in nominal return.
