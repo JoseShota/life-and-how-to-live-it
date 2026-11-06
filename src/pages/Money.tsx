@@ -4,7 +4,7 @@ import { Glyph } from '@/components/Glyph';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { subDays } from 'date-fns';
 import { db } from '@/db/db';
-import type { Account, BankKey, Goal, Installment, Opportunity, OpportunityStatus, Statement, Transaction, TxKind } from '@/db/types';
+import type { Account, AccountRole, BankKey, Goal, Installment, Opportunity, OpportunityStatus, Statement, Transaction, TxKind } from '@/db/types';
 import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, transferLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
   BANKS, dueDaysFor, lastCutoff, dueDateFor, estimateStatement, statementStatus, newSinceCutoff, installmentRemaining } from '@/finance/finance';
 import { deleteStatement, deleteTransaction, editTransaction, evaluateStatements, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments } from '@/game/engine';
@@ -12,6 +12,7 @@ import { checkAchievements } from '@/game/achievements';
 import { FINANCE_XP } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
 import { Bar, Button, Card, Chip, Empty, Input, Label, Modal, Select, PageTitle } from '@/components/ui';
+import { WealthRoad } from '@/components/WealthRoad';
 
 const PIE = ['#e3b9b2', '#a6d9d1', '#c7c2e3', '#b9cfe0', '#dccb98', '#e8c9a0', '#bcd3c6', '#a8383a', '#d4d9d6'];
 
@@ -72,6 +73,8 @@ export default function Money() {
             ))}
         </div>
       </Card>
+
+      <WealthRoad />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="The Wealth Engine · MXN per hour, 90 days">
@@ -174,6 +177,7 @@ function GoalRow({ g }: { g: Goal }) {
 }
 
 const MSI_MONTHS = [3, 6, 9, 12, 18, 24];
+const ROLE_LABEL: Record<AccountRole, string> = { operating: 'Operating (living costs)', tax: 'Tax reserve', shield: 'Shield (emergency fund)', invest: 'Investments', skills: 'Skills', fun: 'Fun (guilt-free)' };
 const fmtDay = (k: string) => new Date(k + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 
 /**
@@ -363,6 +367,12 @@ function AccountForm({ acc, onClose }: { acc: Account; onClose: () => void }) {
     <Modal open onClose={onClose} title={`Edit ${acc.name}`}>
       <div className="flex flex-col gap-3">
         <Label text="Name"><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Label>
+        {f.type !== 'credit' && (
+          <Label text="Bucket (what this money is for)"><Select value={f.role ?? ''} onChange={e => setF({ ...f, role: (e.target.value || undefined) as AccountRole | undefined })}>
+            <option value="">—</option>
+            {(Object.keys(ROLE_LABEL) as AccountRole[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+          </Select></Label>
+        )}
         <Label text={f.type === 'credit' ? 'Current balance when you start (debt as negative, e.g. -4500)' : 'Opening balance'}><Input inputMode="decimal" value={f.openingBalance} onChange={e => setF({ ...f, openingBalance: Number(e.target.value) || 0 })} /></Label>
         {f.type === 'credit' && (<>
           <Label text="Bank"><Select value={bank} onChange={e => { const b = e.target.value as BankKey; setF({ ...f, bank: b, institution: b === 'other' ? f.institution : BANKS[b].name, dueDaysAfterCutoff: BANKS[b].dueDaysAfterCutoff ?? f.dueDaysAfterCutoff }); }}>

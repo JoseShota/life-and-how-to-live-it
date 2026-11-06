@@ -2,7 +2,10 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v4)
+## Tables (Dexie v5)
+
+v5 (no index changes): accounts get `role` (`operating`, `tax`, `shield`, `invest`, `skills`, `fun`), set by type on upgrade. Fresh installs also get the bucket accounts *Apartado impuestos*, *Escudo · CETES* and *Inversiones*. Settings gain `spendingEstimate`.
+
 
 v4: new tables `statements` and `installments`; credit accounts get `bank` (preset, e.g. `banorte`) and `dueDaysAfterCutoff` (Banorte: 20); expenses can carry `installmentId` (meses sin intereses). Backups are `BACKUP_VERSION` 2; older backups import with the new tables empty.
 
@@ -40,7 +43,7 @@ Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?
 HabitLog    { id, habitId, date, value, done, min? }
 Session     { id, areaId, taskId?, date, start, end, minutes, note? }
 Account     { id, name, institution, type: 'debit'|'credit'|'cash'|'savings'|'investment',
-              creditLimit?, cutoffDay?, paymentDueDay? (legacy), bank?, dueDaysAfterCutoff?, openingBalance, color, archived, order }
+              creditLimit?, cutoffDay?, paymentDueDay? (legacy), bank?, dueDaysAfterCutoff?, role?, openingBalance, color, archived, order }
 Transaction { id, accountId, date, amount (signed MXN), kind: 'income'|'expense'|'transfer', category,
               areaId? (income source), description?, transferId?, installmentId?, createdAt }
 Statement   { id, accountId, cutoffDate, dueDate, statementBalance, noInterestPayment, minimumPayment, notes?, createdAt }
@@ -70,6 +73,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | workday | `workday:<date>` | sessions drop below the full target |
 | session | `session:<sessionId>` | deleting session; `evaluateDay` re-allocates the day's focus XP (nothing past the full target) |
 | finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<yyyy-mm>` (once per goal per month), `stmt:<statementId>` (statement paid in full on time; re-evaluated by `evaluateStatements`) | deleting transaction (revokes every leg). Editing never changes XP |
+| milestone | `wl:<n>` (wealth level reached) | permanent: spending the shield in an emergency never costs XP |
 | achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |
 

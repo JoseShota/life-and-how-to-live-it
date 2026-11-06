@@ -34,6 +34,7 @@
 | Pay a card statement in full (the *pago para no generar intereses* by the due date) | +50 once per statement | 10 |
 | Wealth goal progress | +25 (once per goal per month) | 5 |
 | Achievement | 25–500 | XP ÷ 5 |
+| Wealth level (Treasury → The Road) | 150 / 250 / 400 / 600 / 1,000 for levels 1–5, once | XP ÷ 5 |
 
 **Deep-work targets** (Settings): weekdays 6 h = done, 8 h = full; weekends 4 h = done, 6 h = full.
 

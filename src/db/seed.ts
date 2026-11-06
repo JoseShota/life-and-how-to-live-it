@@ -24,12 +24,20 @@ export const SEED_HABITS: Omit<Habit, 'id'>[] = [
   { key: 'money', name: 'Money check-in (log + review)', icon: 'scales', kind: 'check', xp: 15, core: true, order: 6, archived: false }
 ];
 
+/** The plan's bucket accounts (00-MASTER-PLAN.md §4). Treasury offers to create any that are missing. */
+export const BUCKET_ACCOUNTS: Omit<Account, 'id' | 'order'>[] = [
+  { name: 'Apartado impuestos', institution: 'Banorte', type: 'savings', role: 'tax', openingBalance: 0, color: '#dccb98', archived: false },
+  { name: 'Escudo · CETES', institution: 'cetesdirecto', type: 'savings', role: 'shield', openingBalance: 0, color: '#bcd3c6', archived: false },
+  { name: 'Inversiones', institution: 'Broker', type: 'investment', role: 'invest', openingBalance: 0, color: '#c7c2e3', archived: false }
+];
+
 export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
-  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#d8a7a0', archived: false, order: 0 },
+  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', role: 'operating', openingBalance: 0, color: '#d8a7a0', archived: false, order: 0 },
   { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#c99790', archived: false, order: 1 },
   { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b98a8a', archived: false, order: 2 },
   { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#a98088', archived: false, order: 3 },
-  { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#a6d9d1', archived: false, order: 4 }
+  { name: 'Efectivo', institution: 'Cash', type: 'cash', role: 'operating', openingBalance: 0, color: '#a6d9d1', archived: false, order: 4 },
+  ...BUCKET_ACCOUNTS.map((b, i) => ({ ...b, order: 5 + i }))
 ];
 
 export const SEED_REWARDS: Omit<Reward, 'id'>[] = [

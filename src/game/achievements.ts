@@ -1,6 +1,8 @@
 import { db } from '@/db/db';
 import { dateKey, uid } from '@/lib/util';
 import { totaleroStreak } from '@/finance/finance';
+import { WEALTH_LEVELS, levelsToAward, wealthSnapshot } from '@/finance/wealth';
+import { coinsFor } from './rules';
 
 export interface AchievementDef {
   key: string;
@@ -65,6 +67,31 @@ async function conditions(): Promise<Record<string, boolean>> {
   };
 }
 
+/** Highest wealth level reached (milestones live in the ledger as `wl:<n>` and are never taken back). */
+export async function wealthLevelReached() {
+  const rows = await db.xp.where('source').equals('milestone').toArray();
+  return rows.reduce((m, e) => Math.max(m, Number(e.refId.split(':')[1]) || 0), 0);
+}
+
+export async function loadWealthSnapshot() {
+  const spendingEstimate = (await db.settings.get('spendingEstimate'))?.value as number | undefined;
+  return wealthSnapshot({ accounts: await db.accounts.toArray(), txs: await db.transactions.toArray(), statements: await db.statements.toArray(), spendingEstimate });
+}
+
+/**
+ * Awards wealth levels reached for the first time. Milestones are permanent on purpose: spending the shield in a
+ * real emergency is what it's for, so it never costs XP. Investing still follows today's shield (investShare).
+ */
+export async function evaluateWealth() {
+  const snap = await loadWealthSnapshot();
+  for (const n of levelsToAward(await wealthLevelReached(), snap.qualifies)) {
+    const def = WEALTH_LEVELS[n - 1];
+    await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'milestone', refId: `wl:${n}`, xp: def.xp, coins: coinsFor(def.xp), label: `Wealth level ${n}: ${def.name}` });
+    const ach = { key: `wl:${n}`, icon: 'temple', name: `Wealth level ${n}: ${def.name}`, description: def.unlock, xp: def.xp };
+    listeners.forEach(l => l(ach));
+  }
+}
+
 type Listener = (a: AchievementDef) => void;
 const listeners = new Set<Listener>();
 export const onAchievement = (fn: Listener) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
@@ -89,6 +116,7 @@ export async function checkAchievements() {
         listeners.forEach(l => l(a));
       }
     }
+    await evaluateWealth();
   } finally {
     running = false;
   }

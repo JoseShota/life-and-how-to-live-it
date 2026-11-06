@@ -82,6 +82,8 @@ export interface Session {
 }
 
 export type AccountType = 'debit' | 'credit' | 'cash' | 'savings' | 'investment';
+/** v5: what an account is for in the plan's buckets (pay yourself first). */
+export type AccountRole = 'operating' | 'tax' | 'shield' | 'invest' | 'skills' | 'fun';
 /** Bank presets carry rules like "payment due N days after the cut-off" (see BANKS in finance.ts). */
 export type BankKey = 'banorte' | 'other';
 
@@ -100,6 +102,8 @@ export interface Account {
   bank?: BankKey;
   /** v4: days from the cut-off to the payment due date (Banorte: 20). */
   dueDaysAfterCutoff?: number;
+  /** v5: bucket role (shield = emergency fund, invest = long-term investments, tax = tax reserve…) */
+  role?: AccountRole;
   openingBalance: number; // credit: negative = debt
   color: string;
   archived: boolean;
@@ -203,6 +207,7 @@ export type XpSource =
   | 'perfect-day'
   | 'good-day'
   | 'weekly'
+  | 'milestone'
   | 'session'
   | 'workday'
   | 'finance'

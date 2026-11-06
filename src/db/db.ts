@@ -58,6 +58,10 @@ export class LifeDB extends Dexie {
     }).upgrade(async tx => {
       await tx.table('accounts').toCollection().modify(migrateAccountV4);
     });
+    // v5 (no index changes): bucket roles on accounts, for wealth levels and the "split it" sheet.
+    this.version(5).stores({}).upgrade(async tx => {
+      await tx.table('accounts').toCollection().modify(migrateAccountV5);
+    });
   }
 }
 
@@ -74,6 +78,12 @@ export function migrateAccountV4(a: { type: string; institution: string; cutoffD
   if (a.type !== 'credit' || a.bank) return;
   a.bank = /banorte/i.test(a.institution) ? 'banorte' : 'other';
   a.dueDaysAfterCutoff = a.cutoffDay && a.paymentDueDay ? ((a.paymentDueDay - a.cutoffDay + 30) % 30) || 20 : 20;
+}
+
+/** v5: default bucket role by account type. Exported for tests. */
+export function migrateAccountV5(a: { type: string; role?: string }) {
+  if (a.role) return;
+  a.role = { debit: 'operating', cash: 'operating', savings: 'shield', investment: 'invest' }[a.type];
 }
 
 export const db = new LifeDB();
