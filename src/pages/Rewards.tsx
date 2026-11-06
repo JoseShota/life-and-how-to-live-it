@@ -26,8 +26,9 @@ export default function Rewards() {
         {rewards.map(r => {
           const can = p.coins >= r.cost;
           return (
-            <div key={r.id} className={cx('mac-window group relative flex flex-col items-center gap-2 bg-white/90 p-4 text-center', can ? 'shadow-glow' : '')}>
-              <button onClick={() => db.rewards.update(r.id, { archived: true })} className="absolute right-2 top-2 hidden p-1 text-ink/40 hover:text-hp group-hover:block" aria-label="Remove reward"><Glyph name="trash" size={14}/></button>
+            <div key={r.id} className={cx('mac-window relative flex flex-col items-center gap-2 bg-white/90 p-4 text-center', can ? 'shadow-glow' : '')}>
+              {/* Always visible (touch screens have no hover). Soft delete keeps old ledger rows meaningful. */}
+              <button onClick={() => { if (confirm('Remove this reward?')) db.rewards.update(r.id, { archived: true }); }} className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center text-ink/35 hover:text-hp focus-visible:text-hp" aria-label="Remove reward"><Glyph name="trash" size={16}/></button>
               <Glyph name={r.icon} size={44} stroke={1.3} className="text-cyan" />
               <div className="font-display text-xl leading-5">{r.title}</div>
               <Button variant={can ? 'gold' : 'ghost'} disabled={!can} className="w-full disabled:opacity-100" onClick={async () => { if (await redeem(r.id)) toast(`Enjoy: ${r.title}`, 'gold'); }}>{!can && <Glyph name="lock" size={15} />}{r.cost} dr</Button>
