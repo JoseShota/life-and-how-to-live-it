@@ -4,15 +4,17 @@ import { Glyph } from '@/components/Glyph';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { subDays } from 'date-fns';
 import { db } from '@/db/db';
-import type { Account, AccountRole, BankKey, Goal, Installment, Opportunity, OpportunityStatus, Statement, Transaction, TxKind } from '@/db/types';
-import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, transferLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
+import type { Account, AccountRole, BankKey, Goal, IncomeTax, IncomeTaxKind, Installment, Opportunity, OpportunityStatus, Statement, Transaction, TxKind } from '@/db/types';
+import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
   BANKS, dueDaysFor, lastCutoff, dueDateFor, estimateStatement, statementStatus, newSinceCutoff, installmentRemaining } from '@/finance/finance';
-import { deleteStatement, deleteTransaction, editTransaction, evaluateStatements, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments } from '@/game/engine';
+import { deleteStatement, deleteTransaction, editTransaction, evaluateStatements, getTaxProfile, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments, transfer } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
 import { FINANCE_XP } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
 import { Bar, Button, Card, Chip, Empty, Input, Label, Modal, Select, PageTitle } from '@/components/ui';
 import { WealthRoad } from '@/components/WealthRoad';
+import { SplitSheet, TaxCard } from '@/components/TaxBits';
+import { IVA_RATE, invoiceFromSubtotal } from '@/finance/tax';
 
 const PIE = ['#e3b9b2', '#a6d9d1', '#c7c2e3', '#b9cfe0', '#dccb98', '#e8c9a0', '#bcd3c6', '#a8383a', '#d4d9d6'];
 
@@ -29,6 +31,7 @@ export default function Money() {
   const [editOpp, setEditOpp] = useState<Opportunity | 'new' | null>(null);
   const [stmtFor, setStmtFor] = useState<{ acc: Account; st?: Statement } | null>(null);
   const [payFor, setPayFor] = useState<{ acc: Account; amount: number } | null>(null);
+  const [splitTx, setSplitTx] = useState<Transaction | null>(null);
   const statements = useLiveQuery(() => db.statements.toArray(), [], []);
   const installments = useLiveQuery(() => db.installments.toArray(), [], []);
 
@@ -75,6 +78,7 @@ export default function Money() {
       </Card>
 
       <WealthRoad />
+      <TaxCard />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="The Wealth Engine · MXN per hour, 90 days">
@@ -129,6 +133,7 @@ export default function Money() {
                   <div className="min-w-0 flex-1"><div className="truncate">{t.description || t.category}</div><div className="text-[11px] text-ink/55">{acc?.name} · {t.category}{area ? ` · ${area.short}` : ''}</div></div>
                   <span className={cx('shrink-0 font-semibold', t.amount >= 0 ? 'text-ok' : 'text-ink/90')}>{mxn(t.amount, 2)}</span>
                   <div className="-my-1 flex shrink-0">
+                    {t.kind === 'income' && <button className="flex h-10 w-10 items-center justify-center text-ink/45 hover:text-cyan focus-visible:text-cyan" aria-label="Split this income" title="Split it" onClick={() => setSplitTx(t)}><Glyph name="scales" size={16}/></button>}
                     <button className="flex h-10 w-10 items-center justify-center text-ink/45 hover:text-xp focus-visible:text-xp" aria-label="Edit transaction" onClick={() => setEditTx(t)}><Glyph name="pencil" size={16}/></button>
                     <button className="flex h-10 w-10 items-center justify-center text-ink/40 hover:text-hp focus-visible:text-hp" aria-label="Delete transaction" onClick={async () => {
                       if (!confirm(t.transferId ? 'Delete this transfer (both sides)?' : 'Delete transaction?')) return;
@@ -142,7 +147,8 @@ export default function Money() {
         )}
       </Card>
 
-      <TxForm open={txOpen} onClose={() => setTxOpen(false)} />
+      <TxForm open={txOpen} onClose={() => setTxOpen(false)} onIncome={setSplitTx} />
+      {splitTx && <SplitSheet tx={splitTx} onClose={() => setSplitTx(null)} />}
       {payFor && <TxForm open preset={{ kind: 'transfer', toId: payFor.acc.id, amount: payFor.amount, description: `Pago ${payFor.acc.name}` }} onClose={() => setPayFor(null)} />}
       {stmtFor && <StatementForm acc={stmtFor.acc} st={stmtFor.st} txs={txs} installments={installments} onClose={() => setStmtFor(null)} />}
       {editTx && <TxForm open tx={editTx} legs={editTx.transferId ? txs.filter(x => x.transferId === editTx.transferId) : [editTx]} onClose={() => setEditTx(null)} />}
@@ -274,7 +280,7 @@ function StatementForm({ acc, st, txs, installments, onClose }: { acc: Account; 
 interface TxPreset { kind: TxKind; toId?: string; amount?: number; description?: string }
 
 /** Add a transaction, or edit `tx` (with all its `legs` when it's a transfer). Editing keeps the kind and the XP. */
-function TxForm({ open, onClose, tx, legs = [], preset }: { open: boolean; onClose: () => void; tx?: Transaction; legs?: Transaction[]; preset?: TxPreset }) {
+function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: boolean; onClose: () => void; tx?: Transaction; legs?: Transaction[]; preset?: TxPreset; onIncome?: (tx: Transaction) => void }) {
   const { from, to: toLeg } = tx?.transferId ? splitLegs(legs) : { from: tx, to: undefined };
   // Keep the accounts this transaction already uses selectable even if they've been archived since.
   const accounts = useLiveQuery(() => db.accounts.orderBy('order').filter(a => !a.archived || a.id === from?.accountId || a.id === toLeg?.accountId).toArray(), [from?.accountId, toLeg?.accountId], []);
@@ -289,41 +295,59 @@ function TxForm({ open, onClose, tx, legs = [], preset }: { open: boolean; onClo
   const [date, setDate] = useState(tx?.date ?? dateKey());
   const [desc, setDesc] = useState(tx?.description ?? preset?.description ?? '');
   const [msi, setMsi] = useState<string | null>(null);
+  const profile = useLiveQuery(() => getTaxProfile());
+  // Income tax (v6). RESICO invoices compute the deposit from the subtotal; salary keeps its gross for the cap.
+  const [taxKind, setTaxKind] = useState<IncomeTaxKind | ''>(tx?.incomeTax?.kind ?? '');
+  const [subtotal, setSubtotal] = useState(tx?.incomeTax ? String(tx.incomeTax.subtotal) : '');
+  const [withIva, setWithIva] = useState<boolean | null>(tx?.incomeTax ? tx.incomeTax.ivaCharged > 0 : null);
+  const [company, setCompany] = useState(tx?.incomeTax?.clientIsCompany ?? false);
+  const [ivaExpense, setIvaExpense] = useState(!!tx?.ivaCreditable);
   const acc = accountId || accounts.find(a => a.type !== 'credit' && a.id !== preset?.toId)?.id || accounts[0]?.id;
   const accObj = accounts.find(a => a.id === acc);
   const to = toId || accounts.find(a => a.id !== acc)?.id;
   const msiValue = msi ?? (plan ? String(plan.months) : '');
   const isCardExpense = kind === 'expense' && accObj?.type === 'credit';
+  const resico = profile?.regime === 'resico';
+  const effTaxKind: IncomeTaxKind = taxKind || (category === 'Salary' ? 'salary' : resico && ['Freelance', 'Class', 'Royalties/Content', ''].includes(category) ? 'resico' : 'none');
+  const invoice = kind === 'income' && effTaxKind === 'resico' && Number(subtotal) > 0 ? invoiceFromSubtotal(Number(subtotal), withIva ?? !!profile?.chargesIva, company) : null;
+  const buildIncomeTax = (n: number): IncomeTax | undefined => {
+    if (kind !== 'income') return undefined;
+    if (effTaxKind === 'resico' && invoice) { const { deposit: _d, ...t } = invoice; return t; }
+    if (effTaxKind === 'resico') return { kind: 'resico', subtotal: n, ivaCharged: 0, isrWithheld: 0, ivaWithheld: 0, clientIsCompany: false };
+    if (effTaxKind === 'salary') { const gross = Number(subtotal) || n; return { kind: 'salary', subtotal: gross, ivaCharged: 0, isrWithheld: Math.max(0, gross - n), ivaWithheld: 0, clientIsCompany: true }; }
+    return { kind: 'none', subtotal: n, ivaCharged: 0, isrWithheld: 0, ivaWithheld: 0, clientIsCompany: false };
+  };
 
   const save = async () => {
-    const n = Math.abs(Number(amount));
+    const n = invoice ? invoice.deposit : Math.abs(Number(amount));
     if (!n || !acc) return;
     const months = isCardExpense && msiValue ? Number(msiValue) : null;
+    const incomeTax = buildIncomeTax(n);
+    const ivaCreditable = kind === 'expense' && ivaExpense ? Math.round((n * IVA_RATE / (1 + IVA_RATE)) * 100) / 100 : undefined;
     if (tx) {
       if (kind === 'transfer' && (!to || to === acc)) return;
-      await editTransaction(tx, { amount: n, date, description: desc || undefined, accountId: acc, toAccountId: to, category: category || tx.category, areaId: areaId || undefined, msiMonths: months });
+      await editTransaction(tx, { amount: n, date, description: desc || undefined, accountId: acc, toAccountId: to, category: category || tx.category, areaId: areaId || undefined, msiMonths: months, incomeTax: incomeTax ?? null, ivaCreditable: ivaCreditable ?? 0 });
       onClose();
       return;
     }
     const base = { date, description: desc || undefined, createdAt: Date.now() };
+    let incomeTx: Transaction | undefined;
     if (kind === 'transfer') {
       if (!to || to === acc) return;
-      const toAcc = await db.accounts.get(to);
-      const id1 = uid();
-      await db.transactions.bulkAdd(transferLegs({ fromId: acc, toId: to, amount: n, date, description: base.description, isCardPayment: toAcc?.type === 'credit', transferId: uid(), ids: [id1, uid()], createdAt: base.createdAt }));
-      await rewardTransactionLogged(id1);
-      // A card payment counts toward its statement; the statement reward is evaluated there, not here.
-      await evaluateStatements(to);
+      // A card payment counts toward its statement; a deposit into the shield or investments pays savings XP.
+      await transfer(acc, to, n, date, base.description);
       await evaluateStatements(acc);
     } else {
       const id = uid();
-      await db.transactions.add({ ...base, id, accountId: acc, amount: kind === 'income' ? n : -n, kind, category: category || (kind === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]), areaId: kind === 'income' ? (areaId || undefined) : undefined });
+      await db.transactions.add({ ...base, id, accountId: acc, amount: kind === 'income' ? n : -n, kind, category: category || (kind === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]), areaId: kind === 'income' ? (areaId || undefined) : undefined, incomeTax, ivaCreditable });
       await rewardTransactionLogged(id);
       if (months) await setInstallments((await db.transactions.get(id))!, months);
       if (accObj?.type === 'credit') await evaluateStatements(acc);
+      if (kind === 'income') incomeTx = await db.transactions.get(id);
     }
     await checkAchievements();
-    setAmount(''); setDesc(''); setMsi(null); onClose();
+    setAmount(''); setDesc(''); setMsi(null); setSubtotal(''); onClose();
+    if (incomeTx && accObj?.type !== 'credit') onIncome?.(incomeTx);
   };
 
   return (
@@ -336,7 +360,23 @@ function TxForm({ open, onClose, tx, legs = [], preset }: { open: boolean; onClo
             {(['expense', 'income', 'transfer'] as TxKind[]).map(k => <button key={k} onClick={() => setKind(k)} className={cx('min-h-[40px] py-2 text-sm font-semibold capitalize', kind === k ? 'mac-btn bg-xp text-ink' : 'text-ink/60')}>{k === 'transfer' ? 'Transfer / pay card' : k}</button>)}
           </div>
         )}
-        <Label text="Amount (MXN)"><Input autoFocus inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="text-lg font-bold" /></Label>
+        {kind === 'income' && (
+          <Label text="Tax"><Select value={effTaxKind} onChange={e => setTaxKind(e.target.value as IncomeTaxKind)}>
+            <option value="resico">RESICO invoice (CFDI)</option><option value="salary">Salary (tax already withheld)</option><option value="none">No tax (refund, gift, transfer in)</option>
+          </Select></Label>
+        )}
+        {kind === 'income' && effTaxKind === 'resico' && (
+          <div className="mac-inset flex flex-col gap-2 bg-white p-2">
+            <Label text="Invoice subtotal, before IVA"><Input inputMode="decimal" value={subtotal} onChange={e => setSubtotal(e.target.value)} placeholder="0.00" className="text-lg font-bold" /></Label>
+            <label className="flex min-h-[40px] items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={withIva ?? !!profile?.chargesIva} onChange={e => setWithIva(e.target.checked)} />Charges IVA (16 %)</label>
+            <label className="flex min-h-[40px] items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={company} onChange={e => setCompany(e.target.checked)} />Client is a company (persona moral): withholds 1.25 % ISR and 2/3 of the IVA</label>
+            {invoice && <p className="text-[12px] text-ink/70">IVA {mxn(invoice.ivaCharged, 2)} · ISR withheld {mxn(invoice.isrWithheld, 2)} · IVA withheld {mxn(invoice.ivaWithheld, 2)} → lands in the account: <b>{mxn(invoice.deposit, 2)}</b></p>}
+            {!invoice && <p className="text-[12px] text-ink/60">Or leave the subtotal empty and type the amount received below (no IVA, no withholding).</p>}
+          </div>
+        )}
+        {!invoice && <Label text={kind === 'income' && effTaxKind === 'salary' ? 'Amount received (net)' : 'Amount (MXN)'}><Input autoFocus inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="text-lg font-bold" /></Label>}
+        {kind === 'income' && effTaxKind === 'salary' && <Label text="Gross salary (for the RESICO cap; optional)"><Input inputMode="decimal" value={subtotal} onChange={e => setSubtotal(e.target.value)} placeholder="same as received" /></Label>}
+        {kind === 'expense' && resico && <label className="flex min-h-[40px] items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={ivaExpense} onChange={e => setIvaExpense(e.target.checked)} />Business expense with CFDI (IVA creditable: {mxn((Math.abs(Number(amount)) || 0) * IVA_RATE / (1 + IVA_RATE), 2)})</label>}
         <Label text={kind === 'transfer' ? 'From' : kind === 'expense' ? 'Paid with' : 'Into'}>
           <Select value={acc} onChange={e => setAccountId(e.target.value)}>{accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</Select>
         </Label>

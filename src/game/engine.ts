@@ -1,6 +1,8 @@
 // Side-effectful game actions. Every reward goes through `award` so the ledger stays the single source of truth.
 import { db } from '@/db/db';
-import type { Difficulty, Habit, Statement, Task, Transaction, XpSource } from '@/db/types';
+import type { Difficulty, Habit, IncomeTax, Statement, Task, Transaction, XpSource } from '@/db/types';
+import { DEFAULT_TAX_PROFILE, monthTax, monthlyDueDate, type TaxProfile } from '@/finance/tax';
+import { mxn } from '@/lib/util';
 import { cutoffOnOrAfter, splitLegs, statementStatus, transferLegs } from '@/finance/finance';
 import { dateKey, parseKey, uid } from '@/lib/util';
 import {
@@ -221,6 +223,10 @@ export interface TxEdit {
   areaId?: string;
   /** Credit-card expenses: meses sin intereses (null or < 2 = a normal purchase). Undefined = leave as is. */
   msiMonths?: number | null;
+  /** Income: how it's taxed. Undefined = leave as is, null = remove. */
+  incomeTax?: IncomeTax | null;
+  /** Expense: creditable IVA. Undefined = leave as is. */
+  ivaCreditable?: number;
 }
 
 /**
@@ -245,7 +251,9 @@ export async function editTransaction(tx: Transaction, e: TxEdit) {
       await db.transactions.put({
         ...tx, amount: tx.kind === 'income' ? n : -n, date: e.date, description: e.description,
         accountId: e.accountId, category: e.category ?? tx.category,
-        areaId: tx.kind === 'income' ? e.areaId : undefined
+        areaId: tx.kind === 'income' ? e.areaId : undefined,
+        incomeTax: tx.kind === 'income' ? (e.incomeTax === undefined ? tx.incomeTax : e.incomeTax ?? undefined) : undefined,
+        ivaCreditable: tx.kind === 'expense' ? (e.ivaCreditable === undefined ? tx.ivaCreditable : e.ivaCreditable || undefined) : undefined
       });
     }
   });
@@ -270,9 +278,74 @@ export async function deleteTransaction(tx: Transaction) {
     await db.transactions.bulkDelete(legs.map(t => t.id));
     for (const t of legs) await revoke(`tx:${t.id}`);
   });
+  for (const t of legs) await revoke(`save:${t.id}`);
   for (const t of legs) if (t.installmentId) await db.installments.delete(t.installmentId);
   for (const t of legs) await evaluateStatements(t.accountId);
   await checkAchievements();
+}
+
+// ---------- Transfers and savings deposits (v6) ----------
+/** Savings deposits (into a shield or invest account) pay at most this many times a month. */
+export const SAVE_DEPOSITS_PER_MONTH = 4;
+
+/**
+ * Moves money between two accounts (two legs, one transferId). A card payment re-checks that card's statements;
+ * a deposit into the shield or investments pays the savings XP (max 4 a month: the habit, not the amount).
+ */
+export async function transfer(fromId: string, toId: string, amount: number, date: string, description?: string) {
+  const n = Math.abs(amount);
+  if (!n || fromId === toId) return null;
+  const toAcc = await db.accounts.get(toId);
+  const ids: [string, string] = [uid(), uid()];
+  await db.transactions.bulkAdd(transferLegs({ fromId, toId, amount: n, date, description, isCardPayment: toAcc?.type === 'credit', transferId: uid(), ids, createdAt: Date.now() }));
+  await rewardTransactionLogged(ids[0]);
+  if (toAcc?.role === 'shield' || toAcc?.role === 'invest') {
+    const month = date.slice(0, 7);
+    const done = await db.xp.where('source').equals('finance').filter(e => e.refId.startsWith('save:') && e.date.startsWith(month)).count();
+    if (done < SAVE_DEPOSITS_PER_MONTH) await award('finance', `save:${ids[0]}`, FINANCE_XP.saveDeposit, `Saved into ${toAcc.name}`, coinsFor(FINANCE_XP.saveDeposit), date);
+  }
+  if (toAcc?.type === 'credit') await evaluateStatements(toId);
+  await checkAchievements();
+  return ids;
+}
+
+// ---------- RESICO quests (v6) ----------
+export async function getTaxProfile(): Promise<TaxProfile> {
+  return { ...DEFAULT_TAX_PROFILE, ...((await db.settings.get('taxProfile'))?.value as Partial<TaxProfile> | undefined) };
+}
+
+const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/**
+ * Creates the RESICO filing quests once each: last month's declaration (due the 17th; RESICO files even with zero
+ * income) and, in April, last year's annual return. Deterministic ids, never overwritten.
+ */
+export async function ensureTaxQuests(today = dateKey()) {
+  const profile = await getTaxProfile();
+  if (profile.regime !== 'resico') return;
+  const areas = await db.areas.toArray();
+  const area = areas.find(a => a.short === 'Wealth') ?? areas[areas.length - 1];
+  if (!area) return;
+  const t = parseKey(today);
+  const prev = dateKey(new Date(t.getFullYear(), t.getMonth() - 1, 1)).slice(0, 7);
+  const id = `tax-m-${prev}`;
+  if (!(await db.tasks.get(id))) {
+    const m = monthTax(await db.transactions.where('date').startsWith(prev).toArray(), prev);
+    const [y, mo] = prev.split('-').map(Number);
+    await db.tasks.add({
+      id, areaId: area.id, difficulty: 2, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: monthlyDueDate(prev),
+      title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`,
+      notes: `Estimate: ISR ${mxn(m.isrDue, 2)} + IVA ${mxn(m.ivaDue, 2)} = ${mxn(m.totalDue, 2)} (income collected ${mxn(m.base, 2)} at ${(m.rate * 100).toFixed(2)} %). File even if it's zero. Pay from the tax reserve.`
+    });
+  }
+  if (t.getMonth() === 3) {
+    const year = t.getFullYear() - 1;
+    const aid = `tax-a-${year}`;
+    if (!(await db.tasks.get(aid))) {
+      await db.tasks.add({ id: aid, areaId: area.id, difficulty: 3, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: `${year + 1}-04-30`,
+        title: `Declaración anual ${year} (RESICO)`, notes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' });
+    }
+  }
 }
 
 // ---------- Credit-card statements (v4) ----------

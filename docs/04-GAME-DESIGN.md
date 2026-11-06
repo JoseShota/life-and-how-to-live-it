@@ -33,6 +33,7 @@
 | Log a transaction | +2 (daily cap 20) | 1 |
 | Pay a card statement in full (the *pago para no generar intereses* by the due date) | +50 once per statement | 10 |
 | Wealth goal progress | +25 (once per goal per month) | 5 |
+| Savings deposit (transfer into the shield or investments, e.g. from "split it") | +25, max 4 a month | 5 |
 | Achievement | 25–500 | XP ÷ 5 |
 | Wealth level (Treasury → The Road) | 150 / 250 / 400 / 600 / 1,000 for levels 1–5, once | XP ÷ 5 |
 

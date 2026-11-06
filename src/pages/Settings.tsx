@@ -9,6 +9,7 @@ import { useToast } from '@/lib/toast';
 import { dateKey } from '@/lib/util';
 import { useWorkTargets } from '@/lib/hooks';
 import { evaluateDay } from '@/game/engine';
+import { TaxSettings } from '@/components/TaxBits';
 import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
 
 export default function SettingsPage() {
@@ -43,6 +44,8 @@ export default function SettingsPage() {
           <Label text="Weekend · full"><Input inputMode="decimal" value={targets.weekend.full} onChange={e => setTarget('weekend', 'full', e.target.value)} /></Label>
         </div>
       </Card>
+
+      <TaxSettings />
 
       <Card title="Areas · weekly hour targets">
         <div className="flex flex-col gap-2">

@@ -4,6 +4,8 @@ Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). K
 
 ## Tables (Dexie v5)
 
+V-6 (no Dexie version needed, new optional fields only): income transactions can carry `incomeTax` (`kind` resico/salary/none, `subtotal`, `ivaCharged`, `isrWithheld`, `ivaWithheld`, `clientIsCompany`; `amount` stays what landed in the account) and expenses `ivaCreditable`. Settings gain `taxProfile` and `splitPlan` (`savingsPct`, `skillsPct`, `funPct`) and `smartAsked`. RESICO filing quests use deterministic task ids `tax-m-<yyyy-mm>` and `tax-a-<yyyy>`.
+
 v5 (no index changes): accounts get `role` (`operating`, `tax`, `shield`, `invest`, `skills`, `fun`), set by type on upgrade. Fresh installs also get the bucket accounts *Apartado impuestos*, *Escudo · CETES* and *Inversiones*. Settings gain `spendingEstimate`.
 
 
@@ -45,7 +47,7 @@ Session     { id, areaId, taskId?, date, start, end, minutes, note? }
 Account     { id, name, institution, type: 'debit'|'credit'|'cash'|'savings'|'investment',
               creditLimit?, cutoffDay?, paymentDueDay? (legacy), bank?, dueDaysAfterCutoff?, role?, openingBalance, color, archived, order }
 Transaction { id, accountId, date, amount (signed MXN), kind: 'income'|'expense'|'transfer', category,
-              areaId? (income source), description?, transferId?, installmentId?, createdAt }
+              areaId? (income source), description?, transferId?, installmentId?, incomeTax?, ivaCreditable?, createdAt }
 Statement   { id, accountId, cutoffDate, dueDate, statementBalance, noInterestPayment, minimumPayment, notes?, createdAt }
 Installment { id, accountId, description, total, months, firstCutoff, txId?, createdAt }
 Goal        { id, name, icon, target, current, deadline?, order }
@@ -72,7 +74,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | weekly | `week:<monday>` (dated on Sunday) | fewer than 3 of 4 weekly targets |
 | workday | `workday:<date>` | sessions drop below the full target |
 | session | `session:<sessionId>` | deleting session; `evaluateDay` re-allocates the day's focus XP (nothing past the full target) |
-| finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<yyyy-mm>` (once per goal per month), `stmt:<statementId>` (statement paid in full on time; re-evaluated by `evaluateStatements`) | deleting transaction (revokes every leg). Editing never changes XP |
+| finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<yyyy-mm>` (once per goal per month), `stmt:<statementId>` (statement paid in full on time; re-evaluated by `evaluateStatements`), `save:<legId>` (deposit into the shield or investments, max 4 a month) | deleting transaction (revokes every leg). Editing never changes XP |
 | milestone | `wl:<n>` (wealth level reached) | permanent: spending the shield in an emergency never costs XP |
 | achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |

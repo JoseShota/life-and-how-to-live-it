@@ -103,8 +103,8 @@ Most people only work on *return* (investing tips). For you, **income is by far 
 | Bucket | % (start) | Where |
 |---|---|---|
 | Operating (living costs) | 50 % | Banorte debit |
-| Tax reserve | 10–15 % | Separate savings account. As a freelancer you invoice (CFDI) and pay ISR/IVA. Ask a *contador* whether **RESICO** fits you |
-| Shield → then investments | 20 % | Emergency fund until full, then long-term investments |
+| Tax reserve | exact, per invoice | Separate savings account (*Apartado impuestos*). In RESICO the app computes it from each CFDI: ISR at the month's rate (1–2.5 %) minus what the client withheld, plus the IVA you'll pay over. The monthly declaration is due on the 17th |
+| Shield → then investments | 10 % to start, +2 points whenever a month beats your 3-month median income (Save More Tomorrow), up to 20 %+ | Emergency fund until 3 months, then 25 % to investments; at 6 months, all to investments |
 | Skills (courses, tools, AI credits) | 10 % | Debit |
 | Fun (guilt-free) | 5 % | Cash / debit. This pairs with the app's coin shop |
 

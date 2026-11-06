@@ -127,7 +127,26 @@ export interface Transaction {
   transferId?: ID;
   /** v4: a credit-card purchase at meses sin intereses links to its Installment plan */
   installmentId?: ID;
+  /** v6: income only. How it's taxed (CFDI amounts). `amount` is what actually landed in the account. */
+  incomeTax?: IncomeTax;
+  /** v6: expense only. IVA on a business expense with a CFDI, creditable against IVA charged. */
+  ivaCreditable?: number;
   createdAt: number;
+}
+
+/** v6: how an income is taxed. Amounts in MXN; `subtotal` excludes IVA. */
+export type IncomeTaxKind = 'resico' | 'salary' | 'none';
+export interface IncomeTax {
+  kind: IncomeTaxKind;
+  /** Before IVA (RESICO: the base for ISR). Salary: gross pay. */
+  subtotal: number;
+  /** IVA charged on the invoice (trasladado) */
+  ivaCharged: number;
+  /** ISR withheld by the client (1.25 % when the client is a persona moral) or by the employer */
+  isrWithheld: number;
+  /** IVA withheld by the client (two thirds when a persona moral pays for services) */
+  ivaWithheld: number;
+  clientIsCompany: boolean;
 }
 
 /**
