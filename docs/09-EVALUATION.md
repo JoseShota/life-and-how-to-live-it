@@ -13,6 +13,37 @@
 
 ---
 
+## 0. Decisions (2026-11-06, approved by the user)
+
+| # | Decision | Detail |
+|---|---|---|
+| D-1 | **Economy: Option B** | Exploit fixes, Good Day tier, weekly scorecard, leading-indicator rewards. Option C (coins backed by the fun budget) stays a Season 2 experiment |
+| D-2 | **Deep work: done and full targets** | Weekdays: 6 h = done (habit XP), 8 h = full (workday bonus). Weekends count: 4 h = done, 6 h = full. Focus XP stops at the full target of the day |
+| D-3 | **4 core habits** | Sleep, move (exercise), deep work, money check-in. Wake, clean, intel become rituals (XP, not core). Hobbies and intel earn XP but no coins |
+| D-4 | **Exact card statements, bank presets** | Each card stores its statements with the exact amounts (statement balance, *pago para no generar intereses*, minimum, MSI). Banorte is the first preset (payment due 20 days after the cut-off); every future bank or card follows the same model |
+| D-5 | **Wealth levels with unlocks** | Levels unlock phases of the plan. Investing unlocks in two steps: a 3-month shield starts a small automatic investment (25 % of the savings bucket), a 6-month shield sends the whole bucket to investments. Rationale in section D4 |
+| D-6 | **Tax module: RESICO first** | Invoices with IVA and withholdings, a monthly ISR and IVA estimate due on the 17th, the 3.5 M cap, the April annual return, and an exact tax reserve in the "split it" sheet. The tax regime is a setting; every number is labeled an estimate |
+| D-7 | **Banxico** | The 5 Nov 2026 decision cut the target rate to 6.25 % (confirmed by the user) |
+
+With D-2 the approved targets are stricter than the proposal in E2 (which used a 4 h weekday floor). The rerun of `scripts/eval-sim.ts` with the approved rules, plus a deep-work "min version" (2 h counts for the streak and Good Day, never for Perfect Day):
+
+| Scenario | Perfect-Day rate | Good-Day rate | Perfect + Good | Weekly bonus hit | XP 90 d | Level d90 | Coins / week |
+|---|---|---|---|---|---|---|---|
+| Realistic (2 teaching days) | 3 % | 60 % | **63 %** | 30 % | 20,719 | 29 | 335 |
+| Realistic + 1 bad week/month | 2 % | 49 % | 51 % | 20 % | 17,864 | 27 | 289 |
+| 6 h weekdays, 2.5 h weekends, sleep/exercise shaky | 6 % | 52 % | **58 %** | 45 % | 24,112 | 31 | 387 |
+| Ideal weekdays, real weekends | 72 % | 10 % | 82 % | 100 % | 37,962 | 40 | 608 |
+
+Perfect Days are now rare by design (a real stretch), and the metric that should reach about 60 % is **Good-or-Perfect days**. The tickets that implement these decisions are Phase V in `05-ROADMAP.md`.
+
+### D4. Why investing unlocks at 3 and 6 months
+- Irregular income needs a buffer: Housel's room for error and the master plan both point at 6 months.
+- The shield sits in CETES (28-day 6.50 % on 3 Nov 2026), so waiting costs little in nominal return.
+- Under RESICO there is no PPR or voluntary AFORE deduction, so there is no tax reason to rush.
+- Starting small at 3 months builds the investing habit early, as Save More Tomorrow does with savings rates.
+
+---
+
 ## 1. Summary
 
 ### Scorecard
@@ -244,7 +275,7 @@ Scale: 0 = contradicts the evidence, 1 = partial, 2 = aligned.
 
 | Fact | Value | What it means for the plan |
 |---|---|---|
-| **CETES** (3 Nov 2026 auction) | 28 days 6.50 %, 91 days 6.69 %, 175 days 6.72 %, 693 days 7.85 % | A liquid, safe home for the emergency fund, as `00` suggests. Real return ≈ 2.7 % against the 3.69 % December 2025 inflation that set the 2026 UMA. Banxico's target was 6.50 % through September 2026. One outlet reported a cut to 6.25 % on 5 Nov; not confirmed here |
+| **CETES** (3 Nov 2026 auction) | 28 days 6.50 %, 91 days 6.69 %, 175 days 6.72 %, 693 days 7.85 % | A liquid, safe home for the emergency fund, as `00` suggests. Real return ≈ 2.7 % against the 3.69 % December 2025 inflation that set the 2026 UMA. Banxico's target was 6.50 % through September 2026 and was cut to 6.25 % on 5 Nov 2026 (D-7) |
 | **Credit card cost** | Banxico's balance-weighted average *interest rate* for cards was 22.82 % (Jan–Feb 2026). CAT (interest + fees + VAT) is widely reported around 50–60 % for people who carry a balance; the CONDUSEF/Banxico comparison spans about 23 %–206 % by product | Confirms `00` Level 1: revolving card debt costs far more than any safe investment pays. Being a *totalero* is worth more than any yield optimization |
 | **CONDUSEF guidance** | Pay the *pago para no generar intereses* (prior balance, interest, fees and installments); the minimum only for emergencies; become a *totalero* | The app should model the statement amount, not just the running balance (E-13) |
 | **RESICO (personas físicas)** | ISR 1 %–2.5 % of income actually received (LISR art. 113-E); annual cap 3.5 M MXN; no expense deductions; corporate clients withhold 1.25 % | The plan's flat 10–15 % tax reserve is too high for RESICO ISR alone, but it must also cover **IVA collected** if applicable. A contador should set the percentage |

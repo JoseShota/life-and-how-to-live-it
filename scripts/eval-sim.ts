@@ -45,9 +45,10 @@ interface Rules {
   workTarget: (dow: number) => number;      // hours for the work habit
   fullTarget?: (dow: number) => number;     // hours for the workday bonus (defaults to workTarget)
   core: (dow: number) => HabitKey[];          // what Perfect Day needs
-  sessionXp: (minutes: number, minutesBefore: number) => number;
+  sessionXp: (minutes: number, minutesBefore: number, dow?: number) => number;
   perfectXp: number; workdayBonus: number;
   goodDay?: { minDone: number; xp: number };  // partial-credit tier
+  workMinHours?: number;                      // deep-work 'min version': counts for Good Day, not Perfect Day
   weekly?: (w: WeekStats) => number;         // weekly scorecard bonus
   leadXpPerWeekday?: number;                  // expected leading-indicator XP per weekday
 }
@@ -63,22 +64,23 @@ const V1: Rules = {
 };
 // v2 "Option B" from the report: weekday 4 h deep-work target, weekend rest target 0 (habit auto-done if
 // no work planned), 5 core habits, focus XP tapers after 4 h and stops at 6 h, Good Day tier, weekly scorecard.
+// v2 as approved (2026-11-06): weekday 6 h done / 8 h full, weekend 4 h done / 6 h full, focus XP 20/h
+// pro-rata up to the full target and nothing after, 4 core habits, Good Day tier, weekly scorecard.
 const V2: Rules = {
-  label: 'v2 (Option B)',
-  workTarget: dow => (dow < 5 ? 4 : 1.5), // floor: counts for the habit
-  fullTarget: dow => (dow < 5 ? 6 : 0),    // full workday bonus on weekdays only
+  label: 'v2 (approved)',
+  workTarget: dow => (dow < 5 ? 6 : 4),
+  fullTarget: dow => (dow < 5 ? 8 : 6),
   core: () => ['sleep', 'exercise', 'work', 'money'],
-  sessionXp: (m, before) => {
-    // 20 XP/h for the first 6 h of the day, 10 XP/h from 6 to 8 h, 0 after 8 h (protects sleep).
-    let xp = 0;
-    for (let i = 0; i + 15 <= m; i += 15) { const t = before + i; xp += t < 360 ? 5 : t < 480 ? 2.5 : 0; }
-    return Math.round(xp);
+  sessionXp: (m, before, dow = 0) => {
+    const cap = (dow < 5 ? 8 : 6) * 60;
+    return Math.floor(Math.max(0, Math.min(before + m, cap) - before) / 3);
   },
   perfectXp: 60, workdayBonus: 30,
   goodDay: { minDone: 3, xp: 25 },
+  workMinHours: 2,
   weekly: w => {
     let hits = 0;
-    if (w.focusH >= 25) hits++;
+    if (w.focusH >= 30) hits++;
     if (w.exerciseDays >= 4) hits++;
     if (w.moneyDays >= 5) hits++;
     if (w.perfectOrGood >= 5) hits++;
@@ -105,13 +107,15 @@ function simulate(sched: Schedule, R: Rules, days = 90, seed = 7) {
     focusMin += minutes;
     // Focus logged as 50-min sprints (+ remainder), as the timer encourages.
     let before = 0, sx = 0;
-    for (let left = minutes; left > 0; left -= 50) { const m = Math.min(50, left); sx += R.sessionXp(m, before); before += m; }
+    for (let left = minutes; left > 0; left -= 50) { const m = Math.min(50, left); sx += R.sessionXp(m, before, dow); before += m; }
     add('focus', sx);
     const target = R.workTarget(dow);
     if (hours >= target) done.add('work');
     const full = R.fullTarget ? R.fullTarget(dow) : target;
-    if (full > 0 && hours >= full) { add('workday', R.workdayBonus + HABIT_XP.work); workdays++; }
-    else if (R.fullTarget && hours >= target) add('workday', HABIT_XP.work); // floor met: habit XP only
+    if (R.fullTarget) {
+      if (hours >= target) add('habits', HABIT_XP.work);
+      if (full > 0 && hours >= full) { add('workday', R.workdayBonus); workdays++; }
+    } else if (hours >= target) { add('workday', R.workdayBonus + HABIT_XP.work); workdays++; }
     for (const h of done) {
       if (h === 'work') { streak.work++; continue; }
       streak[h]++;
@@ -126,10 +130,11 @@ function simulate(sched: Schedule, R: Rules, days = 90, seed = 7) {
     if (R.leadXpPerWeekday && dow < 5) add('leading', R.leadXpPerWeekday);
     const core = R.core(dow);
     const isPerfect = core.every(h => done.has(h));
+    const goodCount = core.filter(h => done.has(h) || (h === 'work' && R.workMinHours !== undefined && hours >= R.workMinHours)).length;
     if (dow < 5) { weekdays++; if (isPerfect) perfectWeekdays++; }
     if (isPerfect) { perfect++; add('perfect', R.perfectXp); }
-    else if (R.goodDay && core.filter(h => done.has(h)).length >= R.goodDay.minDone) { good++; add('good-day', R.goodDay.xp); }
-    week.focusH += hours; if (done.has('exercise')) week.exerciseDays++; if (done.has('money')) week.moneyDays++; if (isPerfect || (R.goodDay && core.filter(h => done.has(h)).length >= R.goodDay.minDone)) week.perfectOrGood++;
+    else if (R.goodDay && goodCount >= R.goodDay.minDone) { good++; add('good-day', R.goodDay.xp); }
+    week.focusH += hours; if (done.has('exercise')) week.exerciseDays++; if (done.has('money')) week.moneyDays++; if (isPerfect || (R.goodDay && goodCount >= R.goodDay.minDone)) week.perfectOrGood++;
     if (dow === 6) { weeks++; if (R.weekly) { const b = R.weekly(week); if (b) weeklyHits++; add('weekly', b); } week = { focusH: 0, exerciseDays: 0, moneyDays: 0, perfectOrGood: 0 }; }
     if ([29, 59, 89].includes(d)) levelAt[d + 1] = levelFromXp(xp).level;
   }

@@ -48,8 +48,8 @@ One person: an economist with no steady job who teaches at CIDE, works at Weavin
 - **P5 Wealth pro.** Banorte statement import (CSV/PDF), recurring transactions, budgets, investments, net-worth history, projections simulator.
 
 ## Success metrics (personal)
-- Perfect-Day rate ≥ 60 % over 30 days.
-- Average deep work ≥ 7 h on weekdays.
-- 100 % of card statements paid in full.
+- Good-or-Perfect-Day rate ≥ 60 % over 30 days (a Perfect Day is a rare stretch; see `09-EVALUATION.md`).
+- Deep-work "done" target (6 h weekdays, 4 h weekends) met on ≥ 60 % of days; ≥ 30 h of focus per week.
+- 100 % of card statements paid in full (the *pago para no generar intereses*, by the due date).
 - Savings rate ≥ 20 % (month 3), ≥ 30 % (month 6).
 - MXN/h of the top monetizable activity rising quarter over quarter.
