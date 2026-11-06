@@ -75,7 +75,7 @@ Treat your activities like an investment portfolio. Each one gets a **role**, a 
 1. **Never miss twice.** One missed day is noise. Two in a row is the start of a new habit. The app shows streaks, and in Phase 4 it adds a "streak shield".
 2. **Minimum viable version.** On bad days: 10 push-ups, 5-minute tidy, 1 newsletter, 1 hour of work. It still counts, so the chain stays alive.
 3. **Intel has a hard cap.** Information is not progress. 45 minutes, then close it. (Phase 3: the AI summarizes your newsletters so 45 minutes covers everything.)
-4. **Sunday Review (30 m):** read this plan, check Stats, adjust weekly hour targets, plan the week's quests, export a backup.
+4. **Sunday Review (30 m):** read this plan, check the Archive, adjust weekly hour targets, plan the week's quests, export a backup.
 
 ---
 
@@ -199,6 +199,6 @@ A steady job **doesn't kill the plan, it funds it**. The stable salary fills the
 | Where money comes from | **Money → Wealth engine** (MXN/h by activity) |
 | December opportunities, leads | **Money → Opportunity pipeline** |
 | Milestones | **Money → Wealth goals** |
-| Motivation | XP, levels, streaks, Perfect Day, achievements, **Reward shop** |
+| Motivation | XP, levels, streaks, Perfect Day, achievements, **Agora** (rewards) |
 
 *This document is not financial or tax advice. It's a planning framework. Confirm tax and investment decisions with a licensed professional (contador / asesor financiero).*

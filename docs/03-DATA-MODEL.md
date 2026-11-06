@@ -17,7 +17,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `transactions` | `id` | `accountId, date, kind, areaId, transferId` | Money movements |
 | `goals` | `id` | `order` | Wealth goals / milestones |
 | `opportunities` | `id` | `status` | Job/client pipeline (incl. the two December opportunities) |
-| `rewards` | `id` | — | Reward shop items |
+| `rewards` | `id` | — | Agora items (custom rewards) |
 | `xp` | `id` | `date, source, refId, ts` | **Append-only ledger** of XP/coin events |
 | `unlocked` | `key` | — | Unlocked achievements |
 | `settings` | `key` | — | Key/value: `playerName`, `workTargetHours`, `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
@@ -64,8 +64,8 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 
 ## Migration recipe (Dexie)
 ```ts
-// db.ts — NEVER modify version(1). Append:
-this.version(2).stores({
+// db.ts — NEVER modify an existing version block. Schema is at v2, so append:
+this.version(3).stores({
   tasks: 'id, areaId, status, dueDate, priority, completedAt, updatedAt, parentId' // only tables that change
 }).upgrade(async tx => {
   await tx.table('tasks').toCollection().modify(t => { t.updatedAt ??= t.createdAt; });

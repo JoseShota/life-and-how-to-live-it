@@ -22,7 +22,7 @@ No code yet.
 ```
 Implement P2-1 and P2-2 from the approved design.
 - supabase/migrations/0001_init.sql with tables + RLS (+ indexes on (user_id, updated_at)).
-- Dexie version(2): add updatedAt/deletedAt to syncable tables, backfill in upgrade().
+- Dexie version(3) (or the next free version): add updatedAt/deletedAt to syncable tables, backfill in upgrade().
 - Create src/db/write.ts helpers (put/update/softDelete) that always set updatedAt; refactor all writes to use them.
 - Reads must filter out deletedAt rows (add a helper). Tests for migration and helpers.
 ```

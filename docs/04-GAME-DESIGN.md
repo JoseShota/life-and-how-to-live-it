@@ -16,7 +16,7 @@
 | Currency | Earned by | Used for |
 |---|---|---|
 | **XP** | Everything | Levels and titles (never spent) |
-| **₯ Drachmae (coins)** | ≈ 1 per 5 XP | Reward shop |
+| **₯ Drachmae (coins)** | ≈ 1 per 5 XP | Agora |
 
 ## XP table (tune in `src/game/rules.ts`)
 | Action | XP |

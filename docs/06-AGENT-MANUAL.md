@@ -127,6 +127,7 @@ tables accordingly and adjust tests. Explain the effect on a "perfect weekday" t
 | App shows old version after deploy | Close and reopen the PWA (autoUpdate applies on next load). Hard refresh on laptop |
 | "Data disappeared" | Data is per device and per browser until Phase 2. Check you're on the same device/browser. Restore from backup |
 | Migration error on load | Revert the commit. Restore backup. Ask agent to write the migration with `.upgrade()` and a test using `fake-indexeddb` |
+| Android tablet won't install | Use **Chrome** (not the Lenovo/Samsung browser) on the HTTPS URL → ⋮ → *Install app*. If missing, load once, wait a few seconds, reopen the menu |
 | iPad won't install | Open the HTTPS URL in **Safari** → Share → *Add to Home Screen* |
 | Agent keeps adding libraries | Remind it: "No new dependencies. Use existing primitives." |
 | Build chunk-size warning | Expected until P1-9 (code-splitting). Harmless |

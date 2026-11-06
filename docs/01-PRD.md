@@ -35,8 +35,8 @@ One person: an economist with no steady job who teaches at CIDE, works at Weavin
 | M3 | **Routine habits** | 7 seeded habits: wake, sleep (number: hours), exercise, clean, intel, deep work (auto from Focus), money check-in. Streak counter, streak multiplier, Perfect Day bonus |
 | M4 | **Focus timer** | Start/stop timer per area (+ optional quest). Survives reload. Floating pill while running. Manual time entry. Sessions list with delete. XP 5 per 15 min. Full workday bonus at target |
 | M5 | **Money** | Accounts (Banorte debit, 3 credit cards, cash) with limit/cut-off/pay-by day. Income/expense/transfer (incl. card payment). Net worth, card debt, monthly income, savings rate. Card utilization + days to due. Spending pie. **Wealth engine** (MXN/h per activity, 90 d). **Opportunity pipeline** (expected value). **Wealth goals** |
-| M6 | **Game layer** | Ledger-based XP/coins, level curve + titles, HUD, reward toasts, 9 achievements, reward shop with custom rewards |
-| M7 | **Stats** | 30-day habit heatmap, 7-day hours by area (stacked), 30-day XP chart |
+| M6 | **Game layer** | Ledger-based XP/coins, level curve + titles, HUD, reward toasts, 9 achievements, the Agora (reward shop) with custom rewards |
+| M7 | **Archive** | 30-day habit heatmap, 7-day hours by area (stacked), 30-day XP chart |
 | M8 | **Settings & data** | Player name, daily work target, area names/hours, `.ics` routine export, notification permission, JSON export/import, reset |
 | M9 | **PWA** | Installable, offline (service worker), app icon, standalone display |
 

@@ -6,10 +6,10 @@
 | Build | **Vite 5** + **TypeScript 5 (strict)** | Fast, simple, static output |
 | UI | **React 18** + **React Router 6** | Standard, Cursor knows it well |
 | Styling | **Tailwind CSS 3** + retro CSS in `src/index.css` | Design tokens in `tailwind.config.js`; aesthetic rules in `08-DESIGN-SYSTEM.md` |
-| Icons | **lucide-react** | |
+| Icons | Hand-drawn `<Glyph name="…" />` (`src/components/Glyph.tsx`) | No icon library, no emoji (see `08-DESIGN-SYSTEM.md`) |
 | Charts | **Recharts** | |
 | Storage | **Dexie 4** (IndexedDB) + `dexie-react-hooks` (`useLiveQuery`) | Offline-first, reactive queries, schema versioning |
-| PWA | **vite-plugin-pwa** (Workbox, `autoUpdate`) | Installable on iPad/Android tablet and laptop |
+| PWA | **vite-plugin-pwa** (Workbox, `autoUpdate`) | Installable via Chrome on the Android tablet (Lenovo) and the laptop |
 | Tests | **Vitest** + **fake-indexeddb** | Unit tests for rules, finance math and engine |
 | Hosting (recommended) | **Vercel** or **Cloudflare Pages** (static) | Free, HTTPS (required for PWA install) |
 | Sync (Phase 2) | **Supabase** (Postgres + Auth + Edge Functions) | Free tier, also hosts the AI proxy and push cron later |
@@ -73,7 +73,7 @@ AGENTS.md               # entry point for any coding agent
 - Modals become bottom sheets on small screens.
 
 ## Sync design (Phase 2, planned)
-- Add `updatedAt: number` and `deletedAt?: number` to every syncable table (Dexie v2 upgrade backfills them).
+- Add `updatedAt: number` and `deletedAt?: number` to every syncable table (Dexie v3 upgrade backfills them).
 - Mirror tables in Supabase Postgres with `user_id` + RLS (`user_id = auth.uid()`).
 - Sync loop: push local rows with `updatedAt > lastPushedAt`; pull remote rows with `updated_at > lastPulledAt`; **last-write-wins** per row; soft-delete with tombstones.
 - The `xp` ledger is append-only: union by `id` (no conflicts).

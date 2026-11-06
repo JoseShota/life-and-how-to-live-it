@@ -7,7 +7,7 @@
 Ticket P1-1 from @docs/05-ROADMAP.md: recurring quests.
 Context: @AGENTS.md @src/db/types.ts @src/db/db.ts @src/game/engine.ts @src/components/TaskBits.tsx
 Add `recurrence?: { every: 'day'|'week'|'month'; interval: number }` to Task.
-Dexie version(2) migration (no index change needed unless you justify it).
+Dexie version(3) migration (schema is at v2; use the next free version) (no index change needed unless you justify it).
 When a recurring task is completed, create the next instance with the next dueDate
 (pure function `nextDueDate(due, recurrence)` in src/game/rules.ts or a new src/lib/recurrence.ts, unit-tested,
 handle month-end clamping). Reopening the completed instance must NOT create duplicates.
@@ -24,8 +24,8 @@ evaluateDay must ignore archived habits (it already filters — verify with a te
 
 ## P1-4 Weekly review screen
 ```
-Ticket P1-4: Weekly Review at route /review (add to nav as "Review" with lucide CalendarCheck icon,
-on mobile replace Stats in bottom bar if space is tight — propose).
+Ticket P1-4: Weekly Review at route /review (add to nav as "Review" with a hand-drawn <Glyph> icon, adding a new glyph if none fits,
+on mobile replace Archive in bottom bar if space is tight — propose).
 Data: last 7 days perfect-day rate, focus hours per area vs weeklyHoursTarget, income/expense,
 best streaks, XP. Inputs: 3 wins, 1 lesson, next week's top 3 (creates priority-2 quests).
 Persist in a new `reviews` table (Dexie version bump). Award +50 XP once per ISO week (refId `review:<yyyy-Www>`).

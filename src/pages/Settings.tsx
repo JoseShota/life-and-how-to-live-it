@@ -48,8 +48,9 @@ export default function SettingsPage() {
         <p className="mb-3 text-sm text-ink/60">Your device calendar is the most reliable reminder engine. Import the ideal-day routine as daily recurring events with a 5-minute alert (works with Google Calendar, Apple Calendar, Outlook).</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={() => download('life-routine.ics', routineIcs(), 'text/calendar')}><Glyph name="calendar" size={16}/>Download routine (.ics)</Button>
-          <Button variant="ghost" onClick={async () => { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Notifications enabled' : 'Notifications blocked', r === 'granted' ? 'xp' : 'bad'); }}><Glyph name="bell" size={16}/>Enable in-app notifications</Button>
+          <Button variant="ghost" onClick={async () => { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Notifications enabled' : 'Notifications blocked', r === 'granted' ? 'xp' : 'bad'); }}><Glyph name="bell" size={16}/>Allow notifications</Button>
         </div>
+        <p className="mt-2 text-xs text-ink/50">This only grants permission. Scheduled reminders arrive in Phase 4; until then, use Download routine (.ics).</p>
       </Card>
 
       <Card title="Backup · data & sync">
