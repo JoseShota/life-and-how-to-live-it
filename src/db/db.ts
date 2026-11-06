@@ -1,6 +1,8 @@
 import Dexie, { type Table } from 'dexie';
 import { legacyIcon, ICON_TABLES } from './legacy';
 import { DEFAULT_WORK_TARGETS } from '@/game/rules';
+import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
+import { uid } from '@/lib/util';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
   Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment
@@ -61,6 +63,14 @@ export class LifeDB extends Dexie {
     // v5 (no index changes): bucket roles on accounts, for wealth levels and the "split it" sheet.
     this.version(5).stores({}).upgrade(async tx => {
       await tx.table('accounts').toCollection().modify(migrateAccountV5);
+    });
+    // v6 (no index changes): habits get minimum versions and if-then plans; a new "Eat well" ritual.
+    this.version(6).stores({}).upgrade(async tx => {
+      await tx.table('habits').toCollection().modify((h: { key: string; minLabel?: string; plan?: string }) => {
+        const p = HABIT_PLANS[h.key];
+        if (p) { h.minLabel ??= p.minLabel; h.plan ??= p.plan; }
+      });
+      if (!(await tx.table('habits').where('key').equals('eat').count())) await tx.table('habits').add({ ...EAT_HABIT, id: uid() });
     });
   }
 }

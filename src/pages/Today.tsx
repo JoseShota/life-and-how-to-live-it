@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom';
 import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
 import type { Habit, HabitLog } from '@/db/types';
-import { setHabit, habitStreak, weekStats, weekStartKey } from '@/game/engine';
+import { setHabit, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
 import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
 import { usePlayer, useToday, useNow, useWorkTargets } from '@/lib/hooks';
 import { IDEAL_DAY, currentBlockIndex } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
 import { cardAlerts } from '@/finance/finance';
-import { cx, hm, mxn } from '@/lib/util';
-import { Card, Ring, Button, Bar, Empty, PageTitle } from '@/components/ui';
+import { cx, dateKey, hm, mxn, parseKey } from '@/lib/util';
+import { Card, Ring, Button, Bar, Empty, PageTitle, Modal, Input, Label } from '@/components/ui';
 import { TaskRow, TaskForm } from '@/components/TaskBits';
 
 function greeting(h: number) {
@@ -22,31 +22,59 @@ function greeting(h: number) {
 }
 
 function HabitRow({ habit, log, today, targets }: { habit: Habit; log?: HabitLog; today: string; targets: DayTargets }) {
-  const streak = useLiveQuery(() => habitStreak(habit.id, today), [habit.id, today, log?.done], 0);
-  const done = !!log?.done;
+  const streak = useLiveQuery(() => habitStreak(habit.id, today), [habit.id, today, log?.done, log?.min], 0);
+  const [editing, setEditing] = useState(false);
+  const done = !!log?.done && !log?.min;
+  const min = !!log?.min;
+  const minBtn = habit.minLabel && habit.kind !== 'auto' && (
+    <button onClick={() => setHabit(habit, today, 0, !min)} aria-label={`${habit.name}: minimum version (${habit.minLabel})`} title={habit.minLabel}
+      className={cx('h-10 min-w-[2.75rem] px-1.5 font-display text-[13px]', min ? 'mac-inset bg-laurel' : 'mac-btn bg-white')}>min</button>
+  );
   return (
-    <div className={cx('flex items-center gap-3 border px-3 py-2 transition', done ? 'border-ok/50 bg-ok/10' : 'border-line/50 bg-panel2/60')}>
+    <div className={cx('flex items-center gap-3 border px-3 py-2 transition', done ? 'border-ok/50 bg-ok/10' : min ? 'border-gold/50 bg-laurel/20' : 'border-line/50 bg-panel2/60')}>
       <Glyph name={habit.icon} size={24} stroke={1.5} className="shrink-0 text-cyan" />
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium">{habit.name}</div>
-        <div className="flex items-center gap-1 text-[11px] text-ink/60">{streak > 0 ? <><Glyph name="flame" size={12} className="text-xp" />{streak}-day streak</> : 'Start a streak today'} · +{habit.xp} XP{habit.intrinsic ? ' · no dr (you already enjoy it)' : ''}</div>
+        <div className="text-sm font-medium">{habit.name}{min && <span className="text-gold"> · min: {habit.minLabel}</span>}</div>
+        <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink/60">{streak > 0 ? <><Glyph name="flame" size={12} className="text-xp" />{streak}-day streak</> : 'Start a streak today'} · +{habit.xp} XP{habit.minLabel ? ` (min ${Math.round(habit.xp / 2)})` : ''}{habit.intrinsic ? ' · no dr (you already enjoy it)' : ''}</div>
+        {habit.plan && <div className="truncate font-type text-[12px] text-ink/60" title={habit.plan}>{habit.plan}</div>}
       </div>
-      {habit.kind === 'check' && (
+      <button onClick={() => setEditing(true)} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/45 hover:text-xp" aria-label={`Edit plan for ${habit.name}`}><Glyph name="pencil" size={14} /></button>
+      {habit.kind === 'check' && (<>
+        {minBtn}
         <button onClick={() => setHabit(habit, today, done ? 0 : 1)} aria-label={habit.name} className={cx('flex h-10 w-10 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-mint/40')}>
           {done && <Glyph name="check" size={18} stroke={2.6}/>}
         </button>
-      )}
+      </>)}
       {habit.kind === 'number' && (
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {minBtn}
           {[6, 7, 7.5, 8].map(v => (
-            <button key={v} onClick={() => setHabit(habit, today, v)} className={cx('h-10 min-w-[2.6rem] px-1.5 font-display text-lg', log?.value === v ? (v >= (habit.target ?? 0) ? 'mac-inset bg-mint' : 'mac-inset bg-hp text-white') : 'mac-btn bg-white')}>{v}h</button>
+            <button key={v} onClick={() => setHabit(habit, today, v)} className={cx('h-10 min-w-[2.6rem] px-1.5 font-display text-lg', log?.value === v && !min ? (v >= (habit.target ?? 0) ? 'mac-inset bg-mint' : 'mac-inset bg-hp text-white') : 'mac-btn bg-white')}>{v}h</button>
           ))}
         </div>
       )}
       {habit.kind === 'auto' && (
-        <Link to="/focus" className={cx('mac-inset flex min-h-[40px] items-center px-2 font-display text-lg', done ? 'bg-mint text-ink' : 'bg-white text-cyan')}>{(log?.value ?? 0).toFixed(1)}/{targets.done}h</Link>
+        <Link to="/focus" className={cx('mac-inset flex min-h-[40px] items-center px-2 font-display text-lg', done ? 'bg-mint text-ink' : min ? 'bg-laurel text-ink' : 'bg-white text-cyan')}>{(log?.value ?? 0).toFixed(1)}/{targets.done}h</Link>
       )}
+      {editing && <HabitPlanForm habit={habit} onClose={() => setEditing(false)} />}
     </div>
+  );
+}
+
+/** Edit a habit's minimum version and its "When…, I will…" plan. */
+function HabitPlanForm({ habit, onClose }: { habit: Habit; onClose: () => void }) {
+  const [minLabel, setMin] = useState(habit.minLabel ?? '');
+  const [plan, setPlan] = useState(habit.plan ?? '');
+  return (
+    <Modal open onClose={onClose} title={habit.name}>
+      <div className="flex flex-col gap-3">
+        <Label text="Minimum version (still counts on a bad day)"><Input value={minLabel} onChange={e => setMin(e.target.value)} placeholder="e.g. 10 push-ups" disabled={habit.kind === 'auto'} /></Label>
+        {habit.kind === 'auto' && <p className="text-xs text-ink/60">Deep work counts as its minimum version from 2 h of focus.</p>}
+        <Label text="Plan: When…, I will…"><Input value={plan} onChange={e => setPlan(e.target.value)} placeholder="When I finish my coffee, I will…" /></Label>
+        <p className="text-xs text-ink/60">A specific when-then plan makes follow-through more likely (Gollwitzer). Anchor it to something you already do.</p>
+        <Button onClick={async () => { await db.habits.update(habit.id, { minLabel: habit.kind === 'auto' ? habit.minLabel : minLabel.trim() || undefined, plan: plan.trim() || undefined }); onClose(); }}>Save</Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -56,7 +84,14 @@ export default function Today() {
   const player = usePlayer();
   const [adding, setAdding] = useState(false);
   const habits = useLiveQuery(() => db.habits.orderBy('order').filter(h => !h.archived).toArray(), [], []);
+  // The routine can be logged for yesterday too (you only know how you slept the morning after).
+  const [onYesterday, setOnYesterday] = useState(false);
+  const yesterday = (() => { const d = parseKey(today); d.setDate(d.getDate() - 1); return dateKey(d); })();
+  const habitDay = onYesterday ? yesterday : today;
   const logs = useLiveQuery(() => db.habitLogs.where('date').equals(today).toArray(), [today], []);
+  const dayLogs = useLiveQuery(() => db.habitLogs.where('date').equals(habitDay).toArray(), [habitDay], []);
+  const shields = useLiveQuery(() => shieldBank(), [logs], 0);
+  const { today: dayTargets } = useWorkTargets(habitDay);
   const areas = useLiveQuery(() => db.areas.toArray(), [], []);
   const tasks = useLiveQuery(async () => {
     const open = await db.tasks.where('status').notEqual('done').toArray();
@@ -120,10 +155,16 @@ export default function Today() {
 
         <Card title="The Routine" action={<span className="font-type text-sm">{GOOD_DAY_MIN_CORE} core = good day +{GOOD_DAY_XP} · all {coreTotal} = perfect +{PERFECT_DAY_XP}</span>}>
           <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="mac-inset grid grid-cols-2 bg-white p-0.5" role="group" aria-label="Day">
+                {[false, true].map(y => <button key={String(y)} aria-pressed={onYesterday === y} onClick={() => setOnYesterday(y)} className={cx('min-h-[40px] px-3 font-display text-sm', onYesterday === y ? 'mac-btn bg-xp/20' : 'text-ink/60')}>{y ? 'Yesterday' : 'Today'}</button>)}
+              </div>
+              <span className="flex items-center gap-1 font-display text-sm" title="Streak shields: earned every 7 good days in a row; one covers a missed day automatically"><Glyph name="aspis" size={16} className="text-cyan" />{shields} shield{shields === 1 ? '' : 's'}</span>
+            </div>
             <h3 className="font-display text-sm text-lav">Core</h3>
-            {habits.filter(h => h.core).map(h => <HabitRow key={h.id} habit={h} log={logs.find(l => l.habitId === h.id)} today={today} targets={targets} />)}
+            {habits.filter(h => h.core).map(h => <HabitRow key={h.id} habit={h} log={dayLogs.find(l => l.habitId === h.id)} today={habitDay} targets={dayTargets} />)}
             <h3 className="mt-2 font-display text-sm text-lav">Rituals</h3>
-            {habits.filter(h => !h.core).map(h => <HabitRow key={h.id} habit={h} log={logs.find(l => l.habitId === h.id)} today={today} targets={targets} />)}
+            {habits.filter(h => !h.core).map(h => <HabitRow key={h.id} habit={h} log={dayLogs.find(l => l.habitId === h.id)} today={habitDay} targets={dayTargets} />)}
           </div>
           {week && (
             <div className="mt-3 border-t-2 border-line pt-3 text-sm">

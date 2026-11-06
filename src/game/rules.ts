@@ -45,6 +45,14 @@ export const MAX_SESSION_MINUTES = 12 * 60;
 /** After this long the Focus screen asks "still working?". */
 export const STILL_WORKING_MINUTES = 3 * 60;
 
+/** Minimum versions pay this share of the habit's XP (and keep the streak). */
+export const MIN_VERSION_SHARE = 0.5;
+/** Deep work counts as its minimum version from this many hours. */
+export const WORK_MIN_HOURS = 2;
+/** Streak shields: one per this many Good-or-Perfect days in a row, holding at most SHIELD_MAX. */
+export const SHIELD_EVERY = 7;
+export const SHIELD_MAX = 2;
+
 /** Perfect Day: every core habit, full version. Good Day: at least GOOD_DAY_MIN_CORE core habits (min versions count). */
 export const PERFECT_DAY_XP = 60;
 export const GOOD_DAY_XP = 25;

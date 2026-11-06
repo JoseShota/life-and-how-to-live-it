@@ -39,7 +39,13 @@
 
 **Deep-work targets** (Settings): weekdays 6 h = done, 8 h = full; weekends 4 h = done, 6 h = full.
 
-**Core habits:** sleep, exercise, deep work, money check-in. **Rituals** (XP, not core): up by 5:45, clean, intel.
+**Core habits:** sleep, exercise, deep work, money check-in. **Rituals** (XP, not core): up by 5:45, clean, intel, eat well.
+
+**Habit science (V-3):**
+- **Minimum version** per habit (Tiny Habits): keeps the streak, pays half XP, counts for a Good Day but never a Perfect Day. Deep work's minimum is 2 h of focus (automatic).
+- **Plan** per habit: a "When…, I will…" line (implementation intention), editable with the pencil.
+- **Yesterday:** the routine can be logged for the previous day (sleep is known the morning after).
+- **Streak shields:** earned every 7 Good-or-Perfect days in a row (hold 2). When the app opens, a shield covers each core habit missed yesterday whose streak was alive, in routine order. A shielded day doesn't add to the streak, it just doesn't break it.
 
 **A perfect weekday** ≈ 105 (habits) + 160 (8 h focus) + 30 (full workday) + 60 (perfect) + ~85 (quests) ≈ **440 XP ≈ 90 coins**. A realistic week earns about 330–390 dr (`scripts/eval-sim.ts`).
 
@@ -80,7 +86,7 @@ First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn 
 | Mechanic | Phase | Description |
 |---|---|---|
 | **HP / Energy** | P4 | Starts at 100. Missing core habits drains HP, sleep and exercise restore it. At 0 HP: "recovery mode" (only the minimum-viable versions are required for 3 days). No XP loss |
-| **Streak shields** | P4 | Earned every 14-day streak. Auto-consumed to protect a streak on a missed day |
+| **Streak shields** | done (V-3) | Earned every 7 Good-or-Perfect days in a row, max 2. Auto-consumed to protect a streak on a missed day |
 | **Seasons** | P4 | 90-day campaigns with a theme, a season pass track and a final **boss fight** (e.g. "First retainer + 1-month fund") |
 | **Weekly bosses** | P4 | A big quest (Epic) that you damage with focus hours in its area |
 | **Daily quests** | P1 | 3 auto-generated quests from routine/wealth plan ("Contact 1 lead", "Log all expenses") |

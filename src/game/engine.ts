@@ -8,6 +8,7 @@ import { dateKey, parseKey, uid } from '@/lib/util';
 import {
   TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
   MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, DEFAULT_WORK_TARGETS, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
+  MIN_VERSION_SHARE, WORK_MIN_HOURS, SHIELD_EVERY, SHIELD_MAX,
   type WorkTargets
 } from './rules';
 import { checkAchievements } from './achievements';
@@ -58,27 +59,40 @@ export async function reopenTask(task: Task) {
 }
 
 // ---------- Habits ----------
+/** Dates on which a streak shield covered this habit (the day counts as "not broken", not as done). */
+async function shieldedDates(habitId: string) {
+  const rows = await db.xp.where('refId').startsWith(`shield:use:${habitId}:`).toArray();
+  return new Set(rows.map(r => r.refId.split(':')[3]));
+}
+
 export async function habitStreak(habitId: string, upTo: string = dateKey()): Promise<number> {
   const logs = await db.habitLogs.where('habitId').equals(habitId).toArray();
   const done = new Set(logs.filter(l => l.done).map(l => l.date));
+  const shielded = await shieldedDates(habitId);
   let streak = 0;
-  const d = new Date(upTo + 'T12:00:00');
+  const d = parseKey(upTo);
   // today counts if done; if not done yet, streak continues from yesterday
   if (!done.has(dateKey(d))) d.setDate(d.getDate() - 1);
-  while (done.has(dateKey(d))) { streak++; d.setDate(d.getDate() - 1); }
+  for (;;) {
+    const k = dateKey(d);
+    if (done.has(k)) streak++;
+    else if (!shielded.has(k)) break;
+    d.setDate(d.getDate() - 1);
+  }
   return streak;
 }
 
-export async function setHabit(habit: Habit, date: string, value: number) {
+/** Checks a habit for `date`. `min` = done in its minimum version: keeps the streak, half XP, counts for a Good Day only. */
+export async function setHabit(habit: Habit, date: string, value: number, min = false) {
   const done = habit.kind === 'check' ? value >= 1 : value >= (habit.target ?? 1);
   const id = `${habit.id}:${date}`;
-  await db.habitLogs.put({ id, habitId: habit.id, date, value, done });
+  await db.habitLogs.put({ id, habitId: habit.id, date, value, done: done || min, min: min && !done ? true : undefined });
   const ref = `habit:${id}`;
   await revoke(ref);
-  if (done) {
+  if (done || min) {
     const streak = await habitStreak(habit.id, date);
-    const xp = Math.round(habit.xp * streakMultiplier(streak));
-    await award('habit', ref, xp, `${habit.name}${streak >= 7 ? ` (streak ${streak})` : ''}`, habit.intrinsic ? 0 : coinsFor(xp), date);
+    const xp = Math.round(habit.xp * streakMultiplier(streak) * (done ? 1 : MIN_VERSION_SHARE));
+    await award('habit', ref, xp, `${habit.name}${done ? '' : ' (min)'}${streak >= 7 ? ` (streak ${streak})` : ''}`, habit.intrinsic ? 0 : coinsFor(xp), date);
   }
   await evaluateDay(date);
 }
@@ -131,12 +145,12 @@ export async function evaluateDay(date: string = dateKey()) {
   const workHabit = habits.find(h => h.kind === 'auto' && h.key === 'work');
   if (workHabit) {
     const id = `${workHabit.id}:${date}`;
-    const done = hours >= targets.done;
-    const prev = await db.habitLogs.get(id);
-    await db.habitLogs.put({ ...prev, id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done });
-    const streak = done ? await habitStreak(workHabit.id, date) : 0;
-    const xp = Math.round(workHabit.xp * streakMultiplier(streak));
-    await syncAward('habit', `habit:${id}`, done ? xp : null, `Deep work ${hours.toFixed(1)} h`, coinsFor(xp), date);
+    const full = hours >= targets.done;
+    const min = !full && hours >= WORK_MIN_HOURS; // the deep-work minimum version keeps the streak
+    await db.habitLogs.put({ id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done: full || min, min: min || undefined });
+    const streak = full || min ? await habitStreak(workHabit.id, date) : 0;
+    const xp = Math.round(workHabit.xp * streakMultiplier(streak) * (full ? 1 : MIN_VERSION_SHARE));
+    await syncAward('habit', `habit:${id}`, full || min ? xp : null, `Deep work ${hours.toFixed(1)} h${min ? ' (min)' : ''}`, coinsFor(xp), date);
   }
   await syncAward('workday', `workday:${date}`, hours >= targets.full ? WORKDAY_BONUS_XP : null, `Full workday (${hours.toFixed(1)} h)`, coinsFor(WORKDAY_BONUS_XP), date);
 
@@ -149,8 +163,63 @@ export async function evaluateDay(date: string = dateKey()) {
   await syncAward('perfect-day', `perfect:${date}`, grade === 'perfect' ? PERFECT_DAY_XP : null, 'Perfect day', coinsFor(PERFECT_DAY_XP), date);
   await syncAward('good-day', `good:${date}`, grade === 'good' ? GOOD_DAY_XP : null, 'Good day', coinsFor(GOOD_DAY_XP), date);
 
+  await evaluateShieldEarn(date);
   await evaluateWeek(weekStartKey(date));
   await checkAchievements();
+}
+
+// ---------- Streak shields (Duolingo-style streak freeze, ledger-based) ----------
+
+/** Shields in the bank: earned minus used (never below 0). */
+export async function shieldBank() {
+  const earned = await db.xp.where('refId').startsWith('shield:earn:').count();
+  const used = await db.xp.where('refId').startsWith('shield:use:').count();
+  return Math.max(0, earned - used);
+}
+
+/** Good-or-Perfect days in a row ending on `date`. */
+async function goodRun(date: string) {
+  let n = 0;
+  const d = parseKey(date);
+  for (;;) {
+    const k = dateKey(d);
+    const has = await db.xp.where('date').equals(k).filter(e => e.source === 'perfect-day' || e.source === 'good-day').count();
+    if (!has) return n;
+    n++; d.setDate(d.getDate() - 1);
+  }
+}
+
+/** Every SHIELD_EVERY Good-or-Perfect days in a row earn a shield (bank holds SHIELD_MAX). Re-evaluated with the day. */
+async function evaluateShieldEarn(date: string) {
+  const ref = `shield:earn:${date}`;
+  const has = (await db.xp.where('refId').equals(ref).count()) > 0;
+  const run = await goodRun(date);
+  const earns = run > 0 && run % SHIELD_EVERY === 0;
+  if (earns && !has && (await shieldBank()) < SHIELD_MAX) {
+    await db.xp.add({ id: uid(), ts: Date.now(), date, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield earned (${run} good days in a row)` });
+  } else if (!earns && has) await revoke(ref);
+}
+
+/**
+ * Run when the app opens: for each core habit missed yesterday whose streak was alive the day before,
+ * spend a shield so one missed day doesn't reset it ("never miss twice"). Returns the habits it protected.
+ */
+export async function applyShields(today = dateKey()) {
+  const y = parseKey(today); y.setDate(y.getDate() - 1);
+  const yesterday = dateKey(y);
+  const before = new Date(y); before.setDate(before.getDate() - 1);
+  const protectedHabits: string[] = [];
+  // In routine order, so the habits that come first in the day are protected first.
+  for (const h of (await db.habits.orderBy('order').toArray()).filter(x => x.core && !x.archived)) {
+    if ((await db.habitLogs.get(`${h.id}:${yesterday}`))?.done) continue;
+    const ref = `shield:use:${h.id}:${yesterday}`;
+    if (await db.xp.where('refId').equals(ref).count()) continue;
+    if ((await habitStreak(h.id, dateKey(before))) < 1) continue;
+    if ((await shieldBank()) < 1) break;
+    await db.xp.add({ id: uid(), ts: Date.now(), date: yesterday, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield used: ${h.name}` });
+    protectedHabits.push(h.name);
+  }
+  return protectedHabits;
 }
 
 /** Read-only weekly stats for the scorecard (week starting on Monday `monday`). */

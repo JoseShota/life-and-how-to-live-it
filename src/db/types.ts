@@ -56,6 +56,10 @@ export interface Habit {
   core: boolean;
   /** Already enjoyed for its own sake (e.g. reading the news): XP as feedback, but no coins (overjustification). */
   intrinsic?: boolean;
+  /** The smallest version that still counts (Tiny Habits): keeps the streak, half XP, counts for a Good Day. */
+  minLabel?: string;
+  /** Implementation intention: "When X, I will Y." */
+  plan?: string;
   order: number;
   archived: boolean;
 }
@@ -227,6 +231,7 @@ export type XpSource =
   | 'good-day'
   | 'weekly'
   | 'milestone'
+  | 'shield'
   | 'session'
   | 'workday'
   | 'finance'
