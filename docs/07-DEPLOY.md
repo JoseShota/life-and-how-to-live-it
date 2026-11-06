@@ -13,9 +13,11 @@ A PWA must be served over **HTTPS** to be installable. Easiest options (both fre
 Build command `npm run build`, output `dist`. The `public/_redirects` file (`/* /index.html 200`) handles SPA routing.
 
 ## Install
-- **iPad:** open the URL in **Safari** → Share → **Add to Home Screen**.
-- **Android tablet:** Chrome → menu → **Install app**.
+- **Lenovo / any Android tablet:** open the URL in **Chrome** (not the Lenovo or Samsung browser) → menu ⋮ → **Install app** (on some versions: **Add to Home screen → Install**). Chrome builds a real launcher app (a WebAPK): it has its own icon in the app drawer, opens full screen, and updates itself. No Play Store needed.
 - **Laptop (Chrome/Edge):** the install icon in the address bar → **Install**.
+- **iPad/iPhone (if ever):** Safari → Share → **Add to Home Screen**.
+
+Open the app once while online. After that it works fully offline, including fonts and the marble head, which are all precached.
 
 ## Important: data per device (until Phase 2)
 Each device has its own local database. Pick **one main device** for logging, or move data with

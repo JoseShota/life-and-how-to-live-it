@@ -1,21 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Thermae app icon: a tiled wall, one arch open onto a pale dream sky, still pool water.
+       Full-bleed square; all artwork sits inside the central 80 % so it also works as a maskable icon. -->
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset=".6" stop-color="#ffd9ee"/><stop offset="1" stop-color="#ffb3dd"/></linearGradient>
-    <pattern id="chk" width="64" height="64" patternUnits="userSpaceOnUse"><rect width="64" height="64" fill="#fff"/><rect width="32" height="32" fill="#1b1530"/><rect x="32" y="32" width="32" height="32" fill="#1b1530"/></pattern>
-    <clipPath id="c"><rect width="512" height="512" rx="96"/></clipPath>
+    <pattern id="tile" width="64" height="64" patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#e4ebe7"/>
+      <path d="M0 .5H64M.5 0V64" stroke="#d6dfdb" stroke-width="2"/>
+    </pattern>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfe2e8"/>
+      <stop offset="1" stop-color="#fbfaf6"/>
+    </linearGradient>
+    <clipPath id="opening"><path d="M168 400V212a88 88 0 0 1 176 0V400Z"/></clipPath>
   </defs>
-  <g clip-path="url(#c)">
-    <rect width="512" height="512" fill="url(#sky)"/>
-    <ellipse cx="150" cy="120" rx="90" ry="30" fill="#fff" opacity=".9"/><ellipse cx="380" cy="170" rx="70" ry="22" fill="#fff" opacity=".8"/>
-    <path d="M0 360 L512 360 L512 512 L0 512 Z" fill="url(#chk)" transform="matrix(1 0 0 1 0 0)"/>
-    <!-- Ionic column -->
-    <g fill="#fff" stroke="#1b1530" stroke-width="10" stroke-linejoin="round">
-      <path d="M176 150 h160 v26 h-160 z"/>
-      <circle cx="176" cy="163" r="22"/><circle cx="336" cy="163" r="22"/>
-      <rect x="200" y="176" width="112" height="190"/>
-      <path d="M180 366 h152 v26 h-152 z"/>
-    </g>
-    <g stroke="#1b1530" stroke-width="6"><line x1="228" y1="186" x2="228" y2="356"/><line x1="256" y1="186" x2="256" y2="356"/><line x1="284" y1="186" x2="284" y2="356"/></g>
-    <text x="256" y="470" text-anchor="middle" font-family="serif" font-size="64" font-weight="700" fill="#e8399a" stroke="#1b1530" stroke-width="3">✿</text>
+  <rect width="512" height="512" fill="url(#tile)"/>
+  <!-- marble frame of the arch -->
+  <path d="M136 400V212a120 120 0 0 1 240 0V400Z" fill="#fbfaf6" stroke="#2b3437" stroke-width="8" stroke-linejoin="round"/>
+  <!-- the opening: sky, a low sun, a cloud, the pool -->
+  <g clip-path="url(#opening)">
+    <rect x="160" y="100" width="192" height="310" fill="url(#sky)"/>
+    <circle cx="296" cy="236" r="26" fill="#ecc7c0"/>
+    <ellipse cx="214" cy="190" rx="38" ry="11" fill="#fbfaf6"/>
+    <rect x="160" y="320" width="192" height="90" fill="#a6d9d1"/>
+    <path d="M176 346c16-8 32-8 48 0s32 8 48 0 32-8 48 0" fill="none" stroke="#fbfaf6" stroke-width="5" stroke-linecap="round"/>
+    <path d="M196 374c16-8 32-8 48 0s32 8 48 0" fill="none" stroke="#fbfaf6" stroke-width="4" stroke-linecap="round" opacity=".8"/>
   </g>
+  <path d="M168 400V212a88 88 0 0 1 176 0V400" fill="none" stroke="#2b3437" stroke-width="6" stroke-linejoin="round"/>
+  <!-- floor ledge -->
+  <rect x="128" y="398" width="256" height="14" fill="#d6dfdb" stroke="#2b3437" stroke-width="6" stroke-linejoin="round"/>
 </svg>

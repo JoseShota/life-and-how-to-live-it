@@ -36,13 +36,18 @@ All icons are **hand-drawn line glyphs** in `src/components/glyphs.ts`, rendered
 - To add a glyph: draw it in the DSL at the top of `glyphs.ts` (path / circle / rect / ellipse), add it to `PICKABLE` if users can choose it, and check it on the Agora "+ Reward" picker.
 
 ## Type
+All fonts are **self-hosted** in `public/fonts/` (licences in `public/fonts/LICENSES.md`) and precached by the service worker, so the installed app looks the same offline. Never link a font CDN; `tests/fonts.test.ts` checks this. DotGothic16 ships only the kanji the UI uses, so adding a new `jp` label means regenerating that subset (steps in `LICENSES.md`).
+
 | Class | Font | Use |
 |---|---|---|
-| `font-display` | ChicagoFLF (self-hosted) | Menu bar, window titles, buttons, numbers |
+| `font-display` | ChicagoFLF | Menu bar, window titles, buttons, numbers |
 | `font-sans` | Courier Prime | Body |
 | `.inscription` / `font-greek` | Cinzel | Page titles, maxims, levels |
 | `font-type` | Special Elite | The Scroll, poems, subtitles, dreamy copy |
 | `font-jp` | DotGothic16 | Kanji subtitles |
+
+## App icon
+`public/icon.svg`: a tiled wall, one marble arch open onto a pale sky with a low rose sun, and still pool water. It's full-bleed with all art inside the central 80 %, so Android can crop it to any shape (maskable). The PNGs (`pwa-192.png`, `pwa-512.png`, `apple-touch-icon.png`) are rendered from the SVG. Re-render them whenever the SVG changes.
 
 ## Imagery
 - `public/art/bust.webp` is the *Marble head of a youth*, Greek, 4th c. BCE (The Met, Open Access, public domain). It's the natural photo cut out with a soft edge and graded slightly cooler. **No dithering, no grain.**
