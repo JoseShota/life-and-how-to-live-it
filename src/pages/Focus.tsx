@@ -5,7 +5,7 @@ import { db } from '@/db/db';
 import { logSession, deleteSession, SessionOverlapError } from '@/game/engine';
 import { sessionXp, STILL_WORKING_MINUTES, MAX_SESSION_MINUTES } from '@/game/rules';
 import { useToast } from '@/lib/toast';
-import { useNow, useToday } from '@/lib/hooks';
+import { useNow, useToday, useWorkTargets } from '@/lib/hooks';
 import { hm } from '@/lib/util';
 import { Button, Card, Ring, Select, Label, Input, Modal, Empty, PageTitle } from '@/components/ui';
 
@@ -22,7 +22,7 @@ export default function Focus() {
   const selArea = active?.areaId ?? areaId ?? areas[0]?.id;
   const tasks = useLiveQuery(() => (selArea ? db.tasks.where('areaId').equals(selArea).filter(t => t.status !== 'done').toArray() : []), [selArea], []);
   const sessions = useLiveQuery(() => db.sessions.where('date').equals(today).reverse().sortBy('start'), [today], []);
-  const target = (useLiveQuery(() => db.settings.get('workTargetHours'))?.value as number) ?? 8;
+  const { today: targets } = useWorkTargets(today);
   const total = sessions.reduce((s, x) => s + x.minutes, 0);
   const elapsed = active ? Math.floor((now - active.start) / 1000) : 0;
   const block = 50 * 60; // 50-min sprint
@@ -65,7 +65,7 @@ export default function Focus() {
         <Card title="Focus Timer" className="[&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child]:items-center [&>div:last-child]:gap-5 [&>div:last-child]:py-8">
           <Ring value={active ? (elapsed % block) / block : 0} size={250} stroke={14} color={area?.color ?? '#e3b9b2'}>
             <div className="text-xp font-display text-6xl leading-none tabular-nums">{mm}:{ss}</div>
-            <div className="mt-1 max-w-[150px] text-xs text-ink/80">{active ? `${area?.short} · +${sessionXp(Math.floor(elapsed / 60))} XP` : '50-min sprints · 20 XP/h'}</div>
+            <div className="mt-1 max-w-[150px] text-xs text-ink/80">{active ? `${area?.short} · +${sessionXp(Math.floor(elapsed / 60))} XP` : `50-min sprints · 20 XP/h up to ${targets.full} h`}</div>
           </Ring>
           {!active ? (
             <div className="grid w-full max-w-sm gap-3">
@@ -95,7 +95,7 @@ export default function Focus() {
           )}
         </Card>
 
-        <Card title={`Sessions · ${hm(total)} of ${target}h`} action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setManual(true)}><Glyph name="plus" size={16}/>Log time</Button>}>
+        <Card title={`Sessions · ${hm(total)} · ${targets.done}h done · ${targets.full}h full`} action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setManual(true)}><Glyph name="plus" size={16}/>Log time</Button>}>
           <div className="flex flex-col gap-2">
             {sessions.length === 0 ? <Empty>No focus logged yet. The first sprint is the hardest — start a 50-minute one.</Empty> :
               sessions.map(s => {

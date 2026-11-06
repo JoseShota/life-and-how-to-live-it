@@ -2,10 +2,11 @@
 import { db } from '@/db/db';
 import type { Difficulty, Habit, Task, Transaction, XpSource } from '@/db/types';
 import { splitLegs, transferLegs } from '@/finance/finance';
-import { dateKey, uid } from '@/lib/util';
+import { dateKey, parseKey, uid } from '@/lib/util';
 import {
-  TASK_XP, coinsFor, sessionXp, PERFECT_DAY_XP, WORKDAY_BONUS_XP, streakMultiplier, FINANCE_XP,
-  MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES
+  TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
+  MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, DEFAULT_WORK_TARGETS, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
+  type WorkTargets
 } from './rules';
 import { checkAchievements } from './achievements';
 
@@ -75,36 +76,102 @@ export async function setHabit(habit: Habit, date: string, value: number) {
   if (done) {
     const streak = await habitStreak(habit.id, date);
     const xp = Math.round(habit.xp * streakMultiplier(streak));
-    await award('habit', ref, xp, `${habit.name}${streak >= 7 ? ` (streak ${streak})` : ''}`, coinsFor(xp), date);
+    await award('habit', ref, xp, `${habit.name}${streak >= 7 ? ` (streak ${streak})` : ''}`, habit.intrinsic ? 0 : coinsFor(xp), date);
   }
   await evaluateDay(date);
 }
 
-/** Auto habit (work hours) + Perfect Day bonus. Idempotent: safe to call any time. */
+/**
+ * Makes the ledger hold exactly one row for `refId` with these values, or none when `xp` is null.
+ * Rewrites only when something changed, so re-evaluating a day never re-fires reward toasts.
+ */
+async function syncAward(source: XpSource, refId: string, xp: number | null, label: string, coins: number, date: string) {
+  const rows = await db.xp.where('refId').equals(refId).toArray();
+  if (xp === null || xp <= 0) { if (rows.length) await revoke(refId); return; }
+  if (rows.length === 1 && rows[0].xp === xp && rows[0].coins === coins && rows[0].date === date) return;
+  if (rows.length) await revoke(refId);
+  await award(source, refId, xp, label, coins, date);
+}
+
+export async function getWorkTargets(): Promise<WorkTargets> {
+  const v = (await db.settings.get('workTargets'))?.value as WorkTargets | undefined;
+  return v ?? DEFAULT_WORK_TARGETS;
+}
+
+/** Monday (local) of the week containing `date`. */
+export function weekStartKey(date: string) {
+  const d = parseKey(date);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return dateKey(d);
+}
+
+/**
+ * Recomputes everything derived from a day: focus XP per session, the deep-work habit, the workday bonus,
+ * the Perfect/Good Day grade and the weekly scorecard. Idempotent: safe to call any time.
+ */
 export async function evaluateDay(date: string = dateKey()) {
   const habits = (await db.habits.toArray()).filter(h => !h.archived);
+  const targets = targetsFor(date, await getWorkTargets());
+  const areas = new Map((await db.areas.toArray()).map(a => [a.id, a]));
+
+  // Focus XP: only minutes up to the full target pay. Hobby areas earn XP but no coins.
+  const sessions = await db.sessions.where('date').equals(date).toArray();
+  const alloc = allocateFocusXp(sessions, targets.full);
+  for (const s of sessions) {
+    const xp = alloc.get(s.id) ?? 0;
+    const area = areas.get(s.areaId);
+    const coins = area?.kind === 'hobby' ? 0 : coinsFor(xp);
+    await syncAward('session', `session:${s.id}`, xp, `Focus ${s.minutes}m · ${area?.short ?? ''}`, coins, date);
+  }
+
+  // Deep-work habit (done target) and workday bonus (full target).
+  const hours = sessions.reduce((sum, x) => sum + x.minutes, 0) / 60;
   const workHabit = habits.find(h => h.kind === 'auto' && h.key === 'work');
   if (workHabit) {
-    const minutes = (await db.sessions.where('date').equals(date).toArray()).reduce((s, x) => s + x.minutes, 0);
-    const hours = minutes / 60;
-    const done = hours >= (workHabit.target ?? 8);
     const id = `${workHabit.id}:${date}`;
+    const done = hours >= targets.done;
     const prev = await db.habitLogs.get(id);
-    await db.habitLogs.put({ id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done });
-    if (done !== !!prev?.done) {
-      await revoke(`workday:${date}`);
-      if (done) await award('workday', `workday:${date}`, WORKDAY_BONUS_XP + workHabit.xp, `Full workday (${hours.toFixed(1)} h)`, undefined, date);
-    }
+    await db.habitLogs.put({ ...prev, id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done });
+    const streak = done ? await habitStreak(workHabit.id, date) : 0;
+    const xp = Math.round(workHabit.xp * streakMultiplier(streak));
+    await syncAward('habit', `habit:${id}`, done ? xp : null, `Deep work ${hours.toFixed(1)} h`, coinsFor(xp), date);
   }
+  await syncAward('workday', `workday:${date}`, hours >= targets.full ? WORKDAY_BONUS_XP : null, `Full workday (${hours.toFixed(1)} h)`, coinsFor(WORKDAY_BONUS_XP), date);
+
+  // Day grade: Perfect (all core, full versions) or Good (3 of 4 core, min versions count).
   const core = habits.filter(h => h.core);
-  const logs = await db.habitLogs.where('date').equals(date).toArray();
-  const doneIds = new Set(logs.filter(l => l.done).map(l => l.habitId));
-  const perfect = core.length > 0 && core.every(h => doneIds.has(h.id));
-  const ref = `perfect:${date}`;
-  const had = (await db.xp.where('refId').equals(ref).count()) > 0;
-  if (perfect && !had) await award('perfect-day', ref, PERFECT_DAY_XP, 'Perfect day', undefined, date);
-  if (!perfect && had) await revoke(ref);
+  const logs = new Map((await db.habitLogs.where('date').equals(date).toArray()).map(l => [l.habitId, l]));
+  const full = core.filter(h => logs.get(h.id)?.done && !logs.get(h.id)?.min).length;
+  const any = core.filter(h => logs.get(h.id)?.done).length;
+  const grade = dayGrade(core.length, full, any);
+  await syncAward('perfect-day', `perfect:${date}`, grade === 'perfect' ? PERFECT_DAY_XP : null, 'Perfect day', coinsFor(PERFECT_DAY_XP), date);
+  await syncAward('good-day', `good:${date}`, grade === 'good' ? GOOD_DAY_XP : null, 'Good day', coinsFor(GOOD_DAY_XP), date);
+
+  await evaluateWeek(weekStartKey(date));
   await checkAchievements();
+}
+
+/** Read-only weekly stats for the scorecard (week starting on Monday `monday`). */
+export async function weekStats(monday: string) {
+  const d = parseKey(monday); d.setDate(d.getDate() + 6);
+  const sunday = dateKey(d);
+  const minutes = (await db.sessions.where('date').between(monday, sunday, true, true).toArray()).reduce((s, x) => s + x.minutes, 0);
+  const byKey = async (key: string) => {
+    const h = await db.habits.where('key').equals(key).first();
+    if (!h) return 0;
+    return (await db.habitLogs.where('habitId').equals(h.id).filter(l => l.done && l.date >= monday && l.date <= sunday).toArray()).length;
+  };
+  const goodDays = await db.xp.where('date').between(monday, sunday, true, true).filter(e => e.source === 'perfect-day' || e.source === 'good-day').count();
+  const stats = { focusHours: minutes / 60, exerciseDays: await byKey('exercise'), moneyDays: await byKey('money'), goodDays };
+  return { stats, sunday, ...weeklyScore(stats) };
+}
+
+/** Weekly scorecard bonus for the week starting on Monday `monday`, dated on that week's Sunday. */
+export async function evaluateWeek(monday: string) {
+  const score = await weekStats(monday);
+  const sunday = score.sunday;
+  await syncAward('weekly', `week:${monday}`, score.earned ? WEEKLY_SCORECARD.xp : null, `Weekly scorecard (${score.count}/4)`, coinsFor(WEEKLY_SCORECARD.xp), sunday);
+  return score;
 }
 
 // ---------- Focus sessions ----------
@@ -123,12 +190,7 @@ export async function logSession(areaId: string, start: number, end: number, tas
   if (sameDay.some(s => s.start < end && s.end > start)) throw new SessionOverlapError();
   const id = uid();
   await db.sessions.add({ id, areaId, taskId, date, start, end, minutes, note });
-  const xp = sessionXp(minutes);
-  if (xp > 0) {
-    const area = await db.areas.get(areaId);
-    await award('session', `session:${id}`, xp, `Focus ${minutes}m · ${area?.short ?? ''}`, undefined, date);
-  }
-  await evaluateDay(date);
+  await evaluateDay(date); // pays the session's focus XP within the day's full target
   return id;
 }
 

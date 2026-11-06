@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v2)
+## Tables (Dexie v3)
+
+v3 (no index changes, economy B): habits `wake`, `clean`, `intel` stop being core; `intel` gets `intrinsic: true` (XP, no coins); the work habit becomes "Deep work"; the `workTargets` setting holds the done/full hours for weekdays and weekends. `HabitLog` gains `min?`.
 
 v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn glyph name in `icon` instead of an `emoji`. The upgrade and backup import both convert old rows through `src/db/legacy.ts`.
 
@@ -20,7 +22,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `rewards` | `id` | — | Agora items (custom rewards) |
 | `xp` | `id` | `date, source, refId, ts` | **Append-only ledger** of XP/coin events |
 | `unlocked` | `key` | — | Unlocked achievements |
-| `settings` | `key` | — | Key/value: `playerName`, `workTargetHours`, `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
+| `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
 ## Entities (abridged)
 
@@ -29,8 +31,8 @@ Area        { id, name, short, icon, color, kind: 'work'|'growth'|'hobby'|'perso
               weeklyHoursTarget, monetizable, order, archived }
 Task        { id, areaId, title, notes?, difficulty: 1..5, priority: 1|2|3, dueDate?, status: 'todo'|'doing'|'done',
               createdAt, completedAt? }
-Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, order, archived }
-HabitLog    { id, habitId, date, value, done }
+Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, intrinsic?, order, archived }
+HabitLog    { id, habitId, date, value, done, min? }
 Session     { id, areaId, taskId?, date, start, end, minutes, note? }
 Account     { id, name, institution, type: 'debit'|'credit'|'cash'|'savings'|'investment',
               creditLimit?, cutoffDay?, paymentDueDay?, openingBalance, color, archived, order }
@@ -56,8 +58,10 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | task | `task:<taskId>` | reopen / delete task |
 | habit | `habit:<habitId>:<date>` | unchecking habit |
 | perfect-day | `perfect:<date>` | any core habit becomes undone |
-| workday | `workday:<date>` | deleting sessions below target |
-| session | `session:<sessionId>` | deleting session |
+| good-day | `good:<date>` | fewer than 3 core habits done, or the day becomes perfect |
+| weekly | `week:<monday>` (dated on Sunday) | fewer than 3 of 4 weekly targets |
+| workday | `workday:<date>` | sessions drop below the full target |
+| session | `session:<sessionId>` | deleting session; `evaluateDay` re-allocates the day's focus XP (nothing past the full target) |
 | finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<yyyy-mm>` (once per goal per month) | deleting transaction (revokes every leg). Editing never changes XP |
 | achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |

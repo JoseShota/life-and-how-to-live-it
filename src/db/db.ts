@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import { legacyIcon, ICON_TABLES } from './legacy';
+import { DEFAULT_WORK_TARGETS } from '@/game/rules';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
   Opportunity, Reward, XpEvent, Unlocked, Setting
@@ -42,7 +43,21 @@ export class LifeDB extends Dexie {
     this.version(2).stores({}).upgrade(async tx => {
       for (const t of ICON_TABLES) await tx.table(t).toCollection().modify(row => legacyIcon(row, t));
     });
+    // v3 (economy B, no index changes): 4 core habits (sleep, exercise, deep work, money); wake, clean and intel
+    // become rituals; intel pays XP but no coins; deep-work targets move to the `workTargets` setting.
+    this.version(3).stores({}).upgrade(async tx => {
+      await tx.table('habits').toCollection().modify(migrateHabitV3);
+      if (!(await tx.table('settings').get('workTargets'))) await tx.table('settings').put({ key: 'workTargets', value: DEFAULT_WORK_TARGETS });
+    });
   }
+}
+
+/** v3 habit changes, by stable key. Exported for tests. */
+export function migrateHabitV3(h: { key: string; core: boolean; intrinsic?: boolean; name: string; target?: number }) {
+  if (['wake', 'clean', 'intel'].includes(h.key)) h.core = false;
+  if (['sleep', 'exercise', 'work', 'money'].includes(h.key)) h.core = true;
+  if (h.key === 'intel') h.intrinsic = true;
+  if (h.key === 'work') { h.name = 'Deep work'; h.target = DEFAULT_WORK_TARGETS.weekday.done; }
 }
 
 export const db = new LifeDB();

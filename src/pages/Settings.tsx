@@ -7,13 +7,22 @@ import { exportAll, importAll, download } from '@/lib/backup';
 import { routineIcs } from '@/lib/routine';
 import { useToast } from '@/lib/toast';
 import { dateKey } from '@/lib/util';
+import { useWorkTargets } from '@/lib/hooks';
+import { evaluateDay } from '@/game/engine';
 import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
 
 export default function SettingsPage() {
   const toast = useToast();
   const file = useRef<HTMLInputElement>(null);
   const name = (useLiveQuery(() => db.settings.get('playerName'))?.value as string) ?? '';
-  const target = (useLiveQuery(() => db.settings.get('workTargetHours'))?.value as number) ?? 8;
+  const { all: targets } = useWorkTargets();
+  const setTarget = (kind: 'weekday' | 'weekend', which: 'done' | 'full', v: string) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 16) return;
+    const next = { ...targets, [kind]: { ...targets[kind], [which]: n } };
+    // Re-grade today so the habit, bonus and focus XP follow the new targets right away.
+    setSetting('workTargets', next).then(() => evaluateDay(dateKey()));
+  };
   const areas = useLiveQuery(() => db.areas.orderBy('order').toArray(), [], []);
   const [iconFor, setIconFor] = useState<string | null>(null);
   const iconArea = areas.find(a => a.id === iconFor);
@@ -24,7 +33,14 @@ export default function SettingsPage() {
       <Card title="The Player">
         <div className="grid gap-3 sm:grid-cols-2">
           <Label text="Name"><Input value={name} onChange={e => setSetting('playerName', e.target.value)} /></Label>
-          <Label text="Daily deep-work target (hours)"><Input inputMode="decimal" value={target} onChange={e => setSetting('workTargetHours', Number(e.target.value) || 8)} /></Label>
+        </div>
+        <h3 className="mt-4 font-display text-sm text-lav">Deep-work targets (hours)</h3>
+        <p className="mb-2 text-xs text-ink/60">"Done" checks the deep-work habit. "Full" earns the workday bonus, and focus stops paying XP after it.</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Label text="Weekday · done"><Input inputMode="decimal" value={targets.weekday.done} onChange={e => setTarget('weekday', 'done', e.target.value)} /></Label>
+          <Label text="Weekday · full"><Input inputMode="decimal" value={targets.weekday.full} onChange={e => setTarget('weekday', 'full', e.target.value)} /></Label>
+          <Label text="Weekend · done"><Input inputMode="decimal" value={targets.weekend.done} onChange={e => setTarget('weekend', 'done', e.target.value)} /></Label>
+          <Label text="Weekend · full"><Input inputMode="decimal" value={targets.weekend.full} onChange={e => setTarget('weekend', 'full', e.target.value)} /></Label>
         </div>
       </Card>
 

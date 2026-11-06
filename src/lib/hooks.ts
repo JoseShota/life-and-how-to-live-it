@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { db } from '@/db/db';
-import { levelFromXp, titleForLevel } from '@/game/rules';
+import { levelFromXp, titleForLevel, targetsFor, DEFAULT_WORK_TARGETS, type WorkTargets } from '@/game/rules';
 import { dateKey } from './util';
 
 export function usePlayer() {
@@ -26,4 +26,10 @@ export function useNow(ms = 1000) {
 export function useToday() {
   const now = useNow(30_000);
   return dateKey(now);
+}
+
+/** Deep-work targets from settings, and the ones that apply to `day` (weekday or weekend). */
+export function useWorkTargets(day: string = dateKey()) {
+  const all = (useLiveQuery(() => db.settings.get('workTargets'))?.value as WorkTargets | undefined) ?? DEFAULT_WORK_TARGETS;
+  return { all, today: targetsFor(day, all) };
 }

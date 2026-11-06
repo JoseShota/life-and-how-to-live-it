@@ -54,6 +54,8 @@ export interface Habit {
   xp: number;
   /** Core habits count towards a Perfect Day */
   core: boolean;
+  /** Already enjoyed for its own sake (e.g. reading the news): XP as feedback, but no coins (overjustification). */
+  intrinsic?: boolean;
   order: number;
   archived: boolean;
 }
@@ -64,6 +66,8 @@ export interface HabitLog {
   date: DateKey;
   value: number; // 1/0 for check, numeric otherwise
   done: boolean;
+  /** Done in its minimum version: keeps the streak and counts for a Good Day, never a Perfect Day. */
+  min?: boolean;
 }
 
 export interface Session {
@@ -155,6 +159,8 @@ export type XpSource =
   | 'task'
   | 'habit'
   | 'perfect-day'
+  | 'good-day'
+  | 'weekly'
   | 'session'
   | 'workday'
   | 'finance'

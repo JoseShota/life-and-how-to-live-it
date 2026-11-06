@@ -1,6 +1,7 @@
 import { db } from './db';
 import type { Area, Habit, Account, Reward, Goal, Opportunity } from './types';
 import { uid } from '@/lib/util';
+import { DEFAULT_WORK_TARGETS } from '@/game/rules';
 
 export const SEED_AREAS: Omit<Area, 'id'>[] = [
   { name: 'Teaching · Introducción a la Economía (CIDE)', short: 'CIDE', icon: 'owl', color: '#b9cfe0', kind: 'work', weeklyHoursTarget: 8, monetizable: true, order: 0, archived: false },
@@ -14,12 +15,12 @@ export const SEED_AREAS: Omit<Area, 'id'>[] = [
 ];
 
 export const SEED_HABITS: Omit<Habit, 'id'>[] = [
-  { key: 'wake', name: 'Up by 5:45', icon: 'sunrise', kind: 'check', xp: 20, core: true, order: 0, archived: false },
+  { key: 'wake', name: 'Up by 5:45', icon: 'sunrise', kind: 'check', xp: 20, core: false, order: 0, archived: false },
   { key: 'sleep', name: 'Slept ≥ 7.5 h', icon: 'moon', kind: 'number', target: 7.5, unit: 'h', xp: 20, core: true, order: 1, archived: false },
   { key: 'exercise', name: 'Exercise', icon: 'discus', kind: 'check', xp: 25, core: true, order: 2, archived: false },
-  { key: 'clean', name: 'Clean (15 min)', icon: 'wave', kind: 'check', xp: 10, core: true, order: 3, archived: false },
-  { key: 'intel', name: 'Newsletters + econ videos', icon: 'scroll', kind: 'check', xp: 15, core: true, order: 4, archived: false },
-  { key: 'work', name: 'Deep work 8 h', icon: 'anvil', kind: 'auto', target: 8, unit: 'h', xp: 40, core: true, order: 5, archived: false },
+  { key: 'clean', name: 'Clean (15 min)', icon: 'wave', kind: 'check', xp: 10, core: false, order: 3, archived: false },
+  { key: 'intel', name: 'Newsletters + econ videos', icon: 'scroll', kind: 'check', xp: 15, core: false, intrinsic: true, order: 4, archived: false },
+  { key: 'work', name: 'Deep work', icon: 'anvil', kind: 'auto', target: 6, unit: 'h', xp: 40, core: true, order: 5, archived: false },
   { key: 'money', name: 'Money check-in (log + review)', icon: 'scales', kind: 'check', xp: 15, core: true, order: 6, archived: false }
 ];
 
@@ -85,7 +86,7 @@ export async function seedIfEmpty() {
       { key: 'playerName', value: 'Economist' },
       { key: 'wakeTime', value: '05:45' },
       { key: 'bedTime', value: '21:45' },
-      { key: 'workTargetHours', value: 8 },
+      { key: 'workTargets', value: DEFAULT_WORK_TARGETS },
       { key: 'createdAt', value: Date.now() }
     ]);
   });

@@ -4,8 +4,9 @@ import { Link } from 'react-router-dom';
 import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
 import type { Habit, HabitLog } from '@/db/types';
-import { setHabit, habitStreak } from '@/game/engine';
-import { usePlayer, useToday, useNow } from '@/lib/hooks';
+import { setHabit, habitStreak, weekStats, weekStartKey } from '@/game/engine';
+import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
+import { usePlayer, useToday, useNow, useWorkTargets } from '@/lib/hooks';
 import { IDEAL_DAY, currentBlockIndex } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
 import { cardStatus } from '@/finance/finance';
@@ -20,7 +21,7 @@ function greeting(h: number) {
   return 'evening. close the loops, then drift.';
 }
 
-function HabitRow({ habit, log, today }: { habit: Habit; log?: HabitLog; today: string }) {
+function HabitRow({ habit, log, today, targets }: { habit: Habit; log?: HabitLog; today: string; targets: DayTargets }) {
   const streak = useLiveQuery(() => habitStreak(habit.id, today), [habit.id, today, log?.done], 0);
   const done = !!log?.done;
   return (
@@ -28,7 +29,7 @@ function HabitRow({ habit, log, today }: { habit: Habit; log?: HabitLog; today: 
       <Glyph name={habit.icon} size={24} stroke={1.5} className="shrink-0 text-cyan" />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{habit.name}</div>
-        <div className="flex items-center gap-1 text-[11px] text-ink/60">{streak > 0 ? <><Glyph name="flame" size={12} className="text-xp" />{streak}-day streak</> : 'Start a streak today'} · +{habit.xp} XP</div>
+        <div className="flex items-center gap-1 text-[11px] text-ink/60">{streak > 0 ? <><Glyph name="flame" size={12} className="text-xp" />{streak}-day streak</> : 'Start a streak today'} · +{habit.xp} XP{habit.intrinsic ? ' · no dr (you already enjoy it)' : ''}</div>
       </div>
       {habit.kind === 'check' && (
         <button onClick={() => setHabit(habit, today, done ? 0 : 1)} aria-label={habit.name} className={cx('flex h-10 w-10 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-mint/40')}>
@@ -43,7 +44,7 @@ function HabitRow({ habit, log, today }: { habit: Habit; log?: HabitLog; today: 
         </div>
       )}
       {habit.kind === 'auto' && (
-        <Link to="/focus" className={cx('mac-inset px-2 py-1 font-display text-lg', done ? 'bg-mint text-ink' : 'bg-white text-cyan')}>{(log?.value ?? 0).toFixed(1)}/{habit.target}h</Link>
+        <Link to="/focus" className={cx('mac-inset flex min-h-[40px] items-center px-2 font-display text-lg', done ? 'bg-mint text-ink' : 'bg-white text-cyan')}>{(log?.value ?? 0).toFixed(1)}/{targets.done}h</Link>
       )}
     </div>
   );
@@ -64,7 +65,8 @@ export default function Today() {
     return [...focus, ...doneToday];
   }, [today], []);
   const minutes = useLiveQuery(async () => (await db.sessions.where('date').equals(today).toArray()).reduce((s, x) => s + x.minutes, 0), [today], 0);
-  const target = (useLiveQuery(() => db.settings.get('workTargetHours'))?.value as number) ?? 8;
+  const { today: targets } = useWorkTargets(today);
+  const week = useLiveQuery(() => weekStats(weekStartKey(today)), [today, logs, minutes]);
   const alerts = useLiveQuery(async () => {
     const accs = await db.accounts.filter(a => a.type === 'credit' && !a.archived).toArray();
     const txs = await db.transactions.toArray();
@@ -84,11 +86,11 @@ export default function Today() {
       <div className="grid grid-cols-3 gap-3">
         <Card className="flex flex-col items-center gap-1 !p-3">
           <Ring value={coreTotal ? coreDone / coreTotal : 0} size={84} color="#2f7a5f"><span className="font-display text-2xl leading-none text-ok">{coreDone}/{coreTotal}</span></Ring>
-          <span className="text-[11px] text-ink/60">Routine</span>
+          <span className="text-center text-[11px] text-ink/60">Core · {GOOD_DAY_MIN_CORE} good · {coreTotal} perfect</span>
         </Card>
         <Card className="flex flex-col items-center gap-1 !p-3">
-          <Ring value={minutes / (target * 60)} size={84} color="#cf9a95"><span className="font-display text-xl leading-none text-xp">{hm(minutes)}</span></Ring>
-          <span className="text-[11px] text-ink/60">Deep work / {target}h</span>
+          <Ring value={minutes / (targets.full * 60)} size={84} color="#cf9a95"><span className="font-display text-xl leading-none text-xp">{hm(minutes)}</span></Ring>
+          <span className="text-center text-[11px] text-ink/60">Deep work · {targets.done}h done · {targets.full}h full</span>
         </Card>
         <Card className="flex flex-col items-center gap-1 !p-3">
           <Ring value={Math.min(1, player.todayXp / 300)} size={84} color="#8fc3cf"><span className="font-display text-2xl leading-none text-cyan">{player.todayXp}</span></Ring>
@@ -114,10 +116,24 @@ export default function Today() {
           <TaskForm open={adding} onClose={() => setAdding(false)} defaultPriority={1} />
         </Card>
 
-        <Card title="The Routine" action={<span className="font-type text-sm">all core = perfect day +100 XP</span>}>
+        <Card title="The Routine" action={<span className="font-type text-sm">{GOOD_DAY_MIN_CORE} core = good day +{GOOD_DAY_XP} · all {coreTotal} = perfect +{PERFECT_DAY_XP}</span>}>
           <div className="flex flex-col gap-2">
-            {habits.map(h => <HabitRow key={h.id} habit={h} log={logs.find(l => l.habitId === h.id)} today={today} />)}
+            <h3 className="font-display text-sm text-lav">Core</h3>
+            {habits.filter(h => h.core).map(h => <HabitRow key={h.id} habit={h} log={logs.find(l => l.habitId === h.id)} today={today} targets={targets} />)}
+            <h3 className="mt-2 font-display text-sm text-lav">Rituals</h3>
+            {habits.filter(h => !h.core).map(h => <HabitRow key={h.id} habit={h} log={logs.find(l => l.habitId === h.id)} today={today} targets={targets} />)}
           </div>
+          {week && (
+            <div className="mt-3 border-t-2 border-line pt-3 text-sm">
+              <div className="flex items-baseline justify-between gap-2"><span className="font-display">This week</span><span className={cx('font-display', week.earned ? 'text-ok' : 'text-ink/70')}>{week.count}/4 · {WEEKLY_SCORECARD.needed} for +{WEEKLY_SCORECARD.xp} XP</span></div>
+              <ul className="mt-1 grid grid-cols-2 gap-x-3 text-[12px] text-ink/70">
+                <li className={cx(week.hits.focus && 'text-ok')}>Focus {week.stats.focusHours.toFixed(1)}/{WEEKLY_SCORECARD.focusHours} h</li>
+                <li className={cx(week.hits.exercise && 'text-ok')}>Exercise {week.stats.exerciseDays}/{WEEKLY_SCORECARD.exerciseDays} days</li>
+                <li className={cx(week.hits.money && 'text-ok')}>Money check-in {week.stats.moneyDays}/{WEEKLY_SCORECARD.moneyDays} days</li>
+                <li className={cx(week.hits.good && 'text-ok')}>Good days {week.stats.goodDays}/{WEEKLY_SCORECARD.goodDays}</li>
+              </ul>
+            </div>
+          )}
         </Card>
 
         <Card title="The Ideal Day">

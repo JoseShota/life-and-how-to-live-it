@@ -31,9 +31,9 @@ describe('engine', () => {
     expect(await db.xp.where('source').equals('habit').count()).toBe(0);
   });
 
-  it('8h of sessions marks the work habit and awards workday bonus once', async () => {
+  it('8h of sessions on a weekday marks the work habit and awards workday bonus once', async () => {
     const area = (await db.areas.toArray())[0];
-    const start = new Date(); start.setHours(8, 0, 0, 0);
+    const start = new Date(2026, 10, 4, 8); // a Wednesday
     await logSession(area.id, start.getTime(), start.getTime() + 4 * 3600e3);
     await logSession(area.id, start.getTime() + 5 * 3600e3, start.getTime() + 9 * 3600e3);
     expect(await db.xp.where('source').equals('workday').count()).toBe(1);

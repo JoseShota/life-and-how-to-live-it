@@ -16,7 +16,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'perfect-7', icon: 'laurel', name: 'Perfect Week', description: '7 Perfect Days in total', xp: 300 },
   { key: 'early-7', icon: 'sunrise', name: 'Dawn Patrol', description: 'Up by 5:45 seven days in a row', xp: 150 },
   { key: 'deep-100', icon: 'eye', name: 'Centurion', description: 'Log 100 hours of focus', xp: 500 },
-  { key: 'workday-5', icon: 'anvil', name: 'Grinder', description: '5 full 8-hour workdays', xp: 200 },
+  { key: 'workday-5', icon: 'anvil', name: 'Grinder', description: '5 full workdays (full deep-work target)', xp: 200 },
+  { key: 'good-30', icon: 'laurel', name: 'Steady Hand', description: '30 Good or Perfect days', xp: 250 },
+  { key: 'week-1', icon: 'scales', name: 'Scorecard', description: 'Earn a weekly scorecard', xp: 100 },
   { key: 'ledger-30', icon: 'tablet', name: 'Bookkeeper', description: 'Log 30 transactions', xp: 100 },
   { key: 'first-income', icon: 'drachma', name: 'Paid', description: 'Register income linked to an activity', xp: 50 }
 ];
@@ -25,6 +27,8 @@ async function conditions(): Promise<Record<string, boolean>> {
   const doneTasks = await db.tasks.where('status').equals('done').count();
   const perfect = await db.xp.where('source').equals('perfect-day').count();
   const workdays = await db.xp.where('source').equals('workday').count();
+  const goodDays = perfect + await db.xp.where('source').equals('good-day').count();
+  const weeks = await db.xp.where('source').equals('weekly').count();
   const minutes = (await db.sessions.toArray()).reduce((s, x) => s + x.minutes, 0);
   // A transfer has two legs but is one logged transaction.
   const txs = new Set((await db.transactions.toArray()).map(t => t.transferId ?? t.id)).size;
@@ -50,6 +54,8 @@ async function conditions(): Promise<Record<string, boolean>> {
     'early-7': early7,
     'deep-100': minutes >= 6000,
     'workday-5': workdays >= 5,
+    'good-30': goodDays >= 30,
+    'week-1': weeks >= 1,
     'ledger-30': txs >= 30,
     'first-income': income >= 1
   };
