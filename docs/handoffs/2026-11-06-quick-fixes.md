@@ -2,6 +2,15 @@
 
 *Written 2026-11-06 by the agent that finished item 1. For the next coding agent.*
 
+## Status checklist
+- [x] 1. PWA readiness (`7414bb4`)
+- [x] 2. Deploy to Vercel: https://life-and-how-to-live-it.vercel.app, production branch `main`. Checked 2026-11-06 at 820 px and 1366 px: `/money` deep-links, `/sw.js` and `/manifest.webmanifest` return 200, no installability errors, works offline after one load, zero external requests. Device installs are the user's step (P0-3).
+- [x] 3. Rewards delete on tablet (`9353155`)
+- [x] 4. `vite.config.ts` typing (`a618dfb`)
+- [x] 5. Area icons editable in Control Panel (`c2628ad`)
+- [x] 6. Edit transactions + orphaned-XP fix (`aa927c0`). Decisions: editing never changes XP; no kind change while editing; transfers edit both legs in one Dexie transaction.
+- [x] 7. Docs sweep (`b7e8189`)
+
 ## Start here
 1. Read `AGENTS.md`, then `docs/02-ARCHITECTURE.md`, `03-DATA-MODEL.md`, `08-DESIGN-SYSTEM.md`. The hard rules there override anything below.
 2. Work on the branch you were given. **One commit per item** (message like `QF: rewards delete on tablet`).

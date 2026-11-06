@@ -9,6 +9,12 @@ A PWA must be served over **HTTPS** to be installable. Easiest options (both fre
    `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }`
 4. Every `git push` to `main` redeploys. The installed app updates itself on the next open.
 
+**Live:** https://life-and-how-to-live-it.vercel.app (since 2026-11-06). Production branch is `main`
+(GitHub default branch too; Vercel: Settings → Environments → Production → Branch Tracking).
+Agent work happens on `claude/*` branches and only reaches the installed app once merged into `main`.
+Install the app **from this production URL only**: each URL keeps its own local data, so an app
+installed from a Preview URL would hold its data apart from the real one.
+
 ## Option B — Cloudflare Pages
 Build command `npm run build`, output `dist`. The `public/_redirects` file (`/* /index.html 200`) handles SPA routing.
 

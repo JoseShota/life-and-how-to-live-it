@@ -10,7 +10,7 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | ID | Ticket | AC |
 |---|---|---|
 | P0-1 🟢 | Run locally | `npm install && npm run dev` opens the app. `npm test` passes |
-| P0-2 🟢 | Deploy to Vercel/Cloudflare Pages | HTTPS URL works. See `07-DEPLOY.md` |
+| P0-2 🟢 | Deploy to Vercel/Cloudflare Pages | HTTPS URL works. See `07-DEPLOY.md`. **Done 2026-11-06:** https://life-and-how-to-live-it.vercel.app (Vercel, production branch `main`) |
 | P0-3 🟢 | Install the PWA on the Android tablet (Chrome → ⋮ → Install app) + laptop (Chrome install icon) | App icon on both, opens standalone, works offline |
 | P0-4 🟢 | Personalize | Name, card limits/cut-off/pay-by days, December opportunities renamed, `.ics` imported into calendar |
 
