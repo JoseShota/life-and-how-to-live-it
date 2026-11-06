@@ -7,7 +7,7 @@
 One person: an economist with no steady job who teaches at CIDE, works at Weaving Memories, freelances in web development, is learning AI automation, and has hobbies (video, writing, personal website). Uses **Banorte**: 1 debit card and 3 credit cards. Currency: **MXN**. Timezone: America/Mexico_City.
 
 ## Goals
-1. **Clarity.** In 5 seconds, the Today screen answers *"what should I do now, and how am I doing?"*
+1. **Clarity.** In 5 seconds, the Today screen answers *"what should I do now, and how am I doing?"* (the Now card, then the three rings).
 2. **Consistency.** Make the routine (5:45 wake, 7.5 h sleep, exercise, clean, intel, 8 h work, money check-in) sticky through game mechanics.
 3. **Wealth.** Know net worth, card status and savings rate, and **which activity pays most per hour**.
 4. **Joy.** It should feel like a game you *want* to open: snappy, animated, rewarding.

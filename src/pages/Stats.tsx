@@ -56,7 +56,7 @@ export default function Stats() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="記録" sub="every day you showed up, preserved in marble">The Archive</PageTitle>
+      <PageTitle jp="記録" plain="stats" sub="every day you showed up, preserved in marble">The Archive</PageTitle>
 
       <Card title="Snapshots of a Life" className="font-serif">
         <div className="mac-inset mb-3 flex items-center gap-2 bg-white px-3 py-2 font-sans text-sm text-black">

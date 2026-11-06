@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const file = useRef<HTMLInputElement>(null);
   const name = (useLiveQuery(() => db.settings.get('playerName'))?.value as string) ?? '';
   const { all: targets } = useWorkTargets();
+  const showMarquee = (useLiveQuery(() => db.settings.get('showMarquee'))?.value as boolean | undefined) ?? true;
   const setTarget = (kind: 'weekday' | 'weekend', which: 'done' | 'full', v: string) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n < 0 || n > 16) return;
@@ -30,7 +31,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <PageTitle jp="設定" sub="the machinery behind the dream">Control Panel</PageTitle>
+      <PageTitle jp="設定" plain="settings" sub="the machinery behind the dream">Control Panel</PageTitle>
       <Card title="The Player">
         <div className="grid gap-3 sm:grid-cols-2">
           <Label text="Name"><Input value={name} onChange={e => setSetting('playerName', e.target.value)} /></Label>
@@ -46,6 +47,13 @@ export default function SettingsPage() {
       </Card>
 
       <TaxSettings />
+
+      <Card title="Display">
+        <label className="flex min-h-[40px] cursor-pointer items-center gap-3 text-sm">
+          <input type="checkbox" className="h-5 w-5" checked={showMarquee} onChange={e => setSetting('showMarquee', e.target.checked)} />
+          Show the maxims ticker under the header (it also stops when the device asks for reduced motion)
+        </label>
+      </Card>
 
       <Card title="Areas · weekly hour targets">
         <div className="flex flex-col gap-2">

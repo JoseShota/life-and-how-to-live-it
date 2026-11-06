@@ -510,11 +510,19 @@ export async function deleteOpportunity(o: Opportunity) {
 export const isStale = (o: Opportunity, today = dateKey()) => o.status !== 'won' && o.status !== 'lost' && !!o.nextActionDate && o.nextActionDate < today;
 
 // ---------- Rewards ----------
+/** Spends coins on a reward. Returns the ledger refId (for undo), or null if there aren't enough coins. */
 export async function redeem(rewardId: string) {
   const r = await db.rewards.get(rewardId);
-  if (!r) return false;
+  if (!r) return null;
   const { coins } = await totals();
-  if (coins < r.cost) return false;
-  await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'reward', refId: `reward:${rewardId}:${Date.now()}`, xp: 0, coins: -r.cost, label: `Redeemed: ${r.title}` });
-  return true;
+  if (coins < r.cost) return null;
+  const refId = `reward:${rewardId}:${Date.now()}`;
+  await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'reward', refId, xp: 0, coins: -r.cost, label: `Redeemed: ${r.title}` });
+  return refId;
+}
+
+/** Undoes a purchase made by mistake (the Agora offers it for a short while after buying). */
+export async function undoRedeem(refId: string) {
+  if (!refId.startsWith('reward:')) return;
+  await revoke(refId);
 }

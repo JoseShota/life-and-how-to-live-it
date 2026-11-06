@@ -37,8 +37,8 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | P2-4 🔴 | Sync engine `src/sync/` | Push/pull by `updatedAt`, last-write-wins, tombstones, ledger union. Runs on focus + every 60 s + debounced after writes. Status indicator in HUD. Tests with two simulated clients |
 | P2-5 🟢 | Env config | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` in `.env.local` (never commit). `.env.example` committed |
 
-## Phase V — v2 economy and money engine (approved 2026-11-06)
-From `09-EVALUATION.md` (decisions D-1 to D-7). One commit per ticket. Sizes: (S) ≤ 1 h, (M) 1–3 h, (L) split into several commits. Each follows the Definition of Done in `AGENTS.md`.
+## Phase V — v2 economy and money engine (approved and built 2026-11-06)
+From `09-EVALUATION.md` (decisions D-1 to D-7). All eight tickets are done, one commit each (`V-1` … `V-8`). One commit per ticket. Sizes: (S) ≤ 1 h, (M) 1–3 h, (L) split into several commits. Each follows the Definition of Done in `AGENTS.md`.
 
 | ID | Ticket | AC |
 |---|---|---|

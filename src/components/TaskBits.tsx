@@ -26,7 +26,7 @@ export function TaskRow({ task, area, compact }: { task: Task; area?: Area; comp
   };
   return (
     <div className={cx('group flex items-center gap-3 border border-line/50 bg-panel2/60 px-3 py-2 transition hover:border-cyan/60 hover:bg-panel2', done && 'opacity-50')}>
-      <button onClick={toggle} aria-label={done ? 'Reopen' : 'Complete'} className={cx('flex h-8 w-8 shrink-0 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-pink/40', popping && 'pop')} onAnimationEnd={() => setPopping(false)}>
+      <button onClick={toggle} aria-label={done ? 'Reopen' : 'Complete'} className={cx('flex h-10 w-10 shrink-0 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-pink/40', popping && 'pop')} onAnimationEnd={() => setPopping(false)}>
         {done && <Glyph name="check" size={16} stroke={2.6}/>}
       </button>
       <div className="min-w-0 flex-1">
@@ -38,8 +38,8 @@ export function TaskRow({ task, area, compact }: { task: Task; area?: Area; comp
           {task.dueDate && <Chip color={overdue ? '#a8383a' : '#d4d9d6'}>{overdue ? 'Overdue ' : ''}{task.dueDate.slice(5)}</Chip>}
         </div>
       </div>
-      {!done && <button onClick={startFocus} className="p-2 text-ink/55 hover:bg-panel hover:text-xp" aria-label="Focus on this"><Glyph name="hourglass" size={16}/></button>}
-      <button onClick={() => setEdit(true)} className="p-2 text-ink/55 hover:bg-panel hover:text-ink/90" aria-label="Edit"><Glyph name="pencil" size={16}/></button>
+      {!done && <button onClick={startFocus} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/55 hover:bg-panel hover:text-xp" aria-label="Focus on this"><Glyph name="hourglass" size={16}/></button>}
+      <button onClick={() => setEdit(true)} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/55 hover:bg-panel hover:text-ink/90" aria-label="Edit"><Glyph name="pencil" size={16}/></button>
       <TaskForm open={edit} onClose={() => setEdit(false)} task={task} />
     </div>
   );

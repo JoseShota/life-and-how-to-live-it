@@ -51,6 +51,6 @@ describe('engine', () => {
 
   it('cannot redeem a reward without coins', async () => {
     const r = (await db.rewards.toArray())[0];
-    expect(await redeem(r.id)).toBe(false);
+    expect(await redeem(r.id)).toBeNull();
   });
 });

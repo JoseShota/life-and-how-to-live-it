@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
 import { IconPicker } from '@/components/IconPicker';
 import { db } from '@/db/db';
-import { redeem } from '@/game/engine';
+import { redeem, undoRedeem } from '@/game/engine';
 import { ACHIEVEMENTS } from '@/game/achievements';
 import { usePlayer } from '@/lib/hooks';
 import { useToast } from '@/lib/toast';
@@ -17,10 +17,26 @@ export default function Rewards() {
   const unlocked = useLiveQuery(() => db.unlocked.toArray(), [], []);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(''); const [icon, setIcon] = useState('gift'); const [cost, setCost] = useState('100');
+  // The last purchase can be undone for 30 seconds (a stray tap shouldn't cost a coffee).
+  const [lastBuy, setLastBuy] = useState<{ refId: string; title: string } | null>(null);
+  const buy = async (id: string, t: string, c: number) => {
+    if (!confirm(`Spend ${c} dr on "${t}"?`)) return;
+    const refId = await redeem(id);
+    if (!refId) return;
+    toast(`Enjoy: ${t}`, 'gold');
+    setLastBuy({ refId, title: t });
+    setTimeout(() => setLastBuy(b => (b?.refId === refId ? null : b)), 30_000);
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="市場" sub="spend your drachmae guilt-free. dr accepted here." right={<Button variant="ghost" onClick={() => setOpen(true)}><Glyph name="plus" size={16}/>Reward</Button>}>The Agora</PageTitle>
+      <PageTitle jp="市場" plain="rewards" sub="spend your drachmae guilt-free. dr accepted here." right={<Button variant="ghost" onClick={() => setOpen(true)}><Glyph name="plus" size={16}/>Reward</Button>}>The Agora</PageTitle>
+      {lastBuy && (
+        <div role="status" className="mac-window flex items-center justify-between gap-2 bg-laurel/40 px-3 py-2 text-sm">
+          <span>Bought: {lastBuy.title}</span>
+          <Button variant="ghost" onClick={async () => { await undoRedeem(lastBuy.refId); setLastBuy(null); toast('Purchase undone', 'bad'); }}>Undo</Button>
+        </div>
+      )}
       <p className="mac-window bg-paper px-3 py-2 font-type text-sm">Spend drachmae guilt-free. Rule: you only enjoy the treat <b>after</b> paying for it here — that's what makes the loop work.</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {rewards.map(r => {
@@ -31,7 +47,7 @@ export default function Rewards() {
               <button onClick={() => { if (confirm('Remove this reward?')) db.rewards.update(r.id, { archived: true }); }} className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center text-ink/35 hover:text-hp focus-visible:text-hp" aria-label="Remove reward"><Glyph name="trash" size={16}/></button>
               <Glyph name={r.icon} size={44} stroke={1.3} className="text-cyan" />
               <div className="font-display text-xl leading-5">{r.title}</div>
-              <Button variant={can ? 'gold' : 'ghost'} disabled={!can} className="w-full disabled:opacity-100" onClick={async () => { if (await redeem(r.id)) toast(`Enjoy: ${r.title}`, 'gold'); }}>{!can && <Glyph name="lock" size={15} />}{r.cost} dr</Button>
+              <Button variant={can ? 'gold' : 'ghost'} disabled={!can} className="w-full disabled:opacity-100" onClick={() => buy(r.id, r.title, r.cost)}>{!can && <Glyph name="lock" size={15} />}{r.cost} dr</Button>
             </div>
           );
         })}
@@ -55,7 +71,7 @@ export default function Rewards() {
         <div className="flex flex-col gap-3">
           <Label text="Reward"><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Movie night" /></Label>
           <Label text="Icon"><IconPicker value={icon} onChange={setIcon} /></Label>
-          <Label text="Cost in drachmae (≈ 1 per 5 XP; a solid day earns ~80)"><Input inputMode="numeric" value={cost} onChange={e => setCost(e.target.value)} /></Label>
+          <Label text="Cost in drachmae (≈ 1 per 5 XP; a realistic week earns ~330–390)"><Input inputMode="numeric" value={cost} onChange={e => setCost(e.target.value)} /></Label>
           <Button onClick={async () => { if (!title.trim()) return; await db.rewards.add({ id: uid(), title: title.trim(), icon, cost: Number(cost) || 100, archived: false }); setTitle(''); setOpen(false); }}>Add</Button>
         </div>
       </Modal>

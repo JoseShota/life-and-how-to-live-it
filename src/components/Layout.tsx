@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { usePlayer, useNow } from '@/lib/hooks';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/db/db';
 import { roman } from '@/lib/util';
 import { Glyph } from './Glyph';
 import { Bar, Modal } from './ui';
@@ -9,14 +11,15 @@ import { ActiveTimerPill } from './ActiveTimerPill';
 export const APP_NAME = 'Life and How to Live It';
 export const APP_NAME_JP = '人生とその生き方';
 
+/** Themed names, each with a plain-language meaning (shown in tooltips, the menu and page titles). */
 export const NAV = [
-  { to: '/', label: 'Today', jp: '今日' },
-  { to: '/quests', label: 'Quests', jp: '冒険' },
-  { to: '/focus', label: 'Focus', jp: '集中' },
-  { to: '/money', label: 'Treasury', jp: '宝庫' },
-  { to: '/rewards', label: 'Agora', jp: '市場' },
-  { to: '/stats', label: 'Archive', jp: '記録' },
-  { to: '/settings', label: 'Control', jp: '設定' }
+  { to: '/', label: 'Today', jp: '今日', plain: 'what to do now' },
+  { to: '/quests', label: 'Quests', jp: '冒険', plain: 'tasks' },
+  { to: '/focus', label: 'Focus', jp: '集中', plain: 'timer' },
+  { to: '/money', label: 'Treasury', jp: '宝庫', plain: 'money' },
+  { to: '/rewards', label: 'Agora', jp: '市場', plain: 'rewards' },
+  { to: '/stats', label: 'Archive', jp: '記録', plain: 'stats' },
+  { to: '/settings', label: 'Control', jp: '設定', plain: 'settings' }
 ];
 
 const INSCRIPTIONS = [
@@ -91,25 +94,25 @@ function MenuBar({ onShutdown }: { onShutdown: () => void }) {
   const [open, setOpen] = useState(false);
   const nav = useNavigate();
   return (
-    <div className="relative flex h-9 items-center gap-1 border-b-2 border-ink bg-white px-2 font-display text-[15px]">
-      <button onClick={() => setOpen(o => !o)} className={`flex h-8 items-center px-2 ${open ? 'bg-ink text-white' : 'text-cyan'}`} aria-label="Menu"><Glyph name="laurel" size={22} /></button>
+    <div className="relative flex h-11 items-center gap-1 border-b-2 border-ink bg-white px-2 font-display text-[15px]">
+      <button onClick={() => setOpen(o => !o)} className={`flex h-10 min-w-[40px] items-center justify-center px-2 ${open ? 'bg-ink text-white' : 'text-cyan'}`} aria-label="Menu"><Glyph name="laurel" size={22} /></button>
       <span className="hidden px-2 font-bold lg:inline">{APP_NAME}</span>
       <nav className="hidden flex-1 items-center md:flex">
         {NAV.map(n => (
-          <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `flex h-8 items-center px-2.5 ${isActive ? 'bg-ink text-white' : 'hover:bg-ink hover:text-white'}`}>{n.label}</NavLink>
+          <NavLink key={n.to} to={n.to} end={n.to === '/'} title={n.plain} className={({ isActive }) => `flex h-10 items-center px-2.5 ${isActive ? 'bg-ink text-white' : 'hover:bg-ink hover:text-white'}`}>{n.label}</NavLink>
         ))}
       </nav>
       <span className="ml-auto flex items-center gap-3 pr-1"><span className="hidden font-jp text-sm text-lav sm:inline">{APP_NAME_JP}</span><Clock /></span>
       {open && (
         <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
-          <ul className="mac-window absolute left-2 top-9 w-64 py-1" onClick={e => e.stopPropagation()}>
+          <ul className="mac-window absolute left-2 top-11 w-64 py-1" onClick={e => e.stopPropagation()}>
             <li className="px-3 py-1 text-xs text-lav">About {APP_NAME}…</li>
             <li className="dither-gray mx-1 my-1 h-[2px]" />
             {NAV.map(n => (
-              <li key={n.to}><button onClick={() => { nav(n.to); setOpen(false); }} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-ink hover:text-white">{n.label}<span className="font-jp text-xs opacity-70">{n.jp}</span></button></li>
+              <li key={n.to}><button onClick={() => { nav(n.to); setOpen(false); }} className="flex min-h-[40px] w-full items-center justify-between px-3 py-2 text-left hover:bg-ink hover:text-white">{n.label} <span className="text-xs opacity-70">{n.plain}</span><span className="font-jp text-xs opacity-70">{n.jp}</span></button></li>
             ))}
             <li className="dither-gray mx-1 my-1 h-[2px]" />
-            <li><button onClick={() => { onShutdown(); setOpen(false); }} className="w-full px-3 py-2 text-left hover:bg-ink hover:text-white">Shut Down for the night…</button></li>
+            <li><button onClick={() => { onShutdown(); setOpen(false); }} className="min-h-[40px] w-full px-3 py-2 text-left hover:bg-ink hover:text-white">Shut Down for the night…</button></li>
           </ul>
         </div>
       )}
@@ -140,6 +143,7 @@ function Hud() {
 export function Layout() {
   const [shutdown, setShutdown] = useState(false);
   const p = usePlayer();
+  const showMarquee = (useLiveQuery(() => db.settings.get('showMarquee'))?.value as boolean | undefined) ?? true;
   return (
     <div className="min-h-screen">
       <Backdrop />
@@ -147,9 +151,11 @@ export function Layout() {
         <MenuBar onShutdown={() => setShutdown(true)} />
         <div className="border-b-2 border-ink bg-white/85 backdrop-blur">
           <div className="mx-auto max-w-6xl px-3 py-2 sm:px-6"><Hud /></div>
-          <div className="marquee overflow-hidden border-t-2 border-ink bg-laurel/70 py-0.5 text-[13px]" aria-hidden>
-            <div>{[...INSCRIPTIONS, ...INSCRIPTIONS].map((t, i) => <span key={i} className="inscription inline-flex items-center gap-3 px-4 font-bold"><Glyph name="sparkle" size={10} stroke={0} className="fill-current" />{t}</span>)}</div>
-          </div>
+          {showMarquee && (
+            <div className="marquee overflow-hidden border-t-2 border-ink bg-laurel/70 py-0.5 text-[13px]" aria-hidden>
+              <div>{[...INSCRIPTIONS, ...INSCRIPTIONS].map((t, i) => <span key={i} className="inscription inline-flex items-center gap-3 px-4 font-bold"><Glyph name="sparkle" size={10} stroke={0} className="fill-current" />{t}</span>)}</div>
+            </div>
+          )}
         </div>
       </header>
 

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
-import type { Habit, HabitLog } from '@/db/types';
+import type { Area, Habit, HabitLog, Task } from '@/db/types';
 import { setHabit, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
 import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
 import { usePlayer, useToday, useNow, useWorkTargets } from '@/lib/hooks';
@@ -78,6 +78,66 @@ function HabitPlanForm({ habit, onClose }: { habit: Habit; onClose: () => void }
   );
 }
 
+/** Which area each ideal-day work block is for (by the block's glyph); the money block takes the top quest anywhere. */
+const BLOCK_AREA_ICON: Record<string, string> = { amphora: 'amphora', owl: 'owl', cog: 'cog' };
+const XP_DAY_GUIDE = 250; // about a realistic good day (scripts/eval-sim.ts)
+
+/**
+ * The 5-second answer to "what should I do now?": the current block of the ideal day and one primary action.
+ */
+function NowCard({ now, habits, logs, tasks, areas, today }: { now: number; habits: Habit[]; logs: HabitLog[]; tasks: Task[]; areas: Area[]; today: string }) {
+  const nav = useNavigate();
+  const active = useLiveQuery(() => db.settings.get('activeTimer'))?.value as { areaId: string; start: number } | undefined;
+  const i = currentBlockIndex(new Date(now));
+  const block = i >= 0 ? IDEAL_DAY[i] : undefined;
+  const next = IDEAL_DAY[i + 1] ?? IDEAL_DAY[0];
+  const habit = (key: string) => habits.find(h => h.key === key);
+  const isDone = (h?: Habit) => !!h && !!logs.find(l => l.habitId === h.id && l.done);
+  const open = tasks.filter(t => t.status !== 'done');
+  const best = (areaId?: string) => open.filter(t => !areaId || t.areaId === areaId).sort((a, b) => a.priority - b.priority || b.difficulty - a.difficulty)[0];
+  const startFocus = async (areaId: string, taskId?: string) => {
+    await db.settings.put({ key: 'activeTimer', value: { areaId, taskId, start: Date.now() } });
+    nav('/focus');
+  };
+  const HabitButtons = ({ h }: { h?: Habit }) => !h ? null : isDone(h)
+    ? <span className="flex items-center gap-1 font-display text-ok"><Glyph name="check" size={16} />{h.name} done</span>
+    : <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setHabit(h, today, h.kind === 'number' ? (h.target ?? 1) : 1)}><Glyph name="check" size={16} />{h.name}</Button>
+        {h.minLabel && <Button variant="ghost" onClick={() => setHabit(h, today, 0, true)}>min: {h.minLabel}</Button>}
+      </div>;
+
+  let what: string, action: JSX.Element | null = null;
+  if (!block) {
+    what = 'Sleep. Lights out by 22:00, up at 5:45.';
+  } else if (block.kind === 'work') {
+    const area = BLOCK_AREA_ICON[block.icon] ? areas.find(a => a.icon === BLOCK_AREA_ICON[block.icon]) : undefined;
+    const quest = best(area?.id) ?? best();
+    what = block.title;
+    action = active
+      ? <Button onClick={() => nav('/focus')}><Glyph name="hourglass" size={16} />Focus running · {Math.floor((now - active.start) / 60000)} min</Button>
+      : <Button onClick={() => startFocus(quest?.areaId ?? area?.id ?? areas[0]?.id, quest?.id)}><Glyph name="play" size={16} />Start focus{quest ? ` · ${quest.title}` : area ? ` · ${area.short}` : ''}</Button>;
+  } else if (block.icon === 'discus') { what = 'Exercise'; action = <HabitButtons h={habit('exercise')} />; }
+  else if (block.icon === 'sunrise') { what = block.title; action = <HabitButtons h={habit('wake')} />; }
+  else if (block.icon === 'scroll') { what = 'Intel: 45 minutes, then close it.'; action = <HabitButtons h={habit('intel')} />; }
+  else if (block.icon === 'wave') {
+    what = 'Clean 15 minutes, then the money check-in.';
+    action = <div className="flex flex-wrap gap-2"><Link to="/money" className="mac-btn inline-flex min-h-[40px] items-center gap-2 bg-laurel px-4 font-display text-[15px]"><Glyph name="drachma" size={16} />Log money</Link><HabitButtons h={habit('money')} /></div>;
+  } else if (block.icon === 'lamp') {
+    what = "Shutdown: pick tomorrow's top 3 quests.";
+    action = <Link to="/quests" className="mac-btn inline-flex min-h-[40px] items-center gap-2 bg-pink px-4 font-display text-[15px]"><Glyph name="scroll" size={16} />Open quests</Link>;
+  } else { what = block.title; }
+
+  return (
+    <Card title={block ? `Now · ${block.start}–${block.end}` : 'Now · night'} className="border-xp">
+      <div className="flex flex-col gap-2">
+        <p className="font-display text-xl leading-6">{what}</p>
+        {action}
+        <p className="text-[12px] text-ink/60">Next: {next.start} · {next.title}</p>
+      </div>
+    </Card>
+  );
+}
+
 export default function Today() {
   const today = useToday();
   const now = useNow(60_000);
@@ -112,7 +172,9 @@ export default function Today() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="今日" sub={`${new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()} · ${greeting(new Date(now).getHours())}`}>Today</PageTitle>
+      <PageTitle jp="今日" plain="what to do now" sub={`${new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()} · ${greeting(new Date(now).getHours())}`}>Today</PageTitle>
+
+      <NowCard now={now} habits={habits} logs={logs} tasks={tasks} areas={areas} today={today} />
 
       <div className="grid grid-cols-3 gap-3">
         <Card className="flex flex-col items-center gap-1 !p-3">
@@ -124,8 +186,8 @@ export default function Today() {
           <span className="text-center text-[11px] text-ink/60">Deep work · {targets.done}h done · {targets.full}h full</span>
         </Card>
         <Card className="flex flex-col items-center gap-1 !p-3">
-          <Ring value={Math.min(1, player.todayXp / 300)} size={84} color="#8fc3cf"><span className="font-display text-2xl leading-none text-cyan">{player.todayXp}</span></Ring>
-          <span className="text-[11px] text-ink/60">XP today</span>
+          <Ring value={Math.min(1, player.todayXp / XP_DAY_GUIDE)} size={84} color="#8fc3cf"><span className="font-display text-2xl leading-none text-cyan">{player.todayXp}</span></Ring>
+          <span className="text-center text-[11px] text-ink/60">XP today · a good day ≈ {XP_DAY_GUIDE}</span>
         </Card>
       </div>
 
@@ -146,7 +208,7 @@ export default function Today() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Quests of the Day" action={<Button variant="ghost" className="!min-h-[34px] !px-3" onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>Add</Button>}>
+        <Card title="Quests of the Day" action={<Button variant="ghost" className="!px-3" onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>Add</Button>}>
           <div className="flex flex-col gap-2">
             {tasks.length === 0 ? <Empty>No quests marked for today. Add your top 3 — the ones that move money or mastery.</Empty> : tasks.map(t => <TaskRow key={t.id} task={t} area={areaOf(t.areaId)} />)}
           </div>

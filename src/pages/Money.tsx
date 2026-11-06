@@ -38,7 +38,8 @@ export default function Money() {
 
   const month = monthTotals(txs);
   const cats = expenseByCategory(txs);
-  const nw = netWorth(accounts, txs);
+  const allAccounts = useLiveQuery(() => db.accounts.toArray(), [], []);
+  const nw = netWorth(allAccounts, txs);
   const since = dateKey(subDays(new Date(), 90));
   const rates = useMemo(() => hourlyRates(areas.filter(a => a.monetizable), txs, sessions, since), [areas, txs, sessions, since]);
   const debt = accounts.filter(a => a.type === 'credit').reduce((s, a) => s + Math.max(0, -balanceOf(a, txs)), 0);
@@ -51,13 +52,13 @@ export default function Money() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="宝庫" sub="banorte ×4, cash, and the long road to the first million" right={<Button variant="gold" onClick={() => setTxOpen(true)}><Glyph name="plus" size={16}/>Transaction</Button>}>Treasury</PageTitle>
+      <PageTitle jp="宝庫" plain="money" sub="banorte ×4, cash, and the long road to the first million" right={<Button variant="gold" onClick={() => setTxOpen(true)}><Glyph name="plus" size={16}/>Transaction</Button>}>Treasury</PageTitle>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Net worth" value={mxn(nw)} tone={nw >= 0 ? 'text-ok' : 'text-hp'} />
         <Stat label="Statements due" value={mxn(dueNow)} tone={dueNow > 0 ? 'text-gold' : 'text-ok'} sub={`Total card balance ${mxn(debt)}`} />
         <Stat label="Income · this month" value={mxn(month.income)} />
-        <Stat label="Savings rate" value={`${Math.round(month.savingsRate * 100)}%`} tone={month.savingsRate >= 0.3 ? 'text-ok' : month.savingsRate > 0 ? 'text-gold' : 'text-hp'} sub={`Spent ${mxn(month.expense)}`} />
+        <Stat label="Savings rate" value={month.savingsRate === null ? '—' : `${Math.round(month.savingsRate * 100)}%`} tone={month.savingsRate === null ? 'text-ink/60' : month.savingsRate >= 0.3 ? 'text-ok' : month.savingsRate > 0 ? 'text-gold' : 'text-hp'} sub={month.savingsRate === null ? `No income yet · spent ${mxn(month.expense)}` : `Spent ${mxn(month.expense)}`} />
       </div>
 
       <Card title="Accounts">
@@ -158,8 +159,8 @@ function GoalRow({ g }: { g: Goal }) {
       <div className="flex items-center justify-between text-sm"><span className="inline-flex items-center gap-1.5"><Glyph name={g.icon} size={16} />{g.name}</span><span className="text-ink/60">{g.target === 1 ? (g.current >= 1 ? 'done' : '—') : `${mxn(g.current)} / ${mxn(g.target)}`}</span></div>
       <Bar value={g.current / g.target} color="#dccb98" className="mt-1.5" />
       <div className="mt-1.5 flex gap-2">
-        <Input className="!min-h-[32px] text-xs" placeholder={g.target === 1 ? '1 = done' : 'Update current amount'} inputMode="decimal" value={v} onChange={e => setV(e.target.value)} />
-        <Button variant="ghost" className="!min-h-[32px] !px-3 text-xs" onClick={async () => {
+        <Input className="text-xs" placeholder={g.target === 1 ? '1 = done' : 'Update current amount'} inputMode="decimal" value={v} onChange={e => setV(e.target.value)} />
+        <Button variant="ghost" className="!px-3 text-xs" onClick={async () => {
           const n = Number(v); if (Number.isNaN(n) || v === '') return;
           const before = g.current;
           await db.goals.update(g.id, { current: n });
@@ -280,11 +281,15 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
   const [accountId, setAccountId] = useState(from?.accountId ?? '');
   const [toId, setToId] = useState(toLeg?.accountId ?? preset?.toId ?? '');
   const [category, setCategory] = useState(tx && tx.kind !== 'transfer' ? tx.category : '');
+  // New expenses start on the last category used (default Food), not on the first item of the list.
+  const lastCat = useLiveQuery(() => db.settings.get('lastExpenseCategory'))?.value as string | undefined;
+  const profile = useLiveQuery(() => getTaxProfile());
+  const cat = category || (kind === 'expense' ? lastCat ?? 'Food' : kind === 'income' ? (profile?.regime === 'resico' ? 'Freelance' : INCOME_CATEGORIES[0]) : '');
+  const catOptions = (list: string[]) => (cat && !list.includes(cat) ? [cat, ...list] : list);
   const [areaId, setAreaId] = useState(tx?.areaId ?? '');
   const [date, setDate] = useState(tx?.date ?? dateKey());
   const [desc, setDesc] = useState(tx?.description ?? preset?.description ?? '');
   const [msi, setMsi] = useState<string | null>(null);
-  const profile = useLiveQuery(() => getTaxProfile());
   // Income tax (v6). RESICO invoices compute the deposit from the subtotal; salary keeps its gross for the cap.
   const [taxKind, setTaxKind] = useState<IncomeTaxKind | ''>(tx?.incomeTax?.kind ?? '');
   const [subtotal, setSubtotal] = useState(tx?.incomeTax ? String(tx.incomeTax.subtotal) : '');
@@ -297,7 +302,7 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
   const msiValue = msi ?? (plan ? String(plan.months) : '');
   const isCardExpense = kind === 'expense' && accObj?.type === 'credit';
   const resico = profile?.regime === 'resico';
-  const effTaxKind: IncomeTaxKind = taxKind || (category === 'Salary' ? 'salary' : resico && ['Freelance', 'Class', 'Royalties/Content', ''].includes(category) ? 'resico' : 'none');
+  const effTaxKind: IncomeTaxKind = taxKind || (cat === 'Salary' ? 'salary' : resico && ['Freelance', 'Class', 'Royalties/Content'].includes(cat) ? 'resico' : 'none');
   const invoice = kind === 'income' && effTaxKind === 'resico' && Number(subtotal) > 0 ? invoiceFromSubtotal(Number(subtotal), withIva ?? !!profile?.chargesIva, company) : null;
   const buildIncomeTax = (n: number): IncomeTax | undefined => {
     if (kind !== 'income') return undefined;
@@ -315,7 +320,7 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
     const ivaCreditable = kind === 'expense' && ivaExpense ? Math.round((n * IVA_RATE / (1 + IVA_RATE)) * 100) / 100 : undefined;
     if (tx) {
       if (kind === 'transfer' && (!to || to === acc)) return;
-      await editTransaction(tx, { amount: n, date, description: desc || undefined, accountId: acc, toAccountId: to, category: category || tx.category, areaId: areaId || undefined, msiMonths: months, incomeTax: incomeTax ?? null, ivaCreditable: ivaCreditable ?? 0 });
+      await editTransaction(tx, { amount: n, date, description: desc || undefined, accountId: acc, toAccountId: to, category: cat || tx.category, areaId: areaId || undefined, msiMonths: months, incomeTax: incomeTax ?? null, ivaCreditable: ivaCreditable ?? 0 });
       onClose();
       return;
     }
@@ -328,7 +333,8 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
       await evaluateStatements(acc);
     } else {
       const id = uid();
-      await db.transactions.add({ ...base, id, accountId: acc, amount: kind === 'income' ? n : -n, kind, category: category || (kind === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]), areaId: kind === 'income' ? (areaId || undefined) : undefined, incomeTax, ivaCreditable });
+      await db.transactions.add({ ...base, id, accountId: acc, amount: kind === 'income' ? n : -n, kind, category: cat || EXPENSE_CATEGORIES[0], areaId: kind === 'income' ? (areaId || undefined) : undefined, incomeTax, ivaCreditable });
+      if (kind === 'expense') await db.settings.put({ key: 'lastExpenseCategory', value: cat });
       await rewardTransactionLogged(id);
       if (months) await setInstallments((await db.transactions.get(id))!, months);
       if (accObj?.type === 'credit') await evaluateStatements(acc);
@@ -373,7 +379,7 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
           <Label text="To (choose a credit card to register a payment)"><Select value={to} onChange={e => setToId(e.target.value)}>{accounts.filter(a => a.id !== acc).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Label>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            <Label text="Category"><Select value={category} onChange={e => setCategory(e.target.value)}>{(kind === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</Select></Label>
+            <Label text="Category"><Select value={cat} onChange={e => setCategory(e.target.value)}>{catOptions(kind === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</Select></Label>
             {kind === 'income' && <Label text="Earned by"><Select value={areaId} onChange={e => setAreaId(e.target.value)}><option value="">—</option>{areas.map(a => <option key={a.id} value={a.id}>{a.short}</option>)}</Select></Label>}
             {isCardExpense && <Label text="Meses sin intereses"><Select value={msiValue} onChange={e => setMsi(e.target.value)}><option value="">No (one payment)</option>{MSI_MONTHS.map(m => <option key={m} value={m}>{m} MSI · {mxn(Math.abs(Number(amount) || 0) / m, 2)}/mo</option>)}</Select></Label>}
           </div>

@@ -69,6 +69,8 @@ body { font-family: 'Courier Prime', ui-monospace, monospace; font-size: 15px; m
 .mac-titlebar > * { position: relative; }
 .mac-title { background: #fbfaf6; padding: 0 10px; font-family: ChicagoFLF, monospace; font-size: 15px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; }
 .mac-close { position: absolute; left: 10px; width: 15px; height: 15px; background: #fbfaf6; border: 2px solid #2b3437; box-shadow: 0 0 0 2px #fbfaf6; }
+/* The close box stays 15 px to look right, but its tap area is 43 px (AGENTS.md: targets ≥ 40 px). */
+button.mac-close::after { content: ''; position: absolute; inset: -14px; }
 .mac-btn { border: 2px solid #2b3437; border-radius: 9px; background: #fbfaf6; box-shadow: 2px 2px 0 #2b3437; }
 .mac-btn:active:not(:disabled) { background: #2b3437 !important; color: #fbfaf6 !important; box-shadow: none; transform: translate(2px, 2px); }
 .mac-inset { border: 2px solid #2b3437; background: #fff; }

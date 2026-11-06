@@ -5,8 +5,9 @@ export function balanceOf(acc: Account, txs: Transaction[]) {
   return acc.openingBalance + txs.filter(t => t.accountId === acc.id).reduce((s, t) => s + t.amount, 0);
 }
 
+/** Every account counts, archived ones too: archiving hides an account, it doesn't make its money disappear. */
 export function netWorth(accounts: Account[], txs: Transaction[]) {
-  return accounts.filter(a => !a.archived).reduce((s, a) => s + balanceOf(a, txs), 0);
+  return accounts.reduce((s, a) => s + balanceOf(a, txs), 0);
 }
 
 /** Next occurrence of a day-of-month on/after `from` (clamps to month length). */
@@ -49,11 +50,20 @@ export function cardStatus(acc: Account, txs: Transaction[], now = new Date()): 
   };
 }
 
+/** Income categories that give money back rather than earn it: they reduce spending instead of counting as income. */
+export const REFUND_CATEGORIES = ['Refund'];
+
+/**
+ * Month totals on an accrual basis (card purchases count when made; card payments are transfers and don't).
+ * `savingsRate` is null with no income: "0 %" would be a false alarm.
+ */
 export function monthTotals(txs: Transaction[], month = dateKey().slice(0, 7)) {
   const m = txs.filter(t => t.date.startsWith(month) && t.kind !== 'transfer');
-  const income = m.filter(t => t.kind === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = 0 - m.filter(t => t.kind === 'expense').reduce((s, t) => s + t.amount, 0);
-  return { income, expense: expense + 0, net: income - expense, savingsRate: income > 0 ? (income - expense) / income : 0 };
+  const isRefund = (t: Transaction) => t.kind === 'income' && REFUND_CATEGORIES.includes(t.category);
+  const income = m.filter(t => t.kind === 'income' && !isRefund(t)).reduce((s, t) => s + t.amount, 0);
+  const refunds = m.filter(isRefund).reduce((s, t) => s + t.amount, 0);
+  const expense = Math.max(0, -m.filter(t => t.kind === 'expense').reduce((s, t) => s + t.amount, 0) - refunds);
+  return { income, expense, net: income - expense, savingsRate: income > 0 ? (income - expense) / income : null };
 }
 
 export function expenseByCategory(txs: Transaction[], month = dateKey().slice(0, 7)) {
@@ -86,8 +96,8 @@ export function pipelineValue(opps: Opportunity[]) {
 
 export const EXPENSE_CATEGORIES = [
   'Rent', 'Food', 'Transport', 'Services', 'Subscriptions', 'Health', 'Gym', 'Education', 'Tools/Software',
-  'Fun', 'Clothes', 'Gifts', 'Card payment', 'Taxes', 'Other'
-];
+  'Fun', 'Clothes', 'Gifts', 'Taxes', 'Other'
+]; // Card payments are transfers ("Transfer / pay card"), never expenses: logging one as an expense would count it twice.
 export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Class', 'Royalties/Content', 'Interest', 'Refund', 'Other'];
 
 export interface TransferInput {
