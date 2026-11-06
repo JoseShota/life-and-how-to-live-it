@@ -1,12 +1,13 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
+import { IconPicker } from '@/components/IconPicker';
 import { db, setSetting } from '@/db/db';
 import { exportAll, importAll, download } from '@/lib/backup';
 import { routineIcs } from '@/lib/routine';
 import { useToast } from '@/lib/toast';
 import { dateKey } from '@/lib/util';
-import { Button, Card, Input, Label, PageTitle } from '@/components/ui';
+import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
 
 export default function SettingsPage() {
   const toast = useToast();
@@ -14,6 +15,8 @@ export default function SettingsPage() {
   const name = (useLiveQuery(() => db.settings.get('playerName'))?.value as string) ?? '';
   const target = (useLiveQuery(() => db.settings.get('workTargetHours'))?.value as number) ?? 8;
   const areas = useLiveQuery(() => db.areas.orderBy('order').toArray(), [], []);
+  const [iconFor, setIconFor] = useState<string | null>(null);
+  const iconArea = areas.find(a => a.id === iconFor);
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
@@ -28,13 +31,17 @@ export default function SettingsPage() {
       <Card title="Areas · weekly hour targets">
         <div className="flex flex-col gap-2">
           {areas.map(a => (
-            <div key={a.id} className="grid grid-cols-[2rem_1fr_5rem] items-center gap-2">
-              <Glyph name={a.icon} size={22} />
+            <div key={a.id} className="grid grid-cols-[2.5rem_1fr_5rem] items-center gap-2">
+              <button type="button" onClick={() => setIconFor(a.id)} aria-label={`Change icon for ${a.name}`} title="Change icon"
+                className="mac-inset flex h-10 w-10 items-center justify-center bg-white hover:bg-mint/50 focus-visible:bg-mint/50"><Glyph name={a.icon} size={22} /></button>
               <Input value={a.name} onChange={e => db.areas.update(a.id, { name: e.target.value })} />
               <Input inputMode="numeric" value={a.weeklyHoursTarget} onChange={e => db.areas.update(a.id, { weeklyHoursTarget: Number(e.target.value) || 0 })} />
             </div>
           ))}
         </div>
+        <Modal open={!!iconArea} onClose={() => setIconFor(null)} title={`Icon · ${iconArea?.name ?? ''}`}>
+          {iconArea && <IconPicker value={iconArea.icon} onChange={icon => { db.areas.update(iconArea.id, { icon }); setIconFor(null); }} />}
+        </Modal>
       </Card>
 
       <Card title="Reminders">
