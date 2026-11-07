@@ -358,7 +358,7 @@ export async function editTransaction(tx: Transaction, e: TxEdit) {
       await db.transactions.put({
         ...tx, amount: tx.kind === 'income' ? n : -n, date: e.date, description: e.description,
         accountId: e.accountId, category: e.category ?? tx.category,
-        areaId: tx.kind === 'income' ? e.areaId : undefined,
+        areaId: e.areaId, // income: who earned it; expense: which activity it's a cost of (E-10)
         incomeTax: tx.kind === 'income' ? (e.incomeTax === undefined ? tx.incomeTax : e.incomeTax ?? undefined) : undefined,
         ivaCreditable: tx.kind === 'expense' ? (e.ivaCreditable === undefined ? tx.ivaCreditable : e.ivaCreditable || undefined) : undefined
       });

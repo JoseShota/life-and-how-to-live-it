@@ -29,7 +29,7 @@ src/
     achievements.ts     # achievement defs + checker + listener
     review.ts           # PURE weekly-review aggregates (day grades, hours per area, leading indicators)
   finance/
-    finance.ts          # PURE money math: balances, card status, month totals, hourly rates, pipeline
+    finance.ts          # PURE money math: balances, card status, period totals, real MXN/h, pipeline
   lib/
     util.ts             # ids, dates (local YYYY-MM-DD keys), MXN formatting, cx()
     hooks.ts            # usePlayer (derived from ledger), useNow, useToday
@@ -39,7 +39,8 @@ src/
   components/
     ui.tsx              # Card (Win95 window), Button, Bar (chunky), Ring, Input, Select, Textarea, Modal, Chip, Empty, PageTitle
     Layout.tsx          # HUD + marquee ticker + vapor backdrop + Win95 taskbar/Start menu + archive footer
-    TaskBits.tsx        # TaskRow, TaskForm
+    TaskBits.tsx        # TaskRow, TaskForm (incl. repeats)
+    RealRate.tsx        # Wealth Engine card (real MXN/h), useRealRates(), non-focus hours form
     ActiveTimerPill.tsx
   pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings, Review (menu only)
 tests/                  # vitest

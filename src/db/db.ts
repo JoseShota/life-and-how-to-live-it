@@ -5,7 +5,7 @@ import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
 import { uid } from '@/lib/util';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
-  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent, Review
+  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent, Review, AreaHours
 } from './types';
 
 export class LifeDB extends Dexie {
@@ -26,6 +26,7 @@ export class LifeDB extends Dexie {
   installments!: Table<Installment, string>;
   pipelineEvents!: Table<PipelineEvent, string>;
   reviews!: Table<Review, string>;
+  areaHours!: Table<AreaHours, string>;
 
   constructor(name = 'life-and-how-to-live-it') {
     super(name);
@@ -82,6 +83,9 @@ export class LifeDB extends Dexie {
     this.version(9).stores({}).upgrade(async tx => {
       await tx.table('tasks').toCollection().modify(migrateTaskV9);
     });
+    // v10: non-focus hours per area for the real MXN/h (E-10). A new table: no rows to migrate. Expenses may now
+    // carry `areaId` too (an index that already exists), so nothing else changes.
+    this.version(10).stores({ areaHours: 'id, areaId, date' });
   }
 }
 
@@ -118,7 +122,7 @@ export const db = new LifeDB();
 
 export const ALL_TABLES = [
   'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',
-  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews'
+  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews', 'areaHours'
 ] as const;
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {

@@ -52,4 +52,4 @@ One person: an economist with no steady job who teaches at CIDE, works at Weavin
 - Deep-work "done" target (6 h weekdays, 4 h weekends) met on ≥ 60 % of days; ≥ 30 h of focus per week.
 - 100 % of card statements paid in full (the *pago para no generar intereses*, by the due date).
 - Savings rate ≥ 20 % (month 3), ≥ 30 % (month 6).
-- MXN/h of the top monetizable activity rising quarter over quarter.
+- **Real** MXN/h (after taxes, costs and non-focus hours; Treasury → Wealth Engine) of the top monetizable activity rising quarter over quarter.

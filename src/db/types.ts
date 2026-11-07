@@ -137,7 +137,7 @@ export interface Transaction {
   amount: number;
   kind: TxKind;
   category: string;
-  /** For income: which activity produced it (wealth engine) */
+  /** Income: which activity produced it. Expense (E-10): which activity it's a cost of, or SHARED_WORK_AREA. */
   areaId?: ID;
   description?: string;
   /** Both legs of a transfer share this id */
@@ -282,6 +282,21 @@ export interface XpEvent {
   xp: number;
   coins: number;
   label: string;
+}
+
+/**
+ * v10 (E-10): time spent on an area outside focus sessions (admin, sales, commuting, class time).
+ * One-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date`, until `until`). Pays no XP.
+ */
+export interface AreaHours {
+  id: ID;
+  areaId: ID;
+  date: DateKey;
+  hours: number;
+  weekly?: boolean;
+  until?: DateKey;
+  note?: string;
+  createdAt: number;
 }
 
 /** v8: the Sunday review of one Mon–Sun week (keyed by that Monday). */

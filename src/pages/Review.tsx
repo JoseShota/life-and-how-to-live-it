@@ -11,6 +11,8 @@ import { loadWealthSnapshot, wealthLevelReached } from '@/game/achievements';
 import { WEALTH_LEVELS } from '@/finance/wealth';
 import { periodTotals, statementStatus } from '@/finance/finance';
 import { exportAll, download } from '@/lib/backup';
+import { useRealRates } from '@/components/RealRate';
+import { extraHoursByArea } from '@/finance/finance';
 import { useToday } from '@/lib/hooks';
 import { cx, dateKey, mxn, parseKey } from '@/lib/util';
 import { Bar, Button, Card, Empty, Input, Label, PageTitle, Select, Textarea } from '@/components/ui';
@@ -53,10 +55,12 @@ export default function Review() {
     };
   }, [monday, sunday]);
   const openQuests = useLiveQuery(() => db.tasks.where('status').notEqual('done').toArray(), [], []);
+  const real = useRealRates(monday, sunday);
+  const extra = useLiveQuery(async () => extraHoursByArea(await db.areaHours.toArray(), monday, sunday), [monday, sunday]);
 
   if (!data) return null;
   const grades = weekGrades(days, data.xp);
-  const hours = hoursByArea(data.areas, data.sessions, days);
+  const hours = hoursByArea(data.areas, data.sessions, days, extra);
   const money = periodTotals(data.txs, monday, sunday);
   const leads = pipelineCounts(data.events, days);
   const byAcc = new Map(data.accounts.map(a => [a.id, a]));
@@ -112,11 +116,11 @@ export default function Review() {
         </Card>
 
         <Card title="Hours per area · against target">
-          {hours.length === 0 ? <Empty>No focus logged this week.</Empty> : (
+          {hours.length === 0 ? <Empty>No hours logged this week.</Empty> : (
             <ul className="flex flex-col gap-2 text-sm">
               {hours.map(h => (
                 <li key={h.area.id}>
-                  <div className="flex justify-between gap-2"><span className="inline-flex items-center gap-1.5"><Glyph name={h.area.icon} size={16} />{h.area.short}</span><span className={cx(h.target > 0 && h.hours >= h.target ? 'text-ok' : undefined)}>{h.hours.toFixed(1)}{h.target ? ` / ${h.target}` : ''} h</span></div>
+                  <div className="flex justify-between gap-2"><span className="inline-flex items-center gap-1.5"><Glyph name={h.area.icon} size={16} />{h.area.short}{h.other > 0 && <span className="text-[11px] text-ink/55">incl. {h.other.toFixed(1)} h other</span>}</span><span className={cx(h.target > 0 && h.hours >= h.target ? 'text-ok' : undefined)}>{h.hours.toFixed(1)}{h.target ? ` / ${h.target}` : ''} h</span></div>
                   <Bar value={h.share} height="h-2" color={h.area.color} />
                 </li>
               ))}
@@ -130,6 +134,7 @@ export default function Review() {
             <Tile label="Out" value={mxn(money.expense)} />
             <Tile label="Net" value={mxn(money.net)} tone={money.net >= 0 ? 'text-ok' : 'text-hp'} />
             <Tile label="Savings rate" value={money.savingsRate === null ? '—' : `${Math.round(money.savingsRate * 100)}%`} tone={money.savingsRate === null ? 'text-ink/60' : money.savingsRate >= 0.2 ? 'text-ok' : 'text-gold'} />
+            <div className="col-span-2"><Tile label="Real MXN per hour of work this week (after taxes and costs)" value={real?.average == null ? '—' : `${mxn(real.average)}/h`} tone="text-gold" /></div>
           </div>
           <p className="mt-2 text-[12px] text-ink/60">Card purchases count when made; card payments and bucket transfers don't. One week of irregular income swings a lot: read it with the month in the Treasury.</p>
         </Card>

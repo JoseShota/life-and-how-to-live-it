@@ -36,7 +36,7 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     const habits = await db.habits.toArray();
     const by = (k: string) => habits.find(h => h.key === k)!;
     expect(by('wake').core).toBe(false);
@@ -56,6 +56,8 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
     expect(await db.tasks.get('tax-m-2026-10')).toMatchObject({ recurrence: { every: 'month', series: 'tax-m', keepMissed: true }, dueDate: '2026-11-17' });
     expect(await db.tasks.get('k1')).toMatchObject({ title: 'Grade midterms', status: 'done', completedAt: 2 });
     expect((await db.tasks.get('k1'))!.recurrence).toBeUndefined();
+    expect(await db.areaHours.count()).toBe(0); // v10
+    expect((await db.transactions.get('t1'))!.areaId).toBeUndefined(); // untagged expenses stay untagged
     db.close();
   });
 });

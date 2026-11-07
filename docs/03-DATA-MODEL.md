@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v9)
+## Tables (Dexie v10)
+
+v10: new table `areaHours` (E-10): non-focus hours per area, one-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date` until `until`). Expenses may now carry `areaId` (an existing index): the activity they're a cost of, or `'shared'` for shared work costs. Settings gain `floorRate` (default 250) and `lastBackupAt`. Backups are `BACKUP_VERSION` 5.
 
 v9 (no index changes): tasks get `recurrence` (`every` day/week/month, `anchorDay` for monthly, `series`, `keepMissed`). Completing a repeating quest creates the next instance with the id `<series>@<due date>`; the RESICO monthly declaration is the series `tax-m` and keeps its `tax-m-<yyyy-mm>` ids. The upgrade marks existing `tax-m-*` quests as that series.
 
@@ -42,6 +44,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `installments` | `id` | `accountId, txId` | v4: meses sin intereses plans (total, months, first cut-off) |
 | `pipelineEvents` | `id` | `date, kind, opportunityId` | v7: leading indicators of the income engine |
 | `reviews` | `id` (Monday) | — | v8: the weekly review of one Mon–Sun week |
+| `areaHours` | `id` | `areaId, date` | v10: non-focus hours per area (no XP), for the real MXN/h |
 | `unlocked` | `key` | — | Unlocked achievements |
 | `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
@@ -58,13 +61,14 @@ Session     { id, areaId, taskId?, date, start, end, minutes, note? }
 Account     { id, name, institution, type: 'debit'|'credit'|'cash'|'savings'|'investment',
               creditLimit?, cutoffDay?, paymentDueDay? (legacy), bank?, dueDaysAfterCutoff?, role?, openingBalance, color, archived, order }
 Transaction { id, accountId, date, amount (signed MXN), kind: 'income'|'expense'|'transfer', category,
-              areaId? (income source), description?, transferId?, installmentId?, incomeTax?, ivaCreditable?, createdAt }
+              areaId? (income: who earned it; expense: cost of which area, or 'shared'), description?, transferId?, installmentId?, incomeTax?, ivaCreditable?, createdAt }
 Statement   { id, accountId, cutoffDate, dueDate, statementBalance, noInterestPayment, minimumPayment, notes?, createdAt }
 Installment { id, accountId, description, total, months, firstCutoff, txId?, createdAt }
 Goal        { id, name, icon, target, current, deadline?, order }
 Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', kind?: 'job'|'project'|'retainer', monthlyValue,
               probability 0..1, expectedDate?, nextAction?, nextActionDate?, notes?, createdAt }
 PipelineEvent { id, kind: 'conversation'|'proposal'|'case-study'|'stage', opportunityId?, date, note?, createdAt }
+AreaHours   { id, areaId, date, hours, weekly?, until?, note?, createdAt }
 Review      { id (Monday), weekEnd, wins: string[], nextQuestIds: ID[], note?, createdAt, updatedAt }
 Reward      { id, title, icon, cost, archived }
 XpEvent     { id, ts, date, source, refId, xp, coins, label }

@@ -1,4 +1,5 @@
-import type { Account, BankKey, Installment, Statement, Transaction, Session, Area, Opportunity } from '@/db/types';
+import type { Account, AreaHours, BankKey, Installment, Statement, Transaction, Session, Area, Opportunity } from '@/db/types';
+import { monthTax } from './tax';
 import { dateKey, parseKey } from '@/lib/util';
 
 export function balanceOf(acc: Account, txs: Transaction[]) {
@@ -89,6 +90,114 @@ export function hourlyRates(areas: Area[], txs: Transaction[], sessions: Session
     return { area: a, income, hours, rate: hours > 0 ? income / hours : 0 };
   }).sort((x, y) => y.rate - x.rate || y.income - x.income);
 }
+
+// ---------- Real MXN per hour (E-10, "Your Money or Your Life") ----------
+
+/** `areaId` on an expense that is a cost of all paid work (internet, laptop, accountant): split by hours. */
+export const SHARED_WORK_AREA = 'shared';
+/** The master plan's kill rule floor (00-MASTER-PLAN.md §2): below it for 3 months, shrink the activity. */
+export const DEFAULT_FLOOR_RATE = 250;
+/** Under this many hours in the window, a rate is too noisy for a kill/scale verdict. */
+export const MIN_VERDICT_HOURS = 5;
+
+const daysBetween = (a: string, b: string) => Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / 864e5) + 1;
+
+/** Non-focus hours per area inside [from, to]: one-off entries by date, standing weekly hours pro-rata by days. */
+export function extraHoursByArea(entries: AreaHours[], from: string, to: string) {
+  const out = new Map<string, number>();
+  for (const e of entries) {
+    let h = 0;
+    if (e.weekly) {
+      const start = e.date > from ? e.date : from;
+      const end = e.until && e.until < to ? e.until : to;
+      if (start <= end) h = e.hours * daysBetween(start, end) / 7;
+    } else if (e.date >= from && e.date <= to) h = e.hours;
+    if (h > 0) out.set(e.areaId, (out.get(e.areaId) ?? 0) + h);
+  }
+  return out;
+}
+
+/**
+ * What an income really leaves you: RESICO counts its subtotal minus ISR at the rate the month actually reaches
+ * (IVA is the SAT's money passing through; withholdings are only prepayments). Salary already landed net.
+ * Untaxed income counts as it landed.
+ */
+export function netIncome(tx: Transaction, monthRate: (month: string) => number) {
+  const t = tx.incomeTax;
+  if (t?.kind === 'resico') return Math.round(t.subtotal * (1 - monthRate(tx.date.slice(0, 7))) * 100) / 100;
+  return tx.amount;
+}
+
+export interface RealRateInput {
+  areas: Area[];
+  txs: Transaction[];
+  sessions: Session[];
+  extra: AreaHours[];
+  from: string;
+  to: string;
+  /** IVA on business expenses comes back only when you charge IVA (otherwise it's a cost) */
+  creditIva: boolean;
+  floorRate?: number;
+}
+export type RateVerdict = 'below-floor' | 'scale' | null;
+export interface RealRateRow {
+  area: Area; gross: number; net: number; taxes: number; costs: number; sharedCosts: number;
+  focusHours: number; otherHours: number; hours: number; grossRate: number | null; realRate: number | null; verdict: RateVerdict;
+}
+
+/**
+ * The Wealth Engine, real version: per activity, (net income − its costs − its share of shared work costs)
+ * ÷ (focus hours + non-focus hours), over [from, to]. Gross = what landed ÷ focus hours (the old column).
+ * Rows: monetizable areas, plus any area with costs. Verdicts follow the plan's kill and scale rules.
+ */
+export function realRates(i: RealRateInput) {
+  const inRange = (d: string) => d >= i.from && d <= i.to;
+  const rates = new Map<string, number>();
+  const monthRate = (m: string) => {
+    if (!rates.has(m)) rates.set(m, monthTax(i.txs, m).rate);
+    return rates.get(m)!;
+  };
+  const extra = extraHoursByArea(i.extra, i.from, i.to);
+  const cost = (t: Transaction) => -t.amount - (i.creditIva ? t.ivaCreditable ?? 0 : 0);
+  const expenses = i.txs.filter(t => t.kind === 'expense' && inRange(t.date));
+  const shared = expenses.filter(t => t.areaId === SHARED_WORK_AREA).reduce((s, t) => s + cost(t), 0);
+
+  const base = i.areas.filter(a => !a.archived).map(a => {
+    const incomes = i.txs.filter(t => t.kind === 'income' && t.areaId === a.id && inRange(t.date));
+    const gross = incomes.reduce((s, t) => s + t.amount, 0);
+    const net = incomes.reduce((s, t) => s + netIncome(t, monthRate), 0);
+    const costs = expenses.filter(t => t.areaId === a.id).reduce((s, t) => s + cost(t), 0);
+    const focusHours = i.sessions.filter(s => s.areaId === a.id && inRange(s.date)).reduce((s, x) => s + x.minutes, 0) / 60;
+    const otherHours = extra.get(a.id) ?? 0;
+    return { area: a, gross, net, taxes: gross - net, costs, focusHours, otherHours, hours: focusHours + otherHours };
+  }).filter(r => r.area.monetizable || r.costs > 0);
+
+  // Shared work costs follow the hours of the activities that earn.
+  const earningHours = base.filter(r => r.area.monetizable).reduce((s, r) => s + r.hours, 0);
+  const rows: RealRateRow[] = base.map(r => {
+    const sharedCosts = r.area.monetizable && earningHours > 0 ? shared * r.hours / earningHours : 0;
+    return {
+      ...r, sharedCosts,
+      grossRate: r.focusHours > 0 ? r.gross / r.focusHours : null,
+      realRate: r.hours > 0 ? (r.net - r.costs - sharedCosts) / r.hours : null,
+      verdict: null
+    };
+  });
+  const paid = rows.filter(r => r.area.monetizable && r.hours > 0);
+  const totalHours = paid.reduce((s, r) => s + r.hours, 0);
+  const average = totalHours > 0 ? paid.reduce((s, r) => s + r.net - r.costs - r.sharedCosts, 0) / totalHours : null;
+  const floor = i.floorRate ?? DEFAULT_FLOOR_RATE;
+  for (const r of rows) {
+    if (!r.area.monetizable || r.realRate === null || r.hours < MIN_VERDICT_HOURS) continue;
+    if (r.realRate < floor) r.verdict = 'below-floor';
+    else if (average !== null && average > 0 && r.realRate >= 2 * average) r.verdict = 'scale';
+  }
+  rows.sort((x, y) => (y.realRate ?? -Infinity) - (x.realRate ?? -Infinity) || y.net - x.net);
+  return { rows, average, unallocatedShared: earningHours > 0 ? 0 : shared, floor };
+}
+
+/** "This purchase = N hours of your work", at the average real rate (null when there's no rate yet). */
+export const hoursOfWork = (amount: number, averageRate: number | null) => (averageRate && averageRate > 0 ? Math.abs(amount) / averageRate : null);
 
 export function pipelineValue(opps: Opportunity[]) {
   const open = opps.filter(o => o.status !== 'lost' && o.status !== 'won');

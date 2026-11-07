@@ -25,6 +25,7 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | P1-6 🟢 | **Sound + haptics** toggle | Tiny WebAudio blips on complete/level-up. `navigator.vibrate(20)` when available. Off by default on laptop |
 | P1-7 🟡 | **Spanish / English UI** | `src/lib/i18n.ts` dictionary + `t()` helper. Language in settings. All page strings migrated |
 | P1-8 🟢 | **Daily quests** | Each day auto-suggests 3 quests (from rules: 1 money, 1 pipeline, 1 growth). Accepting adds them |
+| E-10 🟢 ✅ | **Real MXN/h** (from `09-EVALUATION.md`) | Net of taxes and each area's costs, focus + non-focus hours, 30/90/365-day window, kill/scale verdicts |
 | P1-9 🟢 | **Code-split routes** | `React.lazy` per page. Main chunk < 300 kB |
 | P1-10 🟢 | **More achievements** | Add the list in `04-GAME-DESIGN.md` → "To add" |
 
