@@ -7,6 +7,7 @@ import { ToastProvider } from '@/lib/toast';
 import { seedIfEmpty } from '@/db/seed';
 import { applyShields, ensureTaxQuests } from '@/game/engine';
 import { Today, Quests, Focus, Money, Rewards, Stats, SettingsPage, Review, preloadPages } from '@/pages';
+import { bootSync } from '@/sync/status';
 
 seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() => undefined).then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -30,4 +31,5 @@ seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() 
     </React.StrictMode>
   );
   preloadPages();
+  void bootSync(); // linked devices start syncing; others load nothing
 });

@@ -196,17 +196,19 @@ export function createSyncEngine(server: SyncServer) {
 
   /**
    * Another device: checks the passphrase, then REPLACES this device's data with the cloud copy in one
-   * transaction (device-only settings stay). The caller saves a backup file first. Returns false for a wrong
-   * passphrase (nothing changes).
+   * transaction (device-only settings stay). `beforeReplace` runs once the passphrase is known to be right and
+   * the cloud copy is downloaded, before anything here changes (the UI saves a backup file of this device then;
+   * if it throws, nothing changes). Returns false for a wrong passphrase (nothing changes).
    */
-  async function joinCloud(passphrase: string): Promise<boolean> {
+  async function joinCloud(passphrase: string, beforeReplace?: () => Promise<void>): Promise<boolean> {
     const vault = await server.getVault();
     if (!vault) throw new SyncError('locked', 'There is no cloud copy yet.');
     const keys = await unlockVault(vault, passphrase);
     if (!keys) return false;
     const link: Linked = { keys, vaultId: vault.id, device: await deviceId() };
-    await db.syncState.put({ key: 'cursor', value: 0 });
+    await db.syncState.delete('cursor'); // pull the whole cloud copy
     const pulled = await fetchAll(link);
+    await beforeReplace?.();
     await db.transaction('rw', tables(), async () => {
       tagTransaction(Dexie.currentTransaction, 'remote');
       for (const t of ALL_TABLES) {

@@ -11,6 +11,7 @@ import { useWorkTargets } from '@/lib/hooks';
 import { TeachingScheduleCard } from '@/components/TeachingBits';
 import { evaluateDay } from '@/game/engine';
 import { TaxSettings } from '@/components/TaxBits';
+import { SyncCard } from '@/components/SyncCard';
 import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
 
 export default function SettingsPage() {
@@ -89,8 +90,10 @@ export default function SettingsPage() {
         <p className="mt-2 text-xs text-ink/50">This only grants permission. Scheduled reminders arrive in Phase 4; until then, use Download routine (.ics).</p>
       </Card>
 
-      <Card title="Backup · data & sync">
-        <p className="mb-3 text-sm text-ink/60">All data lives on this device (offline-first). Until cloud sync ships (Phase 2), move data between tablet and laptop with a backup file. Back up weekly.</p>
+      <SyncCard />
+
+      <Card title="Backup · data">
+        <p className="mb-3 text-sm text-ink/60">Your data lives on this device (offline-first) and, with sync on, as an encrypted copy only your devices can read. A backup file is the copy no server holds: export one weekly.</p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={async () => download(`life-backup-${dateKey()}.json`, JSON.stringify(await exportAll()))}><Glyph name="download" size={16}/>Export backup</Button>
           <Button variant="ghost" onClick={() => file.current?.click()}><Glyph name="upload" size={16}/>Import backup</Button>

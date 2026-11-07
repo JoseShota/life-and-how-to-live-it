@@ -1,48 +1,20 @@
 // P2 sync: two simulated devices (each with its own fake IndexedDB and its own copy of the app's modules) against
 // an in-memory server that follows the same rules as the Supabase functions.
 import 'fake-indexeddb/auto';
-import { IDBFactory } from 'fake-indexeddb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FakeServer } from './helpers/fakeServer';
+import { device, settle, PASS } from './helpers/devices';
 import type { Task } from '../src/db/types';
 
-const PASS = 'correct horse battery staple';
 const ITER = 1000; // the app uses 600,000; tests don't need to wait for it
-
-async function device(server: FakeServer) {
-  (globalThis as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
-  vi.resetModules();
-  const { db } = await import('../src/db/db');
-  const { seedIfEmpty } = await import('../src/db/seed');
-  const game = await import('../src/game/engine');
-  const { createSyncEngine } = await import('../src/sync/engine');
-  await seedIfEmpty();
-  const sync = createSyncEngine(server.client());
-  const snapshot = async () => {
-    const out: Record<string, unknown[]> = {};
-    for (const t of ['areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions', 'goals', 'xp', 'unlocked', 'rewards', 'opportunities'])
-      out[t] = (await db.table(t).toArray()).map(r => ({ ...r, ts: undefined })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-    out.settings = (await db.settings.toArray()).filter(s => !['activeTimer', 'lastBackupAt', 'showMarquee', 'lastExpenseCategory'].includes(s.key));
-    return out;
-  };
-  return { db, game, sync, snapshot };
-}
-type Device = Awaited<ReturnType<typeof device>>;
 
 /** A links first (uploads), B joins (takes the cloud copy). */
 async function pair(server = new FakeServer()) {
-  const a = await device(server);
-  const b = await device(server);
+  const a = await device(server.client());
+  const b = await device(server.client());
   await a.sync.createCloud(PASS, ITER);
   expect(await b.sync.joinCloud(PASS)).toBe(true);
   return { server, a, b };
-}
-
-/** Sync both devices until neither has anything left to push (at most a few rounds). */
-async function settle(...ds: Device[]) {
-  for (let i = 0; i < 4; i++) {
-    for (const d of ds) expect((await d.sync.syncNow()).status).toBe('idle');
-  }
 }
 
 const quest = (id: string, areaId: string, extra: Partial<Task> = {}): Task =>
@@ -250,8 +222,8 @@ describe('sync between two devices', () => {
 describe('linking', () => {
   it('a wrong passphrase changes nothing; a joining device keeps only its device-only settings', async () => {
     const server = new FakeServer();
-    const a = await device(server);
-    const b = await device(server);
+    const a = await device(server.client());
+    const b = await device(server.client());
     await a.db.goals.update((await a.db.goals.toArray())[0].id, { current: 77 });
     await a.sync.createCloud(PASS, ITER);
     await b.db.settings.put({ key: 'activeTimer', value: { areaId: 'x', start: 5 } });
@@ -267,8 +239,8 @@ describe('linking', () => {
 
   it('a second device cannot create a second cloud copy', async () => {
     const server = new FakeServer();
-    const a = await device(server);
-    const b = await device(server);
+    const a = await device(server.client());
+    const b = await device(server.client());
     await a.sync.createCloud(PASS, ITER);
     await expect(b.sync.createCloud(PASS, ITER)).rejects.toMatchObject({ code: 'vault-exists' });
     expect(await b.sync.isLinked()).toBe(false);

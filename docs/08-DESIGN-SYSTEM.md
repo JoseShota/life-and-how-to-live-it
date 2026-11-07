@@ -61,6 +61,7 @@ Slow and ambient only: the pool caustics (14 s), the bust floating (11 s), spark
 - **Today starts with "Now"**: the current block of the ideal day and one primary action, above the rings. It must fit in the first viewport at 820 × 1180 and 1366 × 768. On teaching days the card title says so; travel, classroom and class blocks show what is happening and **no action** (nothing to tap on the road), prep blocks start focus on the teaching area's top quest.
 - **Tap targets ≥ 40 px everywhere** (nav links are 40 px tall). The 15 px close box keeps its look but has a 43 px tap area.
 - The maxims ticker can be turned off in Control → Display, and stops under reduced motion.
+- **Sync status (P2)** is one 40 px square next to the drachmae, only on a device that syncs: `cloudCheck` (teal) when synced, `cloud` when changes wait or while syncing (a slow pulse, none under reduced motion), `cloudOff` when offline, `cloudAlert` (rose `hp`) when it needs the user. Its label says what to do; tapping it opens Control → Sync.
 
 ## Voice
 Lowercase, calm, a little uncanny in subtitles and empty states. Plain Mac language for actions. **Numbers and money are always literal.** Coins are written `27 dr`.

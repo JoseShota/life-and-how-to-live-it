@@ -4,6 +4,7 @@ import { usePlayer, useNow } from '@/lib/hooks';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { roman } from '@/lib/util';
+import { useSyncInfo } from '@/sync/status';
 import { Glyph } from './Glyph';
 import { Bar, Modal } from './ui';
 import { ActiveTimerPill } from './ActiveTimerPill';
@@ -129,6 +130,22 @@ function MenuBar({ onShutdown }: { onShutdown: () => void }) {
   );
 }
 
+/** P2: the sync state, only on a device that syncs. Tapping it opens Control → Sync. */
+function SyncBadge() {
+  const s = useSyncInfo();
+  if (s.status === 'off') return null;
+  const [glyph, label, tone] =
+    s.status === 'idle' ? (s.pending ? ['cloud', 'Sync: changes waiting', 'text-ink/70'] : ['cloudCheck', 'Synced', 'text-cyan'])
+    : s.status === 'syncing' ? ['cloud', 'Syncing', 'text-ink/70 motion-safe:animate-pulse']
+    : s.status === 'offline' ? ['cloudOff', `Offline: ${s.pending} change${s.pending === 1 ? '' : 's'} waiting`, 'text-ink/60']
+    : ['cloudAlert', s.status === 'update-needed' ? 'Sync paused: reload to update the app' : s.status === 'auth' ? 'Sync paused: sign in again' : s.status === 'locked' ? 'Sync paused: enter your passphrase again' : 'Sync error', 'text-hp'];
+  return (
+    <NavLink to="/settings#sync" title={label} aria-label={label} className={`mac-window flex h-10 w-10 shrink-0 items-center justify-center bg-panel ${tone}`}>
+      <Glyph name={glyph} size={22} />
+    </NavLink>
+  );
+}
+
 function Hud() {
   const p = usePlayer();
   return (
@@ -144,6 +161,7 @@ function Hud() {
         </div>
         <Bar value={p.progress} className="mt-1" />
       </div>
+      <SyncBadge />
       <div className="mac-window shrink-0 bg-laurel/60 px-2 py-1 font-display text-lg leading-none" title="Drachmae (coins)"><span className="flex items-center gap-1.5"><Glyph name="drachma" size={18} />{p.coins}</span></div>
     </div>
   );
@@ -178,7 +196,7 @@ export function Layout() {
             <span className="mac-inset bg-ink px-2 font-display tracking-[0.2em] text-mint">{String(p.xp).padStart(7, '0')}</span>
             <span className="font-type">lifetime XP · visitors to this life: 1</span>
           </div>
-          <p className="font-type text-ink/70">typed on a Macintosh Plus that never existed · {APP_NAME} · nothing leaves this device</p>
+          <p className="font-type text-ink/70">typed on a Macintosh Plus that never existed · {APP_NAME} · nothing leaves this device unencrypted</p>
           <p className="font-serif italic text-ink/60">Marble head of a youth, Greek, 4th c. BCE · The Metropolitan Museum of Art, Open Access</p>
         </footer>
       </main>

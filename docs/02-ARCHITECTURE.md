@@ -41,10 +41,15 @@ src/
     crypto.ts           # passphrase → keys (PBKDF2), AES-GCM rows, HMAC row ids
     server.ts           # the SyncServer interface and SyncError codes
     engine.ts           # lazy: pull → apply → re-check days → push; first device / join / unlink
+    supabase.ts         # lazy: fetch client (email-code auth, the four SQL functions), session in syncState
+    runtime.ts          # lazy: one engine per tab + triggers (open, focus, online, 60 s, 3 s after a change)
+    status.ts           # startup: the status store for the HUD glyph; boots the runtime on linked devices
+supabase/migrations/    # 0001_sync.sql: sync_vaults, sync_records, RLS, sync_* functions (run in PGlite by tests)
   components/
     ui.tsx              # Card (Win95 window), Button, Bar (chunky), Ring, Input, Select, Textarea, Modal, Chip, Empty, PageTitle
     Layout.tsx          # HUD + marquee ticker + vapor backdrop + Win95 taskbar/Start menu + archive footer
     TaskBits.tsx        # TaskRow, TaskForm (incl. repeats)
+    SyncCard.tsx        # Control → Sync: email code, passphrase, create / link, status
     RealRate.tsx        # Wealth Engine card (real MXN/h), useRealRates(), non-focus hours form
     ActiveTimerPill.tsx
   pages/index.ts        # React.lazy loaders for every page + idle preload (P1-9)
@@ -110,6 +115,10 @@ Tablet and laptop sync through the user's own Supabase project. **End-to-end enc
 **The ledger.** XP rows have `id = refId` (v13), so the same award on two devices is one row, and `revoke()` is a delete that syncs. Daily caps (one full Epic, logged transactions, conversations, savings deposits) are checked against each device's ledger, so on a day both devices are used offline a cap can pay up to twice.
 
 **Linking.** The first device creates the vault and uploads everything. Another device enters the passphrase (a wrong one changes nothing), saves a backup file, and **replaces** its data with the cloud copy in one transaction (device-only settings stay). Seed rows have fixed ids, so two fresh devices hold identical seeds anyway. Re-keying (deleting the cloud copy and creating it again) locks the other device until it joins again.
+
+**Client** (`supabase.ts`, no `@supabase/supabase-js`). Plain `fetch` to GoTrue (`/otp`, `/verify`, `/token`, `/logout`) and PostgREST (`/rest/v1/rpc/sync_*`). Sign-in is an emailed code (works the same in the installed Android app; no redirect URL). The session lives in `syncState`, so "Reset app" also signs the device out. An expired token is refreshed once; a rejected refresh means signing in again; network failures and rate limits are "offline" (retried later). Everything sync-related except `track.ts` and `status.ts` is one lazy chunk (about 11 kB) that unlinked devices never load.
+
+**Triggers** (`runtime.ts`): app open, coming back into view, `online`, every 60 s while visible, and 3 s after the outbox changes. Web Locks keep two tabs from syncing at once. The HUD shows a cloud glyph only on a linked device.
 
 **Known limits.** Last-write-wins is per row: editing the same quest on both devices before they sync keeps the later edit of the whole quest. The server sees when rows change (`hlc`) and how big they are, not what they are. A forgotten passphrase makes the cloud copy unreadable; the devices and backup files still have everything, and the cloud copy can be deleted and created again.
 
