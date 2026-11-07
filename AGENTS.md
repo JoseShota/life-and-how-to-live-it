@@ -19,7 +19,7 @@ npm install          # once
 npm run dev          # dev server (http://localhost:5173, --host for tablet on LAN)
 npm run typecheck    # tsc strict
 npm test             # vitest
-npm run build        # production build + service worker
+npm run build        # production build + service worker + bundle budget check (scripts/check-bundle.mjs)
 ```
 **Definition of Done for every change:** `npm run typecheck && npm test && npm run build` all pass, the feature was exercised in the browser at both ~820 px (tablet) and ~1366 px (laptop) widths, and the docs are updated if behavior or schema changed.
 

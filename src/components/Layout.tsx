@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { usePlayer, useNow } from '@/lib/hooks';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -89,6 +89,11 @@ function Backdrop() {
   );
 }
 
+/** Shown for the moment a page's code loads: the empty room, quietly. */
+function PageLoading() {
+  return <p role="status" className="py-16 text-center font-type text-ink/60">the room is being prepared…</p>;
+}
+
 function Clock() {
   const now = useNow(15_000);
   return <span className="tabular-nums">{new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>;
@@ -164,7 +169,9 @@ export function Layout() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-3 pb-24 pt-5 sm:px-6 md:pb-10">
-        <Outlet />
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
         <footer className="mt-12 flex flex-col items-center gap-2 text-center text-xs">
           <div className="meander w-full max-w-md opacity-70" />
           <div className="flex flex-wrap items-center justify-center gap-2">

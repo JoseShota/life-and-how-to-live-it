@@ -1,9 +1,13 @@
-import { format } from 'date-fns';
 
 export const uid = () =>
   (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
-export const dateKey = (d: Date | number = new Date()) => format(d, 'yyyy-MM-dd');
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** Local calendar date `YYYY-MM-DD` (never UTC). Hand-rolled so the startup bundle doesn't carry date-fns (P1-9). */
+export const dateKey = (d: Date | number = new Date()) => {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}`;
+};
 
 export const parseKey = (k: string) => {
   const [y, m, d] = k.split('-').map(Number);

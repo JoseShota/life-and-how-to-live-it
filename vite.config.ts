@@ -4,6 +4,15 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   resolve: { alias: { '@': new URL('./src', import.meta.url).pathname } },
+  build: {
+    rollupOptions: {
+      output: {
+        // P1-9: the libraries every page needs live in their own long-lived chunk, so an app update only
+        // re-downloads the app code. Pages are split with React.lazy (src/pages/index.ts).
+        manualChunks: (id: string) => (/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom|@remix-run|dexie|dexie-react-hooks)\//.test(id) ? 'vendor' : undefined)
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({
