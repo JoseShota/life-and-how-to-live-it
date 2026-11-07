@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, setSetting } from '@/db/db';
 import type { Area } from '@/db/types';
-import { MIN_VERDICT_HOURS, autoFloorRate, extraHoursByArea, realRates, type RealRateRow } from '@/finance/finance';
+import { MIN_VERDICT_HOURS, autoFloorRate, extraHoursByArea, realRates, scheduleAreaHours, teachingDoubleCount, type RealRateRow } from '@/finance/finance';
 import { monthlySpending } from '@/finance/wealth';
 import { DEFAULT_SPLIT, type SplitPlan } from '@/finance/tax';
-import { getTaxProfile } from '@/game/engine';
+import { getTaxProfile, getTeachingSchedule } from '@/game/engine';
 import { cx, dateKey, mxn, parseKey, uid } from '@/lib/util';
 import { Button, Card, Empty, Input, Label, Modal } from './ui';
 import { Glyph } from './Glyph';
@@ -20,11 +20,13 @@ export function useRealRates(from: string, to: string) {
   return useLiveQuery(async () => {
     const today = dateKey();
     const since = shift(today, -89);
-    const [areas, txs, sessions, extra, profile, manual, estimate, split] = await Promise.all([
+    const [areas, txs, sessions, logged, profile, manual, estimate, split, schedule] = await Promise.all([
       db.areas.orderBy('order').toArray(), db.transactions.toArray(),
       db.sessions.where('date').between(from < since ? from : since, to > today ? to : today, true, true).toArray(), db.areaHours.toArray(),
-      getTaxProfile(), db.settings.get('floorRate'), db.settings.get('spendingEstimate'), db.settings.get('splitPlan')
+      getTaxProfile(), db.settings.get('floorRate'), db.settings.get('spendingEstimate'), db.settings.get('splitPlan'), getTeachingSchedule()
     ]);
+    // Teaching days count their hours away from the schedule (T-5), next to the hours logged by hand.
+    const extra = [...logged, ...scheduleAreaHours(schedule)];
     // Paid hours of the last 90 days (or since logging started) feed the floor.
     const earning = new Set(areas.filter(a => a.monetizable && !a.archived).map(a => a.id));
     const recent = sessions.filter(s => s.date >= since && s.date <= today && earning.has(s.areaId));
@@ -43,7 +45,8 @@ export function useRealRates(from: string, to: string) {
     const inWindow = sessions.filter(s => s.date >= from && s.date <= to);
     return {
       ...realRates({ areas, txs, sessions: inWindow, extra, from, to, creditIva: profile.regime === 'resico' && profile.chargesIva, floorRate: manualRate ?? auto.rate }),
-      floorAuto: auto, floorManual: manualRate ?? null, savingsPct: plan.savingsPct, spending: spend
+      floorAuto: auto, floorManual: manualRate ?? null, savingsPct: plan.savingsPct, spending: spend,
+      doubleCount: teachingDoubleCount(logged, schedule).length > 0
     };
   }, [from, to]);
 }
@@ -77,12 +80,13 @@ export function RealRateCard() {
             </table>
           </div>
         )}
+        {data.doubleCount && <p className="text-[12px] text-hp">A weekly entry under "Other hours" overlaps the teaching schedule's semester, so those hours may count twice. Delete it or set its end date (Control → Teaching days counts class days by itself).</p>}
         <details className="text-[12px] text-ink/70">
           <summary className="flex min-h-[40px] cursor-pointer items-center font-display text-sm text-lav">How "real" is computed</summary>
           <ul className="list-disc space-y-1 pl-5">
             <li><b>Net:</b> RESICO income counts its subtotal minus ISR at the rate its month actually reaches; IVA is the SAT's money, withholdings are prepayments. Salary counts what landed. Estimates, like the tax card.</li>
             <li><b>Costs:</b> expenses tagged with the activity (Transaction → "Cost of"), minus IVA you can credit. "Shared work costs" are split across the earning activities by hours{data.unallocatedShared > 0 ? ` (${mxn(data.unallocatedShared)} not split yet: no hours logged)` : ''}.</li>
-            <li><b>Hours:</b> focus sessions plus non-focus hours (admin, sales, commute, class time), one-off or every week. Gross/h is the old view: what landed ÷ focus hours.</li>
+            <li><b>Hours:</b> focus sessions plus non-focus hours (admin, sales, commute, class time), one-off or every week. Teaching days in Control count their hours away (leave → home) by themselves. Gross/h is the old view: what landed ÷ focus hours.</li>
             <li><b>The floor</b> is what an hour must leave you so your paid hours cover what you spend and what you save: monthly spending ÷ (1 − savings %) ÷ paid hours per month. It moves with your numbers.</li>
             <li><b>Verdicts</b> (from {MIN_VERDICT_HOURS} h): below the floor means the plan's kill rule applies if it stays there 3 months; ≥ 2× the average means give it more hours and raise its price.</li>
           </ul>

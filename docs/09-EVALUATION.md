@@ -60,7 +60,20 @@ Not done (still open): Option C (coins backed by the fun budget).
 | P1-9 Faster first load | Pages split with `React.lazy`, vendor chunk, idle preload; startup JS 854 → 347 kB (255 → 120 kB gzip). The build fails over budget (entry < 300 kB, startup < 350 kB). Works offline (all chunks precached) |
 | Floor from real numbers | The kill-rule floor = monthly spending (median of logged months, or the estimate) ÷ (1 − savings %) ÷ paid hours a month (logged over the last 90 days; area targets until 2 weeks of history). 250 MXN/h is only a placeholder until spending exists. A hand-set floor overrides it, with "Use my numbers" to go back |
 | Tax quest notes | The RESICO estimate moves to its own read-only field (`autoNotes`, Dexie v11), so the user's notes on a tax quest are never overwritten |
+| Teaching days (T-1 to T-5) | A teaching schedule in Control (device only, empty by default). On teaching days inside the semester: a generated Ideal Day and Now card (prep → pack → travel → class → travel → shutdown), deep-work targets 4 h done / 5 h full (focus XP stops at 5 h), and the hours away count as non-focus hours for the real MXN/h, the floor and the weekly review. A manual weekly entry that overlaps the semester gets a double-counting warning. Dexie v12. Simulation below |
 | P1-1 Repeating quests | Daily, weekly or monthly quests (Dexie v9 `recurrence`); completing one creates the next with a deterministic id; the RESICO declaration is a monthly series that never skips |
+
+### Teaching days: simulation rerun (2026-11-07)
+`npx vite-node scripts/eval-sim.ts` now also runs "v2 + teaching days 4/5": the simulated teaching days (2 a week, unchanged behaviour: 4.5 h mean focus) use 4 h done / 5 h full and stop focus XP at 5 h. Averages over 20 seeds, 90 days:
+
+| Scenario | Rules | Perfect | Good | **Good-or-Perfect** | Weekly bonus | Full workdays | XP 90 d | Coins / week |
+|---|---|---|---|---|---|---|---|---|
+| Realistic (2 teaching days) | v2 | 3 % | 60 % | **63 %** | 30 % | 0 | 20,719 | 335 |
+| Realistic (2 teaching days) | v2 + teaching 4/5 | 7 % | 56 % | **63 %** | 30 % | 8 | 21,623 | 349 |
+| Realistic + 1 bad week/month | v2 | 2 % | 49 % | 51 % | 20 % | 0 | 17,864 | 289 |
+| Realistic + 1 bad week/month | v2 + teaching 4/5 | 5 % | 46 % | 51 % | 20 % | 6 | 18,557 | 300 |
+
+Reading: the Good-or-Perfect rate stays at **63 %**, because a 2 h teaching day already counted as Good through the deep-work minimum. What changes is that teaching days can now be **Perfect** (3 → 7 %) and earn the full-workday bonus (0 → 8 in 90 days): a teaching day that goes to plan is recognized as a full day instead of a failed one. XP grows about 4 %, coins about 4 %, so the economy barely moves. The other scenarios have no teaching days and are unchanged.
 
 ### D4. Why investing unlocks at 3 and 6 months
 - Irregular income needs a buffer: Housel's room for error and the master plan both point at 6 months.

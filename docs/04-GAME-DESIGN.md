@@ -40,7 +40,15 @@
 | Achievement | 25–500 | XP ÷ 5 |
 | Wealth level (Treasury → The Road) | 150 / 250 / 400 / 600 / 1,000 for levels 1–5, once | XP ÷ 5 |
 
-**Deep-work targets** (Settings): weekdays 6 h = done, 8 h = full; weekends 4 h = done, 6 h = full.
+**Deep-work targets** (Settings), in hours:
+
+| Day | Done | Full (bonus, focus XP stops) |
+|---|---|---|
+| Weekday | 6 | 8 |
+| Weekend | 4 | 6 |
+| Teaching day (approved 2026-11-07) | 4 | 5 |
+
+A **teaching day** is one of the teaching schedule's weekdays inside its semester (Control → Teaching days); it wins over weekday/weekend. 5 h is the focus window before leaving; done stays about 75 % of full. Prep and grading are focus (logged on the teaching area); **the class is not focus time**: it pays in the real MXN/h, not in XP. The weekly scorecard stays at 30 h.
 
 **Core habits:** sleep, exercise, deep work, money check-in. **Rituals** (XP, not core): up by 5:45, clean, intel, eat well.
 

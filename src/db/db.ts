@@ -91,6 +91,12 @@ export class LifeDB extends Dexie {
     this.version(11).stores({}).upgrade(async tx => {
       await tx.table('tasks').toCollection().modify(migrateTaskV11);
     });
+    // v12 (no index changes): deep-work targets gain a teaching-day pair (4 h done, 5 h full). The teaching
+    // schedule itself is a new settings key, empty until the user enters it, so nothing else migrates.
+    this.version(12).stores({}).upgrade(async tx => {
+      const row = await tx.table('settings').get('workTargets');
+      if (row) await tx.table('settings').put({ key: 'workTargets', value: migrateWorkTargetsV12(row.value) });
+    });
   }
 }
 
@@ -100,6 +106,12 @@ export function migrateHabitV3(h: { key: string; core: boolean; intrinsic?: bool
   if (['sleep', 'exercise', 'work', 'money'].includes(h.key)) h.core = true;
   if (h.key === 'intel') h.intrinsic = true;
   if (h.key === 'work') { h.name = 'Deep work'; h.target = DEFAULT_WORK_TARGETS.weekday.done; }
+}
+
+/** v12: add the teaching pair to stored targets; the user's weekday and weekend numbers stay. Exported for tests. */
+export function migrateWorkTargetsV12(v: unknown) {
+  const t = (v ?? {}) as Partial<typeof DEFAULT_WORK_TARGETS>;
+  return { ...t, teaching: t.teaching ?? { ...DEFAULT_WORK_TARGETS.teaching } };
 }
 
 /** The RESICO monthly declaration series: due the 17th, and every month must be filed (no skipping). */

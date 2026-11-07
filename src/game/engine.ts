@@ -8,9 +8,9 @@ import { cutoffOnOrAfter, splitLegs, statementStatus, transferLegs } from '@/fin
 import { dateKey, parseKey, uid } from '@/lib/util';
 import {
   TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
-  MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, DEFAULT_WORK_TARGETS, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
+  MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
   MIN_VERSION_SHARE, WORK_MIN_HOURS, SHIELD_EVERY, SHIELD_MAX, LEAD_XP, CONVERSATION_DAILY_CAP_XP,
-  REVIEW_XP, reviewComplete, reviewWeekFor, type WorkTargets
+  REVIEW_XP, reviewComplete, reviewWeekFor, withTargetDefaults, type WorkTargets, type TeachingSchedule
 } from './rules';
 import { checkAchievements } from './achievements';
 
@@ -148,8 +148,12 @@ async function syncAward(source: XpSource, refId: string, xp: number | null, lab
 }
 
 export async function getWorkTargets(): Promise<WorkTargets> {
-  const v = (await db.settings.get('workTargets'))?.value as WorkTargets | undefined;
-  return v ?? DEFAULT_WORK_TARGETS;
+  return withTargetDefaults((await db.settings.get('workTargets'))?.value as Partial<WorkTargets> | undefined);
+}
+
+/** The teaching schedule (empty until the user enters it in Control). */
+export async function getTeachingSchedule(): Promise<TeachingSchedule | undefined> {
+  return (await db.settings.get('teachingSchedule'))?.value as TeachingSchedule | undefined;
 }
 
 /** Monday (local) of the week containing `date`. */
@@ -165,7 +169,7 @@ export function weekStartKey(date: string) {
  */
 export async function evaluateDay(date: string = dateKey()) {
   const habits = (await db.habits.toArray()).filter(h => !h.archived);
-  const targets = targetsFor(date, await getWorkTargets());
+  const targets = targetsFor(date, await getWorkTargets(), await getTeachingSchedule());
   const areas = new Map((await db.areas.toArray()).map(a => [a.id, a]));
 
   // Focus XP: only minutes up to the full target pay. Hobby areas earn XP but no coins.

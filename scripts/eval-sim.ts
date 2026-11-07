@@ -42,10 +42,10 @@ const schedules: Record<string, Schedule> = {
 
 interface Rules {
   label: string;
-  workTarget: (dow: number) => number;      // hours for the work habit
-  fullTarget?: (dow: number) => number;     // hours for the workday bonus (defaults to workTarget)
+  workTarget: (dow: number, t: DayType) => number;      // hours for the work habit
+  fullTarget?: (dow: number, t: DayType) => number;     // hours for the workday bonus (defaults to workTarget)
   core: (dow: number) => HabitKey[];          // what Perfect Day needs
-  sessionXp: (minutes: number, minutesBefore: number, dow?: number) => number;
+  sessionXp: (minutes: number, minutesBefore: number, dow?: number, t?: DayType) => number;
   perfectXp: number; workdayBonus: number;
   goodDay?: { minDone: number; xp: number };  // partial-credit tier
   workMinHours?: number;                      // deep-work 'min version': counts for Good Day, not Perfect Day
@@ -88,6 +88,19 @@ const V2: Rules = {
   },
   leadXpPerWeekday: 20 // ~1 conversation (15) + share of weekly case study / proposal
 };
+// Teaching days (approved 2026-11-07, T-3): the simulated teaching days use 4 h done / 5 h full, and focus XP stops
+// at 5 h on them. Everything else is v2. The teaching DayType's behaviour (4.5 h mean focus) is unchanged.
+const teachFull = (dow: number, t?: DayType) => (t === DAY.teaching ? 5 : dow < 5 ? 8 : 6);
+const V3: Rules = {
+  ...V2,
+  label: 'v2 + teaching days 4/5 (2026-11-07)',
+  workTarget: (dow, t) => (t === DAY.teaching ? 4 : dow < 5 ? 6 : 4),
+  fullTarget: (dow, t) => teachFull(dow, t),
+  sessionXp: (m, before, dow = 0, t) => {
+    const cap = teachFull(dow, t) * 60;
+    return Math.floor(Math.max(0, Math.min(before + m, cap) - before) / 3);
+  }
+};
 
 function simulate(sched: Schedule, R: Rules, days = 90, seed = 7) {
   const r = rng(seed);
@@ -107,11 +120,11 @@ function simulate(sched: Schedule, R: Rules, days = 90, seed = 7) {
     focusMin += minutes;
     // Focus logged as 50-min sprints (+ remainder), as the timer encourages.
     let before = 0, sx = 0;
-    for (let left = minutes; left > 0; left -= 50) { const m = Math.min(50, left); sx += R.sessionXp(m, before, dow); before += m; }
+    for (let left = minutes; left > 0; left -= 50) { const m = Math.min(50, left); sx += R.sessionXp(m, before, dow, t); before += m; }
     add('focus', sx);
-    const target = R.workTarget(dow);
+    const target = R.workTarget(dow, t);
     if (hours >= target) done.add('work');
-    const full = R.fullTarget ? R.fullTarget(dow) : target;
+    const full = R.fullTarget ? R.fullTarget(dow, t) : target;
     if (R.fullTarget) {
       if (hours >= target) add('habits', HABIT_XP.work);
       if (full > 0 && hours >= full) { add('workday', R.workdayBonus); workdays++; }
@@ -142,7 +155,7 @@ function simulate(sched: Schedule, R: Rules, days = 90, seed = 7) {
 }
 
 const pct = (x: number) => `${Math.round(x * 100)} %`;
-for (const R of [V1, V2]) {
+for (const R of [V1, V2, V3]) {
   console.log(`\n### ${R.label}\n`);
   console.log('| Scenario | Focus h/day | Perfect-Day rate (all / weekdays) | Good-Day rate | Weekly bonus hit | Full workdays | XP 90 d | Level d30 / d60 / d90 | Coins / week |');
   console.log('|---|---|---|---|---|---|---|---|---|');

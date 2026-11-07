@@ -1,6 +1,7 @@
 import type { Account, AreaHours, BankKey, Installment, Statement, Transaction, Session, Area, Opportunity } from '@/db/types';
 import { monthTax } from './tax';
 import { dateKey, parseKey } from '@/lib/util';
+import { isTeachingDay, teachingHoursPerDay, teachingReady, type TeachingSchedule } from '@/game/rules';
 
 export function balanceOf(acc: Account, txs: Transaction[]) {
   return acc.openingBalance + txs.filter(t => t.accountId === acc.id).reduce((s, t) => s + t.amount, 0);
@@ -104,6 +105,28 @@ export function extraHoursByArea(entries: AreaHours[], from: string, to: string)
     if (h > 0) out.set(e.areaId, (out.get(e.areaId) ?? 0) + h);
   }
   return out;
+}
+
+/**
+ * The teaching schedule as non-focus hours (T-5): every teaching day inside the semester counts (home-by − leave)
+ * hours for the schedule's area, one entry per date so partial weeks and the semester's end are exact. Virtual:
+ * never stored, recomputed from the setting wherever hours are summed (real MXN/h, the floor, the weekly review).
+ */
+export function scheduleAreaHours(s?: Partial<TeachingSchedule> | null): AreaHours[] {
+  if (!teachingReady(s)) return [];
+  const perDay = teachingHoursPerDay(s);
+  const out: AreaHours[] = [];
+  const d = parseKey(s.semesterStart);
+  for (let k = dateKey(d); k <= s.semesterEnd; d.setDate(d.getDate() + 1), k = dateKey(d)) {
+    if (isTeachingDay(k, s)) out.push({ id: `teaching:${k}`, areaId: s.areaId, date: k, hours: perDay, note: 'teaching day (schedule)', createdAt: 0 });
+  }
+  return out;
+}
+
+/** Manual standing weekly hours on the schedule's area that overlap the semester: they would count twice. */
+export function teachingDoubleCount(entries: AreaHours[], s?: Partial<TeachingSchedule> | null): AreaHours[] {
+  if (!teachingReady(s)) return [];
+  return entries.filter(e => e.weekly && e.areaId === s.areaId && e.date <= s.semesterEnd && (!e.until || e.until >= s.semesterStart));
 }
 
 /**
