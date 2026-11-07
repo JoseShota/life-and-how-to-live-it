@@ -38,7 +38,7 @@ Treat your activities like an investment portfolio. Each one gets a **role**, a 
 
 **Rules for the portfolio (the app enforces these with data):**
 1. **The Wealth Engine table** (Money → "where your hours pay most") ranks activities by **real MXN per hour** over 90 days (30 and 365 also available): what an activity leaves you after taxes and its own costs, divided by *all* the hours it takes (focus sessions plus commuting, admin, sales and class time). Every month, move 2–3 weekly hours from the lowest-paying monetizable activity to the highest.
-2. **Kill rule:** if a monetizable activity's real rate stays below your floor rate (250 MXN/h by default, editable in the Wealth Engine) for 3 months and teaches you nothing new, shrink it.
+2. **Kill rule:** if a monetizable activity's real rate stays below your floor rate for 3 months and teaches you nothing new, shrink it. The floor comes from your real numbers: monthly spending ÷ (1 − the savings % you pay yourself first) ÷ the paid hours you actually work in a month. It moves as they change (it can be set by hand in the Wealth Engine).
 3. **Scale rule:** if an activity's real rate is ≥ 2× your average real rate, give it more hours *and* raise its price.
 
 ---

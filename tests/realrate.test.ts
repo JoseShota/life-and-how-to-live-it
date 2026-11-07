@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extraHoursByArea, hoursOfWork, netIncome, realRates, SHARED_WORK_AREA } from '../src/finance/finance';
+import { autoFloorRate, DEFAULT_FLOOR_RATE, extraHoursByArea, hoursOfWork, netIncome, realRates, SHARED_WORK_AREA } from '../src/finance/finance';
 import { invoiceFromSubtotal, resicoRate } from '../src/finance/tax';
 import type { Area, AreaHours, Session, Transaction } from '../src/db/types';
 
@@ -85,5 +85,27 @@ describe('real MXN per hour', () => {
     expect(r).toMatchObject({ gross: 0, hours: 0, realRate: null });
     expect(hoursOfWork(-1500, 500)).toBe(3);
     expect(hoursOfWork(-1500, null)).toBe(null);
+  });
+});
+
+describe('floor from real numbers', () => {
+  it('spending ÷ (1 − savings) over logged paid hours per month', () => {
+    // 27,000 / 0.9 = 30,000 needed; 300 h in 90 days = 100 h/month → 300 MXN/h.
+    expect(autoFloorRate({ monthlySpending: 27000, savingsPct: 10, paidHours: 300, historyDays: 90, plannedWeeklyHours: 40 }))
+      .toMatchObject({ rate: 300, need: 30000, hoursPerMonth: 100, hoursFrom: 'logged', ready: true });
+  });
+  it('a short history is scaled to a month; under two weeks the area targets stand in', () => {
+    expect(autoFloorRate({ monthlySpending: 20000, savingsPct: 0, paidHours: 50, historyDays: 15, plannedWeeklyHours: 30 }).hoursPerMonth).toBe(100);
+    const early = autoFloorRate({ monthlySpending: 20000, savingsPct: 0, paidHours: 5, historyDays: 3, plannedWeeklyHours: 30 });
+    expect(early).toMatchObject({ hoursFrom: 'targets', hoursPerMonth: 130 });
+    expect(early.rate).toBe(Math.round(20000 / 130));
+  });
+  it('more savings or fewer hours raise the floor', () => {
+    const base = { monthlySpending: 24000, savingsPct: 10, paidHours: 240, historyDays: 90, plannedWeeklyHours: 0 };
+    expect(autoFloorRate({ ...base, savingsPct: 20 }).rate).toBeGreaterThan(autoFloorRate(base).rate);
+    expect(autoFloorRate({ ...base, paidHours: 120 }).rate).toBeGreaterThan(autoFloorRate(base).rate);
+  });
+  it('without spending data it falls back to the placeholder', () => {
+    expect(autoFloorRate({ monthlySpending: null, savingsPct: 10, paidHours: 300, historyDays: 90, plannedWeeklyHours: 40 })).toMatchObject({ ready: false, rate: DEFAULT_FLOOR_RATE });
   });
 });

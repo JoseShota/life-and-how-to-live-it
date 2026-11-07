@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, setSetting } from '@/db/db';
 import type { Area } from '@/db/types';
-import { DEFAULT_FLOOR_RATE, MIN_VERDICT_HOURS, realRates, type RealRateRow } from '@/finance/finance';
+import { MIN_VERDICT_HOURS, autoFloorRate, extraHoursByArea, realRates, type RealRateRow } from '@/finance/finance';
+import { monthlySpending } from '@/finance/wealth';
+import { DEFAULT_SPLIT, type SplitPlan } from '@/finance/tax';
 import { getTaxProfile } from '@/game/engine';
 import { cx, dateKey, mxn, parseKey, uid } from '@/lib/util';
 import { Button, Card, Empty, Input, Label, Modal } from './ui';
@@ -10,15 +12,39 @@ import { Glyph } from './Glyph';
 
 const shift = (key: string, days: number) => { const d = parseKey(key); d.setDate(d.getDate() + days); return dateKey(d); };
 
-/** Real MXN per hour over [from, to] (inclusive), recomputed live from the ledger, sessions, hours and tax profile. */
+/**
+ * Real MXN per hour over [from, to] (inclusive), recomputed live from the ledger, sessions, hours and tax profile.
+ * The floor comes from the user's real numbers (spending, savings %, paid hours) unless they set one by hand.
+ */
 export function useRealRates(from: string, to: string) {
   return useLiveQuery(async () => {
-    const [areas, txs, sessions, extra, profile, floor] = await Promise.all([
+    const today = dateKey();
+    const since = shift(today, -89);
+    const [areas, txs, sessions, extra, profile, manual, estimate, split] = await Promise.all([
       db.areas.orderBy('order').toArray(), db.transactions.toArray(),
-      db.sessions.where('date').between(from, to, true, true).toArray(), db.areaHours.toArray(),
-      getTaxProfile(), db.settings.get('floorRate')
+      db.sessions.where('date').between(from < since ? from : since, to > today ? to : today, true, true).toArray(), db.areaHours.toArray(),
+      getTaxProfile(), db.settings.get('floorRate'), db.settings.get('spendingEstimate'), db.settings.get('splitPlan')
     ]);
-    return realRates({ areas, txs, sessions, extra, from, to, creditIva: profile.regime === 'resico' && profile.chargesIva, floorRate: (floor?.value as number | undefined) ?? DEFAULT_FLOOR_RATE });
+    // Paid hours of the last 90 days (or since logging started) feed the floor.
+    const earning = new Set(areas.filter(a => a.monetizable && !a.archived).map(a => a.id));
+    const recent = sessions.filter(s => s.date >= since && s.date <= today && earning.has(s.areaId));
+    const first = [...recent.map(s => s.date), ...extra.filter(e => earning.has(e.areaId)).map(e => e.date)].sort()[0];
+    const start = first && first > since ? first : since;
+    const days = first ? Math.round((parseKey(today).getTime() - parseKey(start).getTime()) / 864e5) + 1 : 0;
+    const otherHours = [...extraHoursByArea(extra.filter(e => earning.has(e.areaId)), start, today).values()].reduce((s, h) => s + h, 0);
+    const spend = monthlySpending(txs, today).median ?? ((estimate?.value as number | undefined) || null);
+    const plan = { ...DEFAULT_SPLIT, ...((split?.value as Partial<SplitPlan> | undefined) ?? {}) };
+    const auto = autoFloorRate({
+      monthlySpending: spend, savingsPct: plan.savingsPct,
+      paidHours: recent.reduce((s, x) => s + x.minutes, 0) / 60 + otherHours, historyDays: days,
+      plannedWeeklyHours: areas.filter(a => earning.has(a.id)).reduce((s, a) => s + a.weeklyHoursTarget, 0)
+    });
+    const manualRate = manual?.value as number | undefined;
+    const inWindow = sessions.filter(s => s.date >= from && s.date <= to);
+    return {
+      ...realRates({ areas, txs, sessions: inWindow, extra, from, to, creditIva: profile.regime === 'resico' && profile.chargesIva, floorRate: manualRate ?? auto.rate }),
+      floorAuto: auto, floorManual: manualRate ?? null, savingsPct: plan.savingsPct, spending: spend
+    };
   }, [from, to]);
 }
 
@@ -57,16 +83,29 @@ export function RealRateCard() {
             <li><b>Net:</b> RESICO income counts its subtotal minus ISR at the rate its month actually reaches; IVA is the SAT's money, withholdings are prepayments. Salary counts what landed. Estimates, like the tax card.</li>
             <li><b>Costs:</b> expenses tagged with the activity (Transaction → "Cost of"), minus IVA you can credit. "Shared work costs" are split across the earning activities by hours{data.unallocatedShared > 0 ? ` (${mxn(data.unallocatedShared)} not split yet: no hours logged)` : ''}.</li>
             <li><b>Hours:</b> focus sessions plus non-focus hours (admin, sales, commute, class time), one-off or every week. Gross/h is the old view: what landed ÷ focus hours.</li>
+            <li><b>The floor</b> is what an hour must leave you so your paid hours cover what you spend and what you save: monthly spending ÷ (1 − savings %) ÷ paid hours per month. It moves with your numbers.</li>
             <li><b>Verdicts</b> (from {MIN_VERDICT_HOURS} h): below the floor means the plan's kill rule applies if it stays there 3 months; ≥ 2× the average means give it more hours and raise its price.</li>
           </ul>
         </details>
-        <div className="flex flex-wrap items-end gap-2 text-sm">
-          {floorEdit === null
-            ? <><span>Floor: <b>{mxn(data.floor)}/h</b></span><Button variant="ghost" className="!px-3" onClick={() => setFloorEdit(String(data.floor))} aria-label="Edit floor rate"><Glyph name="pencil" size={14} /></Button></>
-            : <>
-                <Label text="Floor rate (MXN/h)"><Input inputMode="decimal" value={floorEdit} onChange={e => setFloorEdit(e.target.value)} className="!w-32" /></Label>
-                <Button variant="ghost" onClick={async () => { const n = Number(floorEdit); if (n > 0) await setSetting('floorRate', n); setFloorEdit(null); }}>Save</Button>
-              </>}
+        <div className="flex flex-col gap-1 text-sm">
+          <div className="flex flex-wrap items-end gap-2">
+            {floorEdit === null
+              ? <>
+                  <span>Floor: <b>{mxn(data.floor)}/h</b> · {data.floorManual !== null ? 'set by hand' : data.floorAuto.ready ? 'from your numbers' : 'placeholder'}</span>
+                  <Button variant="ghost" className="!px-3" onClick={() => setFloorEdit(String(data.floor))} aria-label="Set the floor by hand"><Glyph name="pencil" size={14} /></Button>
+                  {data.floorManual !== null && <Button variant="ghost" onClick={() => db.settings.delete('floorRate')}>Use my numbers</Button>}
+                </>
+              : <>
+                  <Label text="Floor rate (MXN/h), by hand"><Input inputMode="decimal" value={floorEdit} onChange={e => setFloorEdit(e.target.value)} className="!w-32" /></Label>
+                  <Button variant="ghost" onClick={async () => { const n = Number(floorEdit); if (n > 0) await setSetting('floorRate', n); setFloorEdit(null); }}>Save</Button>
+                  <Button variant="ghost" onClick={() => setFloorEdit(null)}>Cancel</Button>
+                </>}
+          </div>
+          <p className="text-[12px] text-ink/60">
+            {data.floorAuto.ready
+              ? <>From your numbers: spending {mxn(data.spending ?? 0)}/month, saving {data.savingsPct}% first → you need {mxn(data.floorAuto.need ?? 0)}/month after taxes, over {data.floorAuto.hoursPerMonth.toFixed(0)} paid hours a month ({data.floorAuto.hoursFrom === 'logged' ? 'logged, last 90 days' : 'your area targets, until 2 weeks are logged'}) = {mxn(data.floorAuto.rate)}/h{data.floorManual !== null ? ' (not in use: you set one by hand)' : ''}.</>
+              : <>The floor uses {mxn(data.floorAuto.rate)}/h until a month of spending is logged (or a spending estimate is set in The Road). Then it comes from your numbers.</>}
+          </p>
         </div>
       </div>
       {hoursFor && <HoursForm area={hoursFor} onClose={() => setHoursFor(null)} />}

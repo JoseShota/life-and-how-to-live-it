@@ -6,7 +6,7 @@ Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). K
 
 v11 (no index changes): tasks get `autoNotes`, text the app writes and keeps current (the RESICO estimate). The upgrade moves the app's estimate out of tax quests' `notes`; a note the user wrote stays in `notes`, which the app never rewrites.
 
-v10: new table `areaHours` (E-10): non-focus hours per area, one-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date` until `until`). Expenses may now carry `areaId` (an existing index): the activity they're a cost of, or `'shared'` for shared work costs. Settings gain `floorRate` (default 250) and `lastBackupAt`. Backups are `BACKUP_VERSION` 5.
+v10: new table `areaHours` (E-10): non-focus hours per area, one-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date` until `until`). Expenses may now carry `areaId` (an existing index): the activity they're a cost of, or `'shared'` for shared work costs. Settings gain `floorRate` (only when set by hand; otherwise the floor is computed from spending, savings % and paid hours) and `lastBackupAt`. Backups are `BACKUP_VERSION` 5.
 
 v9 (no index changes): tasks get `recurrence` (`every` day/week/month, `anchorDay` for monthly, `series`, `keepMissed`). Completing a repeating quest creates the next instance with the id `<series>@<due date>`; the RESICO monthly declaration is the series `tax-m` and keeps its `tax-m-<yyyy-mm>` ids. The upgrade marks existing `tax-m-*` quests as that series.
 
