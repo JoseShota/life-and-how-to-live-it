@@ -10,7 +10,7 @@ import {
   TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
   MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
   MIN_VERSION_SHARE, WORK_MIN_HOURS, SHIELD_EVERY, SHIELD_MAX, LEAD_XP, CONVERSATION_DAILY_CAP_XP,
-  REVIEW_XP, reviewComplete, reviewWeekFor, withTargetDefaults, type WorkTargets, type TeachingSchedule
+  REVIEW_XP, reviewComplete, reviewWeekFor, withTargetDefaults, teachingStatusChanged, type WorkTargets, type TeachingSchedule
 } from './rules';
 import { checkAchievements } from './achievements';
 
@@ -154,6 +154,20 @@ export async function getWorkTargets(): Promise<WorkTargets> {
 /** The teaching schedule (empty until the user enters it in Control). */
 export async function getTeachingSchedule(): Promise<TeachingSchedule | undefined> {
   return (await db.settings.get('teachingSchedule'))?.value as TeachingSchedule | undefined;
+}
+
+/**
+ * After the teaching schedule changes: re-grade the past days (up to `today`) whose targets moved, oldest first so
+ * streaks build in order. Only days with focus logged can change, so empty days are left alone. Returns the
+ * re-graded dates (today included when it changed).
+ */
+export async function regradeTeachingChange(before: TeachingSchedule | undefined, after: TeachingSchedule | undefined, today: string = dateKey()) {
+  const changed = teachingStatusChanged(before, after, today);
+  if (!changed.length) return [];
+  const logged = new Set((await db.sessions.where('date').anyOf(changed).toArray()).map(s => s.date));
+  const days = changed.filter(d => logged.has(d));
+  for (const d of days) await evaluateDay(d);
+  return days;
 }
 
 /** Monday (local) of the week containing `date`. */

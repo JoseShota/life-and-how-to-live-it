@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
-import { evaluateDay } from '@/game/engine';
+import { evaluateDay, regradeTeachingChange } from '@/game/engine';
+import { useToast } from '@/lib/toast';
 import { EMPTY_TEACHING_SCHEDULE, isTeachingDay, teachingHoursPerDay, teachingProblems, teachingReady, type TeachingSchedule } from '@/game/rules';
 import { teachingDoubleCount } from '@/finance/finance';
 import { useTeachingSchedule, useWorkTargets } from '@/lib/hooks';
@@ -31,8 +33,27 @@ export function TeachingScheduleCard() {
   // stored schedule inside the transaction, so quick edits in a row never overwrite each other with a stale copy.
   const set = (change: (cur: TeachingSchedule) => Partial<TeachingSchedule>) => db.transaction('rw', db.settings, async () => {
     const cur: TeachingSchedule = { ...EMPTY_TEACHING_SCHEDULE, ...((await db.settings.get('teachingSchedule'))?.value as Partial<TeachingSchedule> | undefined) };
-    await db.settings.put({ key: 'teachingSchedule', value: { ...cur, ...change(cur) } });
-  }).then(() => evaluateDay(today));
+    const next = { ...cur, ...change(cur) };
+    await db.settings.put({ key: 'teachingSchedule', value: next });
+    return [cur, next] as const;
+  }).then(([before, after]) => queue(before, after));
+  // Past days whose targets moved are re-graded too, so Stats and past reviews match the schedule. Once per burst
+  // of edits (a date input passes through several valid years while typing), from the schedule before the burst.
+  const toast = useToast();
+  const burst = useRef<{ before: TeachingSchedule; after: TeachingSchedule; timer: number } | null>(null);
+  const queue = (before: TeachingSchedule, after: TeachingSchedule) => {
+    if (burst.current) clearTimeout(burst.current.timer);
+    const from = burst.current?.before ?? before;
+    burst.current = { before: from, after, timer: window.setTimeout(() => { burst.current = null; regrade(from, after); }, 1500) };
+  };
+  // Leaving Control mid-burst still re-grades.
+  useEffect(() => () => { const b = burst.current; if (b) { clearTimeout(b.timer); regradeTeachingChange(b.before, b.after, today).then(() => evaluateDay(today)); } }, [today]);
+  const regrade = async (before?: TeachingSchedule, after?: TeachingSchedule) => {
+    const days = await regradeTeachingChange(before, after, today);
+    if (!days.includes(today)) await evaluateDay(today);
+    const past = days.filter(d => d !== today).length;
+    if (past) toast(`Re-graded ${past} past day${past === 1 ? '' : 's'} with the new teaching targets`, 'xp');
+  };
   /** A field's new value, read from the event now (the controlled input may re-render before the save runs). */
   const put = (patch: Partial<TeachingSchedule>) => set(() => patch);
   const toggle = (d: number) => set(cur => ({ days: cur.days.includes(d) ? cur.days.filter(x => x !== d) : [...cur.days, d].sort() }));
@@ -79,7 +100,7 @@ export function TeachingScheduleCard() {
         {twice && <p className="text-[13px] text-hp">A weekly entry under the Wealth Engine's "Other hours" for {area?.short} overlaps this semester. Teaching days already count those hours, so delete it or end it before the semester starts.</p>}
         {!isEmpty && (
           <div>
-            <Button variant="ghost" onClick={async () => { if (confirm('Clear the teaching schedule? Those days go back to normal days.')) { await db.settings.delete('teachingSchedule'); await evaluateDay(today); } }}>Clear schedule</Button>
+            <Button variant="ghost" onClick={async () => { if (confirm('Clear the teaching schedule? Those days go back to normal days.')) { const b = burst.current; if (b) clearTimeout(b.timer); burst.current = null; await db.settings.delete('teachingSchedule'); await regrade(b?.before ?? s, undefined); } }}>Clear schedule</Button>
           </div>
         )}
       </div>

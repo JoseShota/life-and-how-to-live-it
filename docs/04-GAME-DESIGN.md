@@ -48,7 +48,7 @@
 | Weekend | 4 | 6 |
 | Teaching day (approved 2026-11-07) | 4 | 5 |
 
-A **teaching day** is one of the teaching schedule's weekdays inside its semester (Control → Teaching days); it wins over weekday/weekend. 5 h is the focus window before leaving; done stays about 75 % of full. Prep and grading are focus (logged on the teaching area); **the class is not focus time**: it pays in the real MXN/h, not in XP. The weekly scorecard stays at 30 h.
+A **teaching day** is one of the teaching schedule's weekdays inside its semester (Control → Teaching days); it wins over weekday/weekend. 5 h is the focus window before leaving; done stays about 75 % of full. Prep and grading are focus (logged on the teaching area); **the class is not focus time**: it pays in the real MXN/h, not in XP. The weekly scorecard stays at 30 h. When the schedule changes, past days (up to today) whose teaching status changed and that have focus logged are re-graded, oldest first, so their habit, bonus and focus XP follow the schedule; a toast says how many.
 
 **Core habits:** sleep, exercise, deep work, money check-in. **Rituals** (XP, not core): up by 5:45, clean, intel, eat well.
 

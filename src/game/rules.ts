@@ -79,6 +79,26 @@ export function isTeachingDay(key: DateKey, s?: Partial<TeachingSchedule> | null
   return key >= s.semesterStart && key <= s.semesterEnd && s.days.includes(weekdayOf(key));
 }
 
+/**
+ * Dates up to `until` whose teaching status differs between two schedules, oldest first: the past days a schedule
+ * change re-grades (their targets moved). Only the semesters' ranges can differ, so only those are scanned.
+ */
+export function teachingStatusChanged(before: Partial<TeachingSchedule> | null | undefined, after: Partial<TeachingSchedule> | null | undefined, until: DateKey): DateKey[] {
+  const ranges = [before, after].filter(teachingReady).map(s => [s.semesterStart, s.semesterEnd] as const);
+  if (!ranges.length) return [];
+  const from = ranges.map(r => r[0]).sort()[0];
+  const lastEnd = ranges.map(r => r[1]).sort().pop()!;
+  const to = until < lastEnd ? until : lastEnd;
+  const out: DateKey[] = [];
+  const [y, m, d] = from.split('-').map(Number);
+  const day = new Date(y, m - 1, d);
+  const key = () => `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  for (let k = key(); k <= to; day.setDate(day.getDate() + 1), k = key()) {
+    if (isTeachingDay(k, before) !== isTeachingDay(k, after)) out.push(k);
+  }
+  return out;
+}
+
 /** Hours away from the desk on a teaching day (leave home → home again): travel, classroom and class. */
 export function teachingHoursPerDay(s: TeachingSchedule) {
   return ((clockMin(s.homeBy) ?? 0) - (clockMin(s.leave) ?? 0)) / 60;

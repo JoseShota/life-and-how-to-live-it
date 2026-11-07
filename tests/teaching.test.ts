@@ -2,9 +2,9 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db, setSetting } from '../src/db/db';
 import { seedIfEmpty } from '../src/db/seed';
-import { logSession } from '../src/game/engine';
+import { logSession, regradeTeachingChange } from '../src/game/engine';
 import {
-  isTeachingDay, targetsFor, teachingProblems, teachingReady, withTargetDefaults, DEFAULT_WORK_TARGETS, type TeachingSchedule
+  isTeachingDay, targetsFor, teachingProblems, teachingStatusChanged, teachingReady, withTargetDefaults, DEFAULT_WORK_TARGETS, type TeachingSchedule
 } from '../src/game/rules';
 import { idealDayFor, currentBlockIndex, routineIcs, teachingDay, IDEAL_DAY } from '../src/lib/routine';
 import { extraHoursByArea, scheduleAreaHours, teachingDoubleCount } from '../src/finance/finance';
@@ -145,5 +145,39 @@ describe('teaching days: the engine', () => {
     const tue = await db.xp.where('date').equals(TUE).filter(e => e.source === 'session').toArray();
     expect(tue.reduce((s, e) => s + e.xp, 0)).toBe(120);
     expect(await db.xp.where('refId').equals(`workday:${TUE}`).count()).toBe(0);
+  });
+});
+
+describe('teaching days: re-grading past days when the schedule changes', () => {
+  beforeEach(async () => {
+    await Promise.all(db.tables.map(t => t.clear()));
+    await seedIfEmpty();
+  });
+  const at = (key: string, h: number) => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d, h).getTime(); };
+
+  it('lists the dates whose status changed, oldest first, up to today', () => {
+    expect(teachingStatusChanged(undefined, S, '2026-08-20')).toEqual(['2026-08-10', '2026-08-12', '2026-08-17', '2026-08-19']);
+    expect(teachingStatusChanged(S, S, MON)).toEqual([]);
+    expect(teachingStatusChanged(S, { ...S, days: [1] }, '2026-08-20')).toEqual(['2026-08-12', '2026-08-19']);
+    expect(teachingStatusChanged(undefined, { ...S, areaId: '' }, MON)).toEqual([]); // incomplete: nothing moves
+  });
+
+  it('a past Monday with focus logged is re-graded both ways; empty days are left alone', async () => {
+    const area = (await db.areas.toArray())[0];
+    const past = '2026-11-02'; // a Monday inside the semester
+    await logSession(area.id, at(past, 8), at(past, 14)); // 6 h, graded as a normal weekday
+    const workday = () => db.xp.where('refId').equals(`workday:${past}`).count();
+    const focusXp = async () => (await db.xp.where('date').equals(past).filter(e => e.source === 'session').toArray()).reduce((s, e) => s + e.xp, 0);
+    expect([await workday(), await focusXp()]).toEqual([0, 120]);
+
+    const s = { ...S, areaId: area.id };
+    await setSetting('teachingSchedule', s);
+    expect(await regradeTeachingChange(undefined, s, MON)).toEqual([past]); // only the day with sessions
+    expect([await workday(), await focusXp()]).toEqual([1, 100]);
+    expect(await db.habitLogs.where('date').equals('2026-10-26').count()).toBe(0); // an empty Monday stays empty
+
+    await db.settings.delete('teachingSchedule');
+    await regradeTeachingChange(s, undefined, MON);
+    expect([await workday(), await focusXp()]).toEqual([0, 120]);
   });
 });
