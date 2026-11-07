@@ -5,6 +5,7 @@ import './index.css';
 import { Layout } from '@/components/Layout';
 import { ToastProvider } from '@/lib/toast';
 import { seedIfEmpty } from '@/db/seed';
+import { applyShields, ensureTaxQuests } from '@/game/engine';
 import Today from '@/pages/Today';
 import Quests from '@/pages/Quests';
 import Focus from '@/pages/Focus';
@@ -13,7 +14,7 @@ import Rewards from '@/pages/Rewards';
 import Stats from '@/pages/Stats';
 import SettingsPage from '@/pages/Settings';
 
-seedIfEmpty().then(() => {
+seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() => undefined).then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <ToastProvider>

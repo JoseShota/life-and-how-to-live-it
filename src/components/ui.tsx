@@ -96,11 +96,11 @@ export const Empty = ({ children }: { children: ReactNode }) => (
 );
 
 /** Page heading: marble inscription + katakana + typewritten subtitle, framed by a Greek key. */
-export const PageTitle = ({ children, jp, sub, right }: { children: ReactNode; jp?: string; sub?: string; right?: ReactNode }) => (
+export const PageTitle = ({ children, jp, sub, right, plain }: { children: ReactNode; jp?: string; sub?: string; right?: ReactNode; plain?: string }) => (
   <div>
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        {jp && <div className="font-jp text-lg leading-none text-xp [text-shadow:1px_1px_0_#fff]">{jp}</div>}
+        {jp && <div className="font-jp text-lg leading-none text-xp [text-shadow:1px_1px_0_#fff]">{jp}{plain && <span className="ml-2 align-middle font-display text-sm text-ink/70">· {plain}</span>}</div>}
         <h1 className="marble-text inscription text-4xl font-bold leading-tight sm:text-5xl">{children}</h1>
         {sub && <p className="mt-1 inline-block bg-white/80 px-1.5 font-type text-sm text-ink">{sub}<span className="blink">▌</span></p>}
       </div>

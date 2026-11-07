@@ -20,7 +20,8 @@ describe('engine', () => {
     expect(t1.xp).toBeGreaterThanOrEqual(35); // + first-quest achievement
     await reopenTask(task);
     const t2 = await totals();
-    expect(t2.xp).toBe(t1.xp - 35);
+    // The quest XP and the First Blood achievement it unlocked are both taken back.
+    expect(t2.xp).toBe(0);
   });
 
   it('toggling a habit twice nets zero habit XP', async () => {
@@ -30,9 +31,9 @@ describe('engine', () => {
     expect(await db.xp.where('source').equals('habit').count()).toBe(0);
   });
 
-  it('8h of sessions marks the work habit and awards workday bonus once', async () => {
+  it('8h of sessions on a weekday marks the work habit and awards workday bonus once', async () => {
     const area = (await db.areas.toArray())[0];
-    const start = new Date(); start.setHours(8, 0, 0, 0);
+    const start = new Date(2026, 10, 4, 8); // a Wednesday
     await logSession(area.id, start.getTime(), start.getTime() + 4 * 3600e3);
     await logSession(area.id, start.getTime() + 5 * 3600e3, start.getTime() + 9 * 3600e3);
     expect(await db.xp.where('source').equals('workday').count()).toBe(1);
@@ -50,6 +51,6 @@ describe('engine', () => {
 
   it('cannot redeem a reward without coins', async () => {
     const r = (await db.rewards.toArray())[0];
-    expect(await redeem(r.id)).toBe(false);
+    expect(await redeem(r.id)).toBeNull();
   });
 });

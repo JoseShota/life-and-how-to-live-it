@@ -1,17 +1,85 @@
 // Pure game-balance functions. No DB access here -> easy to unit test and tune.
-import type { Difficulty } from '@/db/types';
+import type { DateKey, Difficulty } from '@/db/types';
 
-export const TASK_XP: Record<Difficulty, number> = { 1: 5, 2: 15, 3: 35, 4: 75, 5: 200 };
+export const TASK_XP: Record<Difficulty, number> = { 1: 5, 2: 15, 3: 35, 4: 75, 5: 150 };
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = { 1: 'Trivial', 2: 'Easy', 3: 'Medium', 4: 'Hard', 5: 'Epic' };
 
 /** Coins are the spendable currency; 1 coin per 5 XP. */
 export const coinsFor = (xp: number) => Math.round(xp / 5);
 
-/** XP for a focus session: 20 XP per hour, rounded per 15 minutes. */
-export const sessionXp = (minutes: number) => Math.floor(minutes / 15) * 5;
+/** Focus pays 20 XP per hour, pro-rata per minute (a 50-minute sprint pays 16). */
+export const FOCUS_XP_PER_HOUR = 20;
+export const sessionXp = (minutes: number) => Math.floor((Math.max(0, minutes) * FOCUS_XP_PER_HOUR) / 60);
 
-export const PERFECT_DAY_XP = 100;
-export const WORKDAY_BONUS_XP = 60; // hit the daily hour target
+/** Deep-work targets in hours. "done" checks the deep-work habit; "full" earns the workday bonus and is where focus XP stops. */
+export interface DayTargets { done: number; full: number }
+export interface WorkTargets { weekday: DayTargets; weekend: DayTargets }
+export const DEFAULT_WORK_TARGETS: WorkTargets = { weekday: { done: 6, full: 8 }, weekend: { done: 4, full: 6 } };
+
+export const isWeekend = (key: DateKey) => {
+  const [y, m, d] = key.split('-').map(Number);
+  const day = new Date(y, m - 1, d).getDay();
+  return day === 0 || day === 6;
+};
+export const targetsFor = (key: DateKey, t: WorkTargets = DEFAULT_WORK_TARGETS) => (isWeekend(key) ? t.weekend : t.weekday);
+
+/**
+ * Focus XP for each session of one day, in start order. Only minutes up to the day's full target pay,
+ * so hours past it (and past bedtime) earn nothing. Deterministic: same sessions, same split.
+ */
+export function allocateFocusXp(sessions: { id: string; start: number; minutes: number }[], fullHours: number) {
+  let left = Math.max(0, fullHours * 60);
+  const out = new Map<string, number>();
+  for (const s of [...sessions].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id))) {
+    const paid = Math.min(s.minutes, left);
+    left -= paid;
+    out.set(s.id, sessionXp(paid));
+  }
+  return out;
+}
+
+/** Only this many Epic quests per day pay Epic XP; the rest pay Hard (difficulty is self-rated). */
+export const MAX_FULL_EPICS_PER_DAY = 1;
+/** A single focus session never counts more than this (a forgotten timer). */
+export const MAX_SESSION_MINUTES = 12 * 60;
+/** After this long the Focus screen asks "still working?". */
+export const STILL_WORKING_MINUTES = 3 * 60;
+
+/** Minimum versions pay this share of the habit's XP (and keep the streak). */
+export const MIN_VERSION_SHARE = 0.5;
+/** Deep work counts as its minimum version from this many hours. */
+export const WORK_MIN_HOURS = 2;
+/** Streak shields: one per this many Good-or-Perfect days in a row, holding at most SHIELD_MAX. */
+export const SHIELD_EVERY = 7;
+export const SHIELD_MAX = 2;
+
+/** Perfect Day: every core habit, full version. Good Day: at least GOOD_DAY_MIN_CORE core habits (min versions count). */
+export const PERFECT_DAY_XP = 60;
+export const GOOD_DAY_XP = 25;
+export const GOOD_DAY_MIN_CORE = 3;
+export const WORKDAY_BONUS_XP = 30; // reached the day's full deep-work target
+
+export type DayGrade = 'perfect' | 'good' | 'none';
+/** `full` = core habits done in their full version, `any` = done in any version (full or min). */
+export function dayGrade(coreTotal: number, full: number, any: number): DayGrade {
+  if (coreTotal > 0 && full >= coreTotal) return 'perfect';
+  if (coreTotal > 0 && any >= Math.min(GOOD_DAY_MIN_CORE, coreTotal)) return 'good';
+  return 'none';
+}
+
+/** Weekly scorecard (Mon–Sun): hit `needed` of the four targets for the bonus. */
+export const WEEKLY_SCORECARD = { xp: 150, needed: 3, focusHours: 30, exerciseDays: 4, moneyDays: 5, goodDays: 5 };
+export interface WeekStats { focusHours: number; exerciseDays: number; moneyDays: number; goodDays: number }
+export function weeklyScore(w: WeekStats) {
+  const hits = {
+    focus: w.focusHours >= WEEKLY_SCORECARD.focusHours,
+    exercise: w.exerciseDays >= WEEKLY_SCORECARD.exerciseDays,
+    money: w.moneyDays >= WEEKLY_SCORECARD.moneyDays,
+    good: w.goodDays >= WEEKLY_SCORECARD.goodDays
+  };
+  const count = Object.values(hits).filter(Boolean).length;
+  return { hits, count, earned: count >= WEEKLY_SCORECARD.needed };
+}
 
 /** Streak multiplier for habits: +5% per full week of streak, capped at +50%. */
 export const streakMultiplier = (streakDays: number) => 1 + Math.min(0.5, Math.floor(streakDays / 7) * 0.05);
@@ -41,3 +109,10 @@ export const FINANCE_XP = {
   payCardInFull: 50,
   saveDeposit: 25
 };
+
+/** Leading indicators of the income engine: reward the actions that build income, not the income itself. */
+export const LEAD_XP = { conversation: 15, proposal: 40, 'case-study': 75, stage: 10 } as const;
+/** Conversations pay at most this much XP a day (3 conversations). */
+export const CONVERSATION_DAILY_CAP_XP = 45;
+/** The plan's weekly target: 5 new conversations. */
+export const WEEKLY_CONVERSATIONS = 5;

@@ -37,6 +37,20 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | P2-4 🔴 | Sync engine `src/sync/` | Push/pull by `updatedAt`, last-write-wins, tombstones, ledger union. Runs on focus + every 60 s + debounced after writes. Status indicator in HUD. Tests with two simulated clients |
 | P2-5 🟢 | Env config | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` in `.env.local` (never commit). `.env.example` committed |
 
+## Phase V — v2 economy and money engine (approved and built 2026-11-06)
+From `09-EVALUATION.md` (decisions D-1 to D-7). All eight tickets are done, one commit each (`V-1` … `V-8`). One commit per ticket. Sizes: (S) ≤ 1 h, (M) 1–3 h, (L) split into several commits. Each follows the Definition of Done in `AGENTS.md`.
+
+| ID | Ticket | AC |
+|---|---|---|
+| V-1 (S) | **Integrity fixes** | Overlapping sessions refused. Timer sessions capped at 12 h, with a "still working?" banner after 3 h. One full-value Epic per day, and an Epic needs a "done means…" note. Achievements re-lock (and revoke XP) when their condition becomes false. Bookkeeper counts a transfer once. Goal progress pays once per goal per month. Tests |
+| V-2 (M) | **Economy B** | Done/full deep-work targets per weekday/weekend (settings). Focus XP 20/h pro-rata, recalculated per day, nothing after the full target. 4 core habits, Perfect Day +60, Good Day +25 (3 of 4), weekly scorecard +150. Hobby areas and intel pay no coins. Dexie v3. Tests |
+| V-3 (M) | **Habit science** | Min version per habit (counts for streak and Good Day, half XP). "When…, I will…" plan. Log yesterday. Streak shields (earned per 7 Good-or-Perfect days, max 2, ledger-based). "Eat well" ritual. Tests |
+| V-4 (L) | **Card statements, bank presets** | Banorte preset (due = cut-off + 20 days). Statements table with exact amounts. MSI plans. Paid-toward-statement and status. Alerts and rewards follow the *pago para no generar intereses*. Dexie v4. Tests |
+| V-5 (M) | **Wealth levels** | Account roles (operating, tax, shield, invest, skills, fun). Levels 1–5 from real data, with unlocks (investing at 3 and 6 months of spending). Milestones award XP once. Tests |
+| V-6 (L) | **RESICO tax module + split it** | CFDI fields on income and creditable IVA on expenses. Monthly ISR/IVA estimate, due on the 17th, quests for the monthly and annual returns, 3.5 M cap tracker. "Split it" sheet with an exact tax reserve and SMarT escalation. Tests |
+| V-7 (M) | **Leading indicators** | Log conversations, proposals, case studies; stage changes; stale next actions; Rainmaker achievement. Tests |
+| V-8 (S) | **UX fixes** | "Now" card on Today, tap targets ≥ 40 px, last-used category, redeem confirm and undo, savings-rate edge cases, calmer header |
+
 ## Phase 3 — AI Coach (Weeks 5–8)
 All LLM calls go through a **Supabase Edge Function** (`supabase/functions/coach`), so the API key never reaches the browser. Use the official Anthropic SDK, and check the current model names in the Anthropic docs when you implement. Use a small/fast model for parsing and a stronger one for reviews.
 

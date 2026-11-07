@@ -2,7 +2,22 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v2)
+## Tables (Dexie v7)
+
+v7: new table `pipelineEvents` (conversations, proposals, case studies, stage changes); opportunities gain `kind` (`job`, `project`, `retainer`) and `nextActionDate`. Backups are `BACKUP_VERSION` 3.
+
+
+v6 (no index changes): habits get `minLabel` and `plan`; a new "Eat well" ritual (`eat`). Plans live in `src/db/habitPlans.ts`.
+
+V-6 tax fields (no Dexie version needed, new optional fields only): income transactions can carry `incomeTax` (`kind` resico/salary/none, `subtotal`, `ivaCharged`, `isrWithheld`, `ivaWithheld`, `clientIsCompany`; `amount` stays what landed in the account) and expenses `ivaCreditable`. Settings gain `taxProfile` and `splitPlan` (`savingsPct`, `skillsPct`, `funPct`) and `smartAsked`. RESICO filing quests use deterministic task ids `tax-m-<yyyy-mm>` and `tax-a-<yyyy>`.
+
+v5 (no index changes): accounts get `role` (`operating`, `tax`, `shield`, `invest`, `skills`, `fun`), set by type on upgrade. Fresh installs also get the bucket accounts *Apartado impuestos*, *Escudo · CETES* and *Inversiones*. Settings gain `spendingEstimate`.
+
+
+v4: new tables `statements` and `installments`; credit accounts get `bank` (preset, e.g. `banorte`) and `dueDaysAfterCutoff` (Banorte: 20); expenses can carry `installmentId` (meses sin intereses). Backups are `BACKUP_VERSION` 2; older backups import with the new tables empty.
+
+
+v3 (no index changes, economy B): habits `wake`, `clean`, `intel` stop being core; `intel` gets `intrinsic: true` (XP, no coins); the work habit becomes "Deep work"; the `workTargets` setting holds the done/full hours for weekdays and weekends. `HabitLog` gains `min?`.
 
 v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn glyph name in `icon` instead of an `emoji`. The upgrade and backup import both convert old rows through `src/db/legacy.ts`.
 
@@ -19,8 +34,11 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `opportunities` | `id` | `status` | Job/client pipeline (incl. the two December opportunities) |
 | `rewards` | `id` | — | Agora items (custom rewards) |
 | `xp` | `id` | `date, source, refId, ts` | **Append-only ledger** of XP/coin events |
+| `statements` | `id` | `accountId, cutoffDate, dueDate` | v4: one credit-card statement with the exact amounts (saldo al corte, pago para no generar intereses, pago mínimo) |
+| `installments` | `id` | `accountId, txId` | v4: meses sin intereses plans (total, months, first cut-off) |
+| `pipelineEvents` | `id` | `date, kind, opportunityId` | v7: leading indicators of the income engine |
 | `unlocked` | `key` | — | Unlocked achievements |
-| `settings` | `key` | — | Key/value: `playerName`, `workTargetHours`, `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
+| `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
 ## Entities (abridged)
 
@@ -29,16 +47,19 @@ Area        { id, name, short, icon, color, kind: 'work'|'growth'|'hobby'|'perso
               weeklyHoursTarget, monetizable, order, archived }
 Task        { id, areaId, title, notes?, difficulty: 1..5, priority: 1|2|3, dueDate?, status: 'todo'|'doing'|'done',
               createdAt, completedAt? }
-Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, order, archived }
-HabitLog    { id, habitId, date, value, done }
+Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, intrinsic?, minLabel?, plan?, order, archived }
+HabitLog    { id, habitId, date, value, done, min? }
 Session     { id, areaId, taskId?, date, start, end, minutes, note? }
 Account     { id, name, institution, type: 'debit'|'credit'|'cash'|'savings'|'investment',
-              creditLimit?, cutoffDay?, paymentDueDay?, openingBalance, color, archived, order }
+              creditLimit?, cutoffDay?, paymentDueDay? (legacy), bank?, dueDaysAfterCutoff?, role?, openingBalance, color, archived, order }
 Transaction { id, accountId, date, amount (signed MXN), kind: 'income'|'expense'|'transfer', category,
-              areaId? (income source), description?, transferId?, createdAt }
+              areaId? (income source), description?, transferId?, installmentId?, incomeTax?, ivaCreditable?, createdAt }
+Statement   { id, accountId, cutoffDate, dueDate, statementBalance, noInterestPayment, minimumPayment, notes?, createdAt }
+Installment { id, accountId, description, total, months, firstCutoff, txId?, createdAt }
 Goal        { id, name, icon, target, current, deadline?, order }
-Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', monthlyValue,
-              probability 0..1, expectedDate?, nextAction?, notes?, createdAt }
+Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', kind?: 'job'|'project'|'retainer', monthlyValue,
+              probability 0..1, expectedDate?, nextAction?, nextActionDate?, notes?, createdAt }
+PipelineEvent { id, kind: 'conversation'|'proposal'|'case-study'|'stage', opportunityId?, date, note?, createdAt }
 Reward      { id, title, icon, cost, archived }
 XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ```
@@ -47,7 +68,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 - **IDs:** `crypto.randomUUID()` via `uid()`.
 - **Dates:** `DateKey` = local `YYYY-MM-DD`. Timestamps = epoch ms.
 - **Money:** MXN as JS numbers, 2 decimals in the UI. (Phase 5 may move to integer centavos. If so, write a migration.)
-- **Credit cards:** `openingBalance` negative = debt when you start tracking. Purchases are negative amounts. Payments are transfers into the card (positive).
+- **Credit cards:** `openingBalance` negative = debt when you start tracking. Purchases are negative amounts. Payments are transfers into the card (positive). A statement is "paid" when transfers into the card after its cut-off, dated on or before its due date, reach its pago para no generar intereses. A purchase at MSI is recorded at its full amount (accrual) and its plan bills total / months from the first cut-off on or after the purchase date.
 - **Soft delete:** MVP uses hard delete. Phase 2 adds `deletedAt` tombstones for sync.
 
 ## Ledger `refId` scheme
@@ -56,10 +77,15 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | task | `task:<taskId>` | reopen / delete task |
 | habit | `habit:<habitId>:<date>` | unchecking habit |
 | perfect-day | `perfect:<date>` | any core habit becomes undone |
-| workday | `workday:<date>` | deleting sessions below target |
-| session | `session:<sessionId>` | deleting session |
-| finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<ts>` | deleting transaction (revokes every leg). Editing never changes XP |
-| achievement | `ach:<key>` | (permanent) |
+| good-day | `good:<date>` | fewer than 3 core habits done, or the day becomes perfect |
+| weekly | `week:<monday>` (dated on Sunday) | fewer than 3 of 4 weekly targets |
+| workday | `workday:<date>` | sessions drop below the full target |
+| session | `session:<sessionId>` | deleting session; `evaluateDay` re-allocates the day's focus XP (nothing past the full target) |
+| finance | `tx:<txId>` (first leg for transfers), `goal:<goalId>:<yyyy-mm>` (once per goal per month), `stmt:<statementId>` (statement paid in full on time; re-evaluated by `evaluateStatements`), `save:<legId>` (deposit into the shield or investments, max 4 a month) | deleting transaction (revokes every leg). Editing never changes XP |
+| pipeline | `pipe:<eventId>`, `pipe:stage:<oppId>:<status>` (once per stage) | deleting the event / opportunity |
+| shield | `shield:earn:<date>` (0 XP; revoked if the 7-day run breaks), `shield:use:<habitId>:<date>` | earn: re-evaluated by `evaluateDay`; use: permanent |
+| milestone | `wl:<n>` (wealth level reached) | permanent: spending the shield in an emergency never costs XP |
+| achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |
 
 ## Migration recipe (Dexie)

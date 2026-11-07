@@ -1,6 +1,10 @@
 import { db } from './db';
 import type { Area, Habit, Account, Reward, Goal, Opportunity } from './types';
 import { uid } from '@/lib/util';
+import { DEFAULT_WORK_TARGETS } from '@/game/rules';
+import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
+
+export { HABIT_PLANS, EAT_HABIT };
 
 export const SEED_AREAS: Omit<Area, 'id'>[] = [
   { name: 'Teaching · Introducción a la Economía (CIDE)', short: 'CIDE', icon: 'owl', color: '#b9cfe0', kind: 'work', weeklyHoursTarget: 8, monetizable: true, order: 0, archived: false },
@@ -14,21 +18,30 @@ export const SEED_AREAS: Omit<Area, 'id'>[] = [
 ];
 
 export const SEED_HABITS: Omit<Habit, 'id'>[] = [
-  { key: 'wake', name: 'Up by 5:45', icon: 'sunrise', kind: 'check', xp: 20, core: true, order: 0, archived: false },
-  { key: 'sleep', name: 'Slept ≥ 7.5 h', icon: 'moon', kind: 'number', target: 7.5, unit: 'h', xp: 20, core: true, order: 1, archived: false },
-  { key: 'exercise', name: 'Exercise', icon: 'discus', kind: 'check', xp: 25, core: true, order: 2, archived: false },
-  { key: 'clean', name: 'Clean (15 min)', icon: 'wave', kind: 'check', xp: 10, core: true, order: 3, archived: false },
-  { key: 'intel', name: 'Newsletters + econ videos', icon: 'scroll', kind: 'check', xp: 15, core: true, order: 4, archived: false },
-  { key: 'work', name: 'Deep work 8 h', icon: 'anvil', kind: 'auto', target: 8, unit: 'h', xp: 40, core: true, order: 5, archived: false },
-  { key: 'money', name: 'Money check-in (log + review)', icon: 'scales', kind: 'check', xp: 15, core: true, order: 6, archived: false }
+  { key: 'wake', name: 'Up by 5:45', icon: 'sunrise', kind: 'check', xp: 20, core: false, order: 0, archived: false, ...HABIT_PLANS.wake },
+  { key: 'sleep', name: 'Slept ≥ 7.5 h', icon: 'moon', kind: 'number', target: 7.5, unit: 'h', xp: 20, core: true, order: 1, archived: false, ...HABIT_PLANS.sleep },
+  { key: 'exercise', name: 'Exercise', icon: 'discus', kind: 'check', xp: 25, core: true, order: 2, archived: false, ...HABIT_PLANS.exercise },
+  { key: 'clean', name: 'Clean (15 min)', icon: 'wave', kind: 'check', xp: 10, core: false, order: 3, archived: false, ...HABIT_PLANS.clean },
+  { key: 'intel', name: 'Newsletters + econ videos', icon: 'scroll', kind: 'check', xp: 15, core: false, intrinsic: true, order: 4, archived: false, ...HABIT_PLANS.intel },
+  { key: 'work', name: 'Deep work', icon: 'anvil', kind: 'auto', target: 6, unit: 'h', xp: 40, core: true, order: 5, archived: false, ...HABIT_PLANS.work },
+  { key: 'money', name: 'Money check-in (log + review)', icon: 'scales', kind: 'check', xp: 15, core: true, order: 6, archived: false, ...HABIT_PLANS.money },
+  EAT_HABIT
+];
+
+/** The plan's bucket accounts (00-MASTER-PLAN.md §4). Treasury offers to create any that are missing. */
+export const BUCKET_ACCOUNTS: Omit<Account, 'id' | 'order'>[] = [
+  { name: 'Apartado impuestos', institution: 'Banorte', type: 'savings', role: 'tax', openingBalance: 0, color: '#dccb98', archived: false },
+  { name: 'Escudo · CETES', institution: 'cetesdirecto', type: 'savings', role: 'shield', openingBalance: 0, color: '#bcd3c6', archived: false },
+  { name: 'Inversiones', institution: 'Broker', type: 'investment', role: 'invest', openingBalance: 0, color: '#c7c2e3', archived: false }
 ];
 
 export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
-  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', openingBalance: 0, color: '#d8a7a0', archived: false, order: 0 },
-  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#c99790', archived: false, order: 1 },
-  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b98a8a', archived: false, order: 2 },
-  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#a98088', archived: false, order: 3 },
-  { name: 'Efectivo', institution: 'Cash', type: 'cash', openingBalance: 0, color: '#a6d9d1', archived: false, order: 4 }
+  { name: 'Banorte Débito', institution: 'Banorte', type: 'debit', role: 'operating', openingBalance: 0, color: '#d8a7a0', archived: false, order: 0 },
+  { name: 'Banorte Crédito 1', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 1, paymentDueDay: 21, openingBalance: 0, color: '#c99790', archived: false, order: 1 },
+  { name: 'Banorte Crédito 2', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 10, paymentDueDay: 30, openingBalance: 0, color: '#b98a8a', archived: false, order: 2 },
+  { name: 'Banorte Crédito 3', institution: 'Banorte', type: 'credit', bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 0, cutoffDay: 20, paymentDueDay: 10, openingBalance: 0, color: '#a98088', archived: false, order: 3 },
+  { name: 'Efectivo', institution: 'Cash', type: 'cash', role: 'operating', openingBalance: 0, color: '#a6d9d1', archived: false, order: 4 },
+  ...BUCKET_ACCOUNTS.map((b, i) => ({ ...b, order: 5 + i }))
 ];
 
 export const SEED_REWARDS: Omit<Reward, 'id'>[] = [
@@ -85,7 +98,7 @@ export async function seedIfEmpty() {
       { key: 'playerName', value: 'Economist' },
       { key: 'wakeTime', value: '05:45' },
       { key: 'bedTime', value: '21:45' },
-      { key: 'workTargetHours', value: 8 },
+      { key: 'workTargets', value: DEFAULT_WORK_TARGETS },
       { key: 'createdAt', value: Date.now() }
     ]);
   });

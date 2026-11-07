@@ -54,6 +54,12 @@ export interface Habit {
   xp: number;
   /** Core habits count towards a Perfect Day */
   core: boolean;
+  /** Already enjoyed for its own sake (e.g. reading the news): XP as feedback, but no coins (overjustification). */
+  intrinsic?: boolean;
+  /** The smallest version that still counts (Tiny Habits): keeps the streak, half XP, counts for a Good Day. */
+  minLabel?: string;
+  /** Implementation intention: "When X, I will Y." */
+  plan?: string;
   order: number;
   archived: boolean;
 }
@@ -64,6 +70,8 @@ export interface HabitLog {
   date: DateKey;
   value: number; // 1/0 for check, numeric otherwise
   done: boolean;
+  /** Done in its minimum version: keeps the streak and counts for a Good Day, never a Perfect Day. */
+  min?: boolean;
 }
 
 export interface Session {
@@ -78,6 +86,10 @@ export interface Session {
 }
 
 export type AccountType = 'debit' | 'credit' | 'cash' | 'savings' | 'investment';
+/** v5: what an account is for in the plan's buckets (pay yourself first). */
+export type AccountRole = 'operating' | 'tax' | 'shield' | 'invest' | 'skills' | 'fun';
+/** Bank presets carry rules like "payment due N days after the cut-off" (see BANKS in finance.ts). */
+export type BankKey = 'banorte' | 'other';
 
 export interface Account {
   id: ID;
@@ -88,8 +100,14 @@ export interface Account {
   creditLimit?: number;
   /** Day of month the statement closes (fecha de corte) */
   cutoffDay?: number;
-  /** Day of month payment is due (fecha límite de pago) */
+  /** Day of month payment is due (fecha límite de pago). Legacy: v4+ derives the due date from the cut-off. */
   paymentDueDay?: number;
+  /** v4: bank preset for credit cards. */
+  bank?: BankKey;
+  /** v4: days from the cut-off to the payment due date (Banorte: 20). */
+  dueDaysAfterCutoff?: number;
+  /** v5: bucket role (shield = emergency fund, invest = long-term investments, tax = tax reserve…) */
+  role?: AccountRole;
   openingBalance: number; // credit: negative = debt
   color: string;
   archived: boolean;
@@ -111,6 +129,61 @@ export interface Transaction {
   description?: string;
   /** Both legs of a transfer share this id */
   transferId?: ID;
+  /** v4: a credit-card purchase at meses sin intereses links to its Installment plan */
+  installmentId?: ID;
+  /** v6: income only. How it's taxed (CFDI amounts). `amount` is what actually landed in the account. */
+  incomeTax?: IncomeTax;
+  /** v6: expense only. IVA on a business expense with a CFDI, creditable against IVA charged. */
+  ivaCreditable?: number;
+  createdAt: number;
+}
+
+/** v6: how an income is taxed. Amounts in MXN; `subtotal` excludes IVA. */
+export type IncomeTaxKind = 'resico' | 'salary' | 'none';
+export interface IncomeTax {
+  kind: IncomeTaxKind;
+  /** Before IVA (RESICO: the base for ISR). Salary: gross pay. */
+  subtotal: number;
+  /** IVA charged on the invoice (trasladado) */
+  ivaCharged: number;
+  /** ISR withheld by the client (1.25 % when the client is a persona moral) or by the employer */
+  isrWithheld: number;
+  /** IVA withheld by the client (two thirds when a persona moral pays for services) */
+  ivaWithheld: number;
+  clientIsCompany: boolean;
+}
+
+/**
+ * v4: one credit-card statement (estado de cuenta), with the exact amounts printed on it.
+ * Amounts are positive MXN owed.
+ */
+export interface Statement {
+  id: ID;
+  accountId: ID;
+  /** Fecha de corte */
+  cutoffDate: DateKey;
+  /** Fecha límite de pago */
+  dueDate: DateKey;
+  /** Saldo al corte */
+  statementBalance: number;
+  /** Pago para no generar intereses: what a totalero pays by the due date */
+  noInterestPayment: number;
+  /** Pago mínimo */
+  minimumPayment: number;
+  notes?: string;
+  createdAt: number;
+}
+
+/** v4: a purchase at meses sin intereses (MSI). Each statement bills total / months. */
+export interface Installment {
+  id: ID;
+  accountId: ID;
+  description: string;
+  total: number;
+  months: number;
+  /** Cut-off of the first statement that bills an installment */
+  firstCutoff: DateKey;
+  txId?: ID;
   createdAt: number;
 }
 
@@ -126,6 +199,8 @@ export interface Goal {
 }
 
 export type OpportunityStatus = 'lead' | 'applied' | 'interview' | 'won' | 'lost';
+/** v7: what kind of income an opportunity would bring. Retainers are the plan's key to steady income. */
+export type OpportunityKind = 'job' | 'project' | 'retainer';
 
 export interface Opportunity {
   id: ID;
@@ -138,7 +213,22 @@ export interface Opportunity {
   probability: number;
   expectedDate?: DateKey;
   nextAction?: string;
+  /** v7: when the next action is due; past it, the lead is flagged as stale */
+  nextActionDate?: DateKey;
+  /** v7 */
+  kind?: OpportunityKind;
   notes?: string;
+  createdAt: number;
+}
+
+/** v7: leading indicators of the income engine (00-MASTER-PLAN.md §4 Level 3). */
+export type PipelineEventKind = 'conversation' | 'proposal' | 'case-study' | 'stage';
+export interface PipelineEvent {
+  id: ID;
+  kind: PipelineEventKind;
+  opportunityId?: ID;
+  date: DateKey;
+  note?: string;
   createdAt: number;
 }
 
@@ -155,6 +245,11 @@ export type XpSource =
   | 'task'
   | 'habit'
   | 'perfect-day'
+  | 'good-day'
+  | 'weekly'
+  | 'milestone'
+  | 'shield'
+  | 'pipeline'
   | 'session'
   | 'workday'
   | 'finance'

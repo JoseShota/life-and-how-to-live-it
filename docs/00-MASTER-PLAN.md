@@ -103,8 +103,8 @@ Most people only work on *return* (investing tips). For you, **income is by far 
 | Bucket | % (start) | Where |
 |---|---|---|
 | Operating (living costs) | 50 % | Banorte debit |
-| Tax reserve | 10–15 % | Separate savings account. As a freelancer you invoice (CFDI) and pay ISR/IVA. Ask a *contador* whether **RESICO** fits you |
-| Shield → then investments | 20 % | Emergency fund until full, then long-term investments |
+| Tax reserve | exact, per invoice | Separate savings account (*Apartado impuestos*). In RESICO the app computes it from each CFDI: ISR at the month's rate (1–2.5 %) minus what the client withheld, plus the IVA you'll pay over. The monthly declaration is due on the 17th |
+| Shield → then investments | 10 % to start, +2 points whenever a month beats your 3-month median income (Save More Tomorrow), up to 20 %+ | Emergency fund until 3 months, then 25 % to investments; at 6 months, all to investments |
 | Skills (courses, tools, AI credits) | 10 % | Debit |
 | Fun (guilt-free) | 5 % | Cash / debit. This pairs with the app's coin shop |
 
@@ -121,11 +121,14 @@ Saving only gets you so far. Getting rich comes from **raising your hourly value
 5. **Leverage (Months 6–12+):** turn repeated work into assets: templates, a small course ("AI automation for economists/analysts"), a newsletter. CIDE teaching and writing feed this.
 6. **Price increases:** raise prices every time you're booked > 80 %, and at least every 6 months.
 
-### Level 4 — Compound (Month 6+)
-- [ ] Once the 6-month shield is full: invest the 20 % bucket **automatically every month** in diversified, low-cost, long-term instruments (e.g. broad index ETFs through a regulated Mexican broker). Use tax-advantaged vehicles where they fit: voluntary **AFORE** contributions and/or a **PPR** can be deductible within limits. Confirm with your contador.
+### Level 4 — Compound (two steps, approved 2026-11-06)
+- [ ] **Starter, at a 3-month shield:** 25 % of the savings bucket goes **automatically every month** to diversified, low-cost, long-term instruments (e.g. broad index ETFs through a regulated Mexican broker). The rest keeps filling the shield. Starting small builds the investing habit early.
+- [ ] **Full, at a 6-month shield** (and 3 statements in a row paid in full): the whole savings bucket goes to investments.
+- [ ] If the shield is spent in an emergency, investing pauses until it's refilled. The level you reached stays yours.
+- [ ] **Tax note:** voluntary **AFORE** contributions and a **PPR** are deductible (LISR art. 151 fr. V) only outside RESICO. Under RESICO there are no personal deductions, so choose vehicles for return and liquidity, not for the deduction.
 - [ ] Don't pick stocks with money you need. Don't invest money that belongs in the shield.
 
-**What the numbers say** (7 % annual, monthly contributions, illustrative only):
+**What the numbers say** (7 % annual *nominal*, monthly contributions, illustrative only; in today's pesos at about 3.7 % inflation, 10k/month for 10 years ≈ 1.41 M, 25k ≈ 3.53 M, 40k ≈ 5.64 M):
 
 | Invest per month | 10 years | 15 years |
 |---|---|---|
@@ -138,6 +141,8 @@ The jump from 10k to 40k a month comes **entirely from the income engine (Level 
 
 ### Milestones (wired in as Wealth Goals in the app)
 🛡️ 1-month shield → 💳 0 revolving debt → 🏰 6-month shield → 🚀 1,000,000 MXN invested → 🏛️ 10 M (later)
+
+In the app these are **wealth levels** (Treasury → The Road): 1 Stop the bleeding · 2 Shield I (1 month) · 3 Compound starter (3-month shield) · 4 Fortress (6-month shield, full investing) · 5 First million invested. Shield months are measured against your real median monthly spending.
 
 ---
 

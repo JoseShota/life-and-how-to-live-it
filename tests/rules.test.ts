@@ -17,8 +17,10 @@ describe('game rules', () => {
     expect(streakMultiplier(7)).toBeCloseTo(1.05);
     expect(streakMultiplier(1000)).toBe(1.5);
   });
-  it('session xp = 5 per 15 min', () => {
-    expect(sessionXp(14)).toBe(0);
+  it('session xp = 20 per hour, pro-rata per minute', () => {
+    expect(sessionXp(2)).toBe(0);
+    expect(sessionXp(15)).toBe(5);
+    expect(sessionXp(50)).toBe(16);
     expect(sessionXp(60)).toBe(20);
   });
 });

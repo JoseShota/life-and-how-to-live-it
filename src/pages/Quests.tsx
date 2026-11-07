@@ -26,7 +26,7 @@ export default function Quests() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="冒険" sub="every pending thing, by area. go, go, go." right={<Button onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>New quest</Button>}>Quest Log</PageTitle>
+      <PageTitle jp="冒険" plain="tasks" sub="every pending thing, by area. go, go, go." right={<Button onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>New quest</Button>}>Quest Log</PageTitle>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {areas.map(a => {

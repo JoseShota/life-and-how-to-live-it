@@ -1,5 +1,8 @@
 import { db } from '@/db/db';
 import { dateKey, uid } from '@/lib/util';
+import { totaleroStreak } from '@/finance/finance';
+import { WEALTH_LEVELS, levelsToAward, wealthSnapshot } from '@/finance/wealth';
+import { coinsFor } from './rules';
 
 export interface AchievementDef {
   key: string;
@@ -16,8 +19,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'perfect-7', icon: 'laurel', name: 'Perfect Week', description: '7 Perfect Days in total', xp: 300 },
   { key: 'early-7', icon: 'sunrise', name: 'Dawn Patrol', description: 'Up by 5:45 seven days in a row', xp: 150 },
   { key: 'deep-100', icon: 'eye', name: 'Centurion', description: 'Log 100 hours of focus', xp: 500 },
-  { key: 'workday-5', icon: 'anvil', name: 'Grinder', description: '5 full 8-hour workdays', xp: 200 },
+  { key: 'workday-5', icon: 'anvil', name: 'Grinder', description: '5 full workdays (full deep-work target)', xp: 200 },
+  { key: 'good-30', icon: 'laurel', name: 'Steady Hand', description: '30 Good or Perfect days', xp: 250 },
+  { key: 'week-1', icon: 'scales', name: 'Scorecard', description: 'Earn a weekly scorecard', xp: 100 },
+  { key: 'totalero-3', icon: 'card', name: 'Totalero', description: '3 card statements in a row paid in full on time', xp: 150 },
   { key: 'ledger-30', icon: 'tablet', name: 'Bookkeeper', description: 'Log 30 transactions', xp: 100 },
+  { key: 'rainmaker', icon: 'amphora', name: 'Rainmaker', description: 'Win your first retainer client', xp: 500 },
+  { key: 'conversations-20', icon: 'scroll', name: 'Agora Regular', description: 'Log 20 conversations with potential clients', xp: 150 },
   { key: 'first-income', icon: 'drachma', name: 'Paid', description: 'Register income linked to an activity', xp: 50 }
 ];
 
@@ -25,9 +33,15 @@ async function conditions(): Promise<Record<string, boolean>> {
   const doneTasks = await db.tasks.where('status').equals('done').count();
   const perfect = await db.xp.where('source').equals('perfect-day').count();
   const workdays = await db.xp.where('source').equals('workday').count();
+  const goodDays = perfect + await db.xp.where('source').equals('good-day').count();
+  const weeks = await db.xp.where('source').equals('weekly').count();
   const minutes = (await db.sessions.toArray()).reduce((s, x) => s + x.minutes, 0);
-  const txs = await db.transactions.count();
+  // A transfer has two legs but is one logged transaction.
+  const txs = new Set((await db.transactions.toArray()).map(t => t.transferId ?? t.id)).size;
   const income = await db.transactions.filter(t => t.kind === 'income' && !!t.areaId).count();
+  const retainerWon = await db.opportunities.filter(o => o.kind === 'retainer' && o.status === 'won').count();
+  const conversations = await db.pipelineEvents.where('kind').equals('conversation').count();
+  const totalero = totaleroStreak(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray());
   const wake = await db.habits.where('key').equals('wake').first();
   let early7 = false;
   if (wake) {
@@ -49,9 +63,39 @@ async function conditions(): Promise<Record<string, boolean>> {
     'early-7': early7,
     'deep-100': minutes >= 6000,
     'workday-5': workdays >= 5,
+    'good-30': goodDays >= 30,
+    'week-1': weeks >= 1,
     'ledger-30': txs >= 30,
-    'first-income': income >= 1
+    'totalero-3': totalero >= 3,
+    'first-income': income >= 1,
+    rainmaker: retainerWon >= 1,
+    'conversations-20': conversations >= 20
   };
+}
+
+/** Highest wealth level reached (milestones live in the ledger as `wl:<n>` and are never taken back). */
+export async function wealthLevelReached() {
+  const rows = await db.xp.where('source').equals('milestone').toArray();
+  return rows.reduce((m, e) => Math.max(m, Number(e.refId.split(':')[1]) || 0), 0);
+}
+
+export async function loadWealthSnapshot() {
+  const spendingEstimate = (await db.settings.get('spendingEstimate'))?.value as number | undefined;
+  return wealthSnapshot({ accounts: await db.accounts.toArray(), txs: await db.transactions.toArray(), statements: await db.statements.toArray(), spendingEstimate });
+}
+
+/**
+ * Awards wealth levels reached for the first time. Milestones are permanent on purpose: spending the shield in a
+ * real emergency is what it's for, so it never costs XP. Investing still follows today's shield (investShare).
+ */
+export async function evaluateWealth() {
+  const snap = await loadWealthSnapshot();
+  for (const n of levelsToAward(await wealthLevelReached(), snap.qualifies)) {
+    const def = WEALTH_LEVELS[n - 1];
+    await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'milestone', refId: `wl:${n}`, xp: def.xp, coins: coinsFor(def.xp), label: `Wealth level ${n}: ${def.name}` });
+    const ach = { key: `wl:${n}`, icon: 'temple', name: `Wealth level ${n}: ${def.name}`, description: def.unlock, xp: def.xp };
+    listeners.forEach(l => l(ach));
+  }
 }
 
 type Listener = (a: AchievementDef) => void;
@@ -66,12 +110,19 @@ export async function checkAchievements() {
     const c = await conditions();
     const have = new Set((await db.unlocked.toArray()).map(u => u.key));
     for (const a of ACHIEVEMENTS) {
+      // Undoing what earned an achievement takes it back, so the Hall of Laurels stays honest.
+      if (!c[a.key] && have.has(a.key)) {
+        await db.unlocked.delete(a.key);
+        await db.xp.where('refId').equals(`ach:${a.key}`).delete();
+        continue;
+      }
       if (c[a.key] && !have.has(a.key)) {
         await db.unlocked.put({ key: a.key, unlockedAt: Date.now() });
         await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'achievement', refId: `ach:${a.key}`, xp: a.xp, coins: Math.round(a.xp / 5), label: `Achievement: ${a.name}` });
         listeners.forEach(l => l(a));
       }
     }
+    await evaluateWealth();
   } finally {
     running = false;
   }

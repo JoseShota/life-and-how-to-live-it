@@ -1,7 +1,7 @@
 import { db, ALL_TABLES } from '@/db/db';
 import { legacyIcon, ICON_TABLES } from '@/db/legacy';
 
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 3; // v2 adds statements and installments, v3 pipelineEvents (older backups import with them empty)
 
 export async function exportAll() {
   const data: Record<string, unknown[]> = {};

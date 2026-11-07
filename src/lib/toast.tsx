@@ -18,8 +18,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Every XP event anywhere in the app produces a floating reward toast.
     const fn = (_pk: unknown, e: { xp: number; coins: number; source: string; label: string }) => {
-      if (e.source === 'achievement') return; // handled below with an epic toast
+      if (e.source === 'achievement' || e.source === 'milestone') return; // handled below with an epic toast
       if (e.source === 'reward') setTimeout(() => push(`${e.label} (${e.coins} dr)`, 'gold'));
+      else if (e.source === 'shield') setTimeout(() => push(e.label, 'gold'));
       else if (e.xp > 0) setTimeout(() => push(`+${e.xp} XP · +${e.coins} dr — ${e.label}`, e.source === 'perfect-day' ? 'epic' : 'xp'));
     };
     db.xp.hook('creating', fn as never);
