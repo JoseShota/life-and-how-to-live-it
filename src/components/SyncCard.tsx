@@ -37,10 +37,13 @@ function SyncBody() {
   const [cloud, setCloud] = useState<'unknown' | 'none' | 'exists'>('unknown');
 
   useEffect(() => { loadSync().then(setRt).catch(e => toast(String(e), 'bad')); }, [toast]);
+  const [check, setCheck] = useState(0);
   useEffect(() => {
     if (!rt || !session || linked) return;
+    setCloud('unknown');
     rt.engine.cloudExists().then(x => setCloud(x ? 'exists' : 'none')).catch(e => toast(String((e as Error).message ?? e), 'bad'));
-  }, [rt, session, linked, toast]);
+  }, [rt, session, linked, toast, check]);
+  const recheck = () => setCheck(n => n + 1);
 
   const run = async (label: string, fn: () => Promise<void>) => {
     setBusy(label);
@@ -54,7 +57,7 @@ function SyncBody() {
       {!session ? <SignIn rt={rt} busy={busy} run={run} linked={linked} />
         : linked ? <Linked rt={rt} info={info} session={session} busy={busy} run={run} />
         : cloud === 'none' ? <CreateCloud rt={rt} busy={busy} run={run} />
-        : cloud === 'exists' ? <JoinCloud rt={rt} busy={busy} run={run} />
+        : cloud === 'exists' ? <JoinCloud rt={rt} busy={busy} run={run} recheck={recheck} />
         : <p className="text-ink/60">Looking for your cloud copy…</p>}
     </div>
   );
@@ -115,7 +118,15 @@ function CreateCloud({ rt, busy, run }: StepProps) {
   );
 }
 
-function JoinCloud({ rt, busy, run }: StepProps) {
+/** Deletes the cloud copy for every device, after two confirmations. This device's data stays. */
+async function deleteCloudCopy(rt: Runtime, linked: boolean) {
+  if (!confirm(`Delete the encrypted cloud copy for every device? ${linked ? 'This device keeps its data and stops syncing; your other device too, until you link it again.' : 'This device keeps its data. Your other device stops syncing until you link it again.'}`)) return false;
+  if (!confirm('Really? The cloud copy cannot be recovered. Your devices and backup files keep their data.')) return false;
+  await rt.engine.deleteCloud();
+  return true;
+}
+
+function JoinCloud({ rt, busy, run, recheck }: StepProps & { recheck: () => void }) {
   const toast = useToast();
   const [p, setP] = useState('');
   return (
@@ -132,6 +143,11 @@ function JoinCloud({ rt, busy, run }: StepProps) {
         rt.start();
         toast('Linked. This device now syncs.', 'gold');
       })}><Glyph name="lock" size={16} />{busy === 'join' ? 'Unlocking…' : 'Link this device'}</Button></div>
+      <details className="text-xs text-ink/70">
+        <summary className="flex min-h-[40px] cursor-pointer items-center font-display text-[13px] text-lav">Forgot the passphrase?</summary>
+        <p className="mb-2">Nobody can read the cloud copy without it. If your other device still has your data, start the cloud copy again from that one. If this device has the data you want, delete the cloud copy here and create a new one with a new passphrase.</p>
+        <Button variant="danger" disabled={!!busy} onClick={() => run('delete', async () => { if (await deleteCloudCopy(rt, false)) { toast('Cloud copy deleted', 'gold'); recheck(); } })}><Glyph name="trash" size={16} />Delete cloud copy</Button>
+      </details>
     </div>
   );
 }
@@ -172,6 +188,7 @@ function Linked({ rt, info, session, busy, run }: StepProps & { info: SyncInfo; 
           await rt.engine.unlink();
           await rt.supabase.signOut();
         })}>Stop syncing here</Button>
+        <Button variant="danger" disabled={!!busy} onClick={() => run('delete', async () => { if (await deleteCloudCopy(rt, true)) toast('Cloud copy deleted. This device keeps its data.', 'gold'); })}><Glyph name="trash" size={16} />Delete cloud copy</Button>
       </div>
     </div>
   );

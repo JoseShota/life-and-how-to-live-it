@@ -90,11 +90,22 @@ export function createSyncEngine(server: SyncServer) {
     const touched = new Set<string>();
     await db.transaction('rw', tables(), async () => {
       tagTransaction(Dexie.currentTransaction, 'remote');
+      // After a backup import: cloud rows older than the import are replaced by it, even ones never pulled here.
+      const replaceBefore = await getState<number>('replaceBefore');
+      let clock = (await getState<ClockState>('clock')) ?? { hlc: 0, offset: 0 };
       for (const rec of pulled.plain) {
         if (!SYNCED.has(rec.t) || (rec.t === 'settings' && LOCAL_SETTINGS.includes(rec.k))) continue;
         const pid = `${rec.t}|${rec.k}`;
         const pending = await db.syncOutbox.get(pid);
         if (pending && newer({ hlc: pending.hlc, dev: link.device }, rec)) continue; // ours is newer: pushed next
+        if (replaceBefore !== undefined && rec.hlc <= replaceBefore) {
+          // Not in the import (it would have a pending change): delete it in the cloud too.
+          if (rec.v !== null) {
+            clock = { ...clock, hlc: nextHlc(clock) };
+            await db.syncOutbox.put({ id: pid, t: rec.t, k: rec.k, hlc: clock.hlc, n: (pending?.n ?? 0) + 1 });
+          }
+          continue;
+        }
         const table = db.table(rec.t);
         const before = await table.get(rec.k);
         if (rec.v === null) { if (before) await table.delete(rec.k); }
@@ -105,7 +116,8 @@ export function createSyncEngine(server: SyncServer) {
         if (pending) await db.syncOutbox.delete(pid);
         if (DAY_TABLES.has(rec.t)) for (const r of [before, rec.v] as ({ date?: string } | null | undefined)[]) if (r?.date) touched.add(r.date);
       }
-      await db.syncState.put({ key: 'cursor', value: pulled.cursor });
+      await db.syncState.bulkPut([{ key: 'cursor', value: pulled.cursor }, { key: 'clock', value: clock }]);
+      if (replaceBefore !== undefined) await db.syncState.delete('replaceBefore'); // the whole cloud copy has been seen
     });
     await observe(pulled.maxHlc, pulled.now);
     return [...touched].sort();
@@ -189,6 +201,7 @@ export function createSyncEngine(server: SyncServer) {
       await db.syncOutbox.clear();
       await db.syncOutbox.bulkPut(all);
       await db.syncState.bulkPut([{ key: 'clock', value: { ...clock, hlc } }, { key: 'cursor', value: 0 }]);
+      await db.syncState.delete('replaceBefore'); // a new cloud copy starts from this device's data anyway
     });
     await saveLink(keys, vault);
     return syncNow();
@@ -223,6 +236,7 @@ export function createSyncEngine(server: SyncServer) {
       }
       for (const [t, rows] of byTable) await db.table(t).bulkPut(rows);
       await db.syncState.put({ key: 'cursor', value: pulled.cursor });
+      await db.syncState.delete('replaceBefore');
     });
     await observe(pulled.maxHlc, pulled.now);
     await saveLink(keys, vault);

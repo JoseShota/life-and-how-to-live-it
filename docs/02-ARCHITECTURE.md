@@ -41,7 +41,7 @@ src/
     crypto.ts           # passphrase → keys (PBKDF2), AES-GCM rows, HMAC row ids
     server.ts           # the SyncServer interface and SyncError codes
     engine.ts           # lazy: pull → apply → re-check days → push; first device / join / unlink
-    supabase.ts         # lazy: fetch client (email-code auth, the four SQL functions), session in syncState
+    supabase.ts         # lazy: fetch client (email-code auth, the five sync_* SQL functions), session in syncState
     runtime.ts          # lazy: one engine per tab + triggers (open, focus, online, 60 s, 3 s after a change)
     status.ts           # startup: the status store for the HUD glyph; boots the runtime on linked devices
 supabase/migrations/    # 0001_sync.sql: sync_vaults, sync_records, RLS, sync_* functions (run in PGlite by tests)
@@ -119,6 +119,12 @@ Tablet and laptop sync through the user's own Supabase project. **End-to-end enc
 **Client** (`supabase.ts`, no `@supabase/supabase-js`). Plain `fetch` to GoTrue (`/otp`, `/verify`, `/token`, `/logout`) and PostgREST (`/rest/v1/rpc/sync_*`). Sign-in is an emailed code (works the same in the installed Android app; no redirect URL). The session lives in `syncState`, so "Reset app" also signs the device out. An expired token is refreshed once; a rejected refresh means signing in again; network failures and rate limits are "offline" (retried later). Everything sync-related except `track.ts` and `status.ts` is one lazy chunk (about 11 kB) that unlinked devices never load.
 
 **Triggers** (`runtime.ts`): app open, coming back into view, `online`, every 60 s while visible, and 3 s after the outbox changes. Web Locks keep two tabs from syncing at once. The HUD shows a cloud glyph only on a linked device.
+
+**Import, reset and the cloud copy.**
+- *Import while syncing* = the backup becomes the truth everywhere. Every row it replaced is already a pending change (strong clock), and `importAll` writes `replaceBefore` (the clock at the import): on the next pull, cloud rows at or before it that the import doesn't hold are deleted in the cloud too, even ones this device never pulled. Rows the other device makes later survive. Its confirmation says so.
+- *Reset app* deletes the local database (keys and session included): this device is erased and signed out; the cloud copy and the other device are untouched. A fresh start then links again (backup file, then the cloud copy).
+- *Delete cloud copy* (two confirmations) deletes the vault and every record; both devices keep their data. The other device sees "locked" and offers to link again. This is also the way back from a forgotten passphrase: delete, then create the cloud copy again from the device with the data.
+- Expected server states (signed out, locked, update needed, vault exists) come back as `{ error }` with HTTP 200, so the browser logs no failed requests.
 
 **Known limits.** Last-write-wins is per row: editing the same quest on both devices before they sync keeps the later edit of the whole quest. The server sees when rows change (`hlc`) and how big they are, not what they are. A forgotten passphrase makes the cloud copy unreadable; the devices and backup files still have everything, and the cloud copy can be deleted and created again.
 

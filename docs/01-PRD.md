@@ -18,7 +18,7 @@ One person: an economist with no steady job who teaches at CIDE, works at Weavin
 - Native iOS/Android apps (the PWA covers tablet + laptop).
 
 ## Principles
-- **Offline-first, local-first.** Works with no internet. Data never leaves the device until sync is built and enabled.
+- **Offline-first, local-first.** Works with no internet. Data leaves the device only when sync is enabled, and then only end-to-end encrypted (Phase 2): the server can't read it.
 - **Ledger, not counters.** XP and coins are always *derived* from an append-only event ledger, so they're reversible and auditable.
 - **Reward behavior, not outcomes.** Finance XP is for logging, paying in full and saving, never for the *size* of income.
 - **One-tap logging.** Any daily action takes at most 2 taps.

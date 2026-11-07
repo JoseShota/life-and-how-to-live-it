@@ -211,6 +211,30 @@ describe('sync between two devices', () => {
     expect(await s.b.snapshot()).toEqual(await s.a.snapshot());
   });
 
+  it('a backup imported while syncing replaces the cloud copy, even rows this device never pulled', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const t = (min: number) => new Date(2026, 10, 7, 12, min);
+    vi.setSystemTime(t(0));
+    const saved = await s.a.backup.exportAll(); // the backup: before X, Z and W exist
+    await s.a.db.goals.add({ id: 'X', name: 'X', icon: 'temple', target: 1, current: 0, order: 9 });
+    await settle(s.a, s.b);
+    vi.setSystemTime(t(1));
+    await s.b.db.goals.add({ id: 'Z', name: 'Z', icon: 'temple', target: 1, current: 0, order: 10 });
+    await s.b.sync.syncNow(); // in the cloud, but A never pulls it before importing
+    vi.setSystemTime(t(2));
+    await s.a.backup.importAll(JSON.parse(JSON.stringify(saved)));
+    vi.setSystemTime(t(3));
+    await s.b.db.goals.add({ id: 'W', name: 'W', icon: 'temple', target: 1, current: 0, order: 11 }); // made after the import
+    await settle(s.a, s.b);
+    for (const d of [s.a, s.b]) {
+      expect(await d.db.goals.get('X')).toBeUndefined();
+      expect(await d.db.goals.get('Z')).toBeUndefined();
+      expect(await d.db.goals.get('W')).toBeTruthy();
+    }
+    expect(await s.a.db.syncState.get('replaceBefore')).toBeUndefined();
+    expect(await s.b.snapshot()).toEqual(await s.a.snapshot());
+  });
+
   it('pulls many pages', async () => {
     const rows = Array.from({ length: 1500 }, (_, i) => ({ id: `m:${i}`, ts: 1, date: '2026-11-01', source: 'manual' as const, refId: `m:${i}`, xp: 1, coins: 0, label: '' }));
     await s.a.db.xp.bulkPut(rows);

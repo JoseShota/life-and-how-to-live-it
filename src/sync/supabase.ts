@@ -1,6 +1,6 @@
 // P2 sync: the Supabase client, with plain fetch (no @supabase/supabase-js: about 3 kB instead of a large
 // library, and nothing loads at startup). Auth is an emailed 6-digit code (GoTrue /otp + /verify), which works
-// the same in the installed Android app and in a browser tab, with no redirect URL. Data goes through four
+// the same in the installed Android app and in a browser tab, with no redirect URL. Data goes through five
 // Postgres functions (supabase/migrations/0001_sync.sql). The session lives in syncState, so "Reset app"
 // (which deletes the database) also signs the device out.
 import { db } from '@/db/db';
@@ -9,14 +9,22 @@ import { SyncError, type PulledRecord, type SyncErrorCode, type SyncServer } fro
 
 export type Rpc = (fn: string, args: Record<string, unknown>) => Promise<unknown>;
 
-/** Maps the four SQL functions to the engine's SyncServer. Errors raised as `sync:<code>` become SyncErrors. */
-export function rpcServer(call: Rpc): SyncServer {
+/**
+ * Maps the SQL functions to the engine's SyncServer. Expected states come back as `{ error: <code> }` (HTTP 200,
+ * so the browser logs nothing); errors raised as `sync:<code>` also become SyncErrors.
+ */
+export function rpcServer(rawCall: Rpc): SyncServer {
+  const call = async <T>(fn: string, args: Record<string, unknown>) => {
+    const r = (await rawCall(fn, args)) as { error?: string } | null;
+    if (r && typeof r.error === 'string') throw errorFromMessage(`sync:${r.error}`);
+    return r as T;
+  };
   return {
-    getVault: async () => (await call('sync_vault', {})) as Vault | null,
+    getVault: async () => (await call<{ vault: Vault | null }>('sync_vault', {})).vault,
     createVault: async v => { await call('sync_create_vault', { p_id: v.id, p_salt: v.salt, p_iterations: v.iterations, p_check: v.check }); },
-    push: async (records, schema, vaultId) => ({ now: Number(await call('sync_push', { p_records: records, p_schema: schema, p_vault: vaultId })) }),
+    push: async (records, schema, vaultId) => ({ now: Number((await call<{ now: number }>('sync_push', { p_records: records, p_schema: schema, p_vault: vaultId })).now) }),
     pull: async (after, limit, vaultId) => {
-      const r = (await call('sync_pull', { p_after: after, p_limit: limit, p_vault: vaultId })) as { records: PulledRecord[]; more: boolean; now: number };
+      const r = await call<{ records: PulledRecord[]; more: boolean; now: number }>('sync_pull', { p_after: after, p_limit: limit, p_vault: vaultId });
       return { records: r.records.map(x => ({ ...x, seq: Number(x.seq), hlc: Number(x.hlc), v: Number(x.v) })), more: !!r.more, now: Number(r.now) };
     },
     deleteAll: async () => { await call('sync_delete_all', {}); }

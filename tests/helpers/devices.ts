@@ -12,6 +12,7 @@ export async function device(server: SyncServer) {
   const { seedIfEmpty } = await import('../../src/db/seed');
   const game = await import('../../src/game/engine');
   const { createSyncEngine } = await import('../../src/sync/engine');
+  const backup = await import('../../src/lib/backup');
   await seedIfEmpty();
   const sync = createSyncEngine(server);
   const snapshot = async () => {
@@ -21,7 +22,7 @@ export async function device(server: SyncServer) {
     out.settings = (await db.settings.toArray()).filter(s => !['activeTimer', 'lastBackupAt', 'showMarquee', 'lastExpenseCategory'].includes(s.key));
     return out;
   };
-  return { db, game, sync, snapshot };
+  return { db, game, sync, snapshot, backup };
 }
 export type Device = Awaited<ReturnType<typeof device>>;
 

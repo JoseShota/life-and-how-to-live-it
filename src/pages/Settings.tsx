@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const place = areas.find(a => a.id === schedule?.areaId)?.short;
   const [iconFor, setIconFor] = useState<string | null>(null);
   const iconArea = areas.find(a => a.id === iconFor);
+  const syncing = !!useLiveQuery(() => db.syncState.get('vaultId'), [], undefined);
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
@@ -99,11 +100,13 @@ export default function SettingsPage() {
           <Button variant="ghost" onClick={() => file.current?.click()}><Glyph name="upload" size={16}/>Import backup</Button>
           <input ref={file} type="file" accept="application/json" hidden onChange={async e => {
             const f = e.target.files?.[0]; if (!f) return;
-            if (!confirm('This REPLACES all data on this device with the backup. Continue?')) return;
+            if (!confirm(syncing
+              ? 'This REPLACES all data on this device with the backup, and through sync on your other device too (anything made there after this moment stays). Continue?'
+              : 'This REPLACES all data on this device with the backup. Continue?')) return;
             try { await importAll(JSON.parse(await f.text())); toast('Backup restored', 'gold'); } catch (err) { toast(String(err), 'bad'); }
             e.target.value = '';
           }} />
-          <Button variant="danger" onClick={async () => { if (confirm('Erase EVERYTHING on this device?') && confirm('Really? Export a backup first.')) { await db.delete(); location.reload(); } }}>Reset app</Button>
+          <Button variant="danger" onClick={async () => { if (confirm(syncing ? 'Erase EVERYTHING on this device and stop syncing here? The encrypted cloud copy and your other device are not touched.' : 'Erase EVERYTHING on this device?') && confirm('Really? Export a backup first.')) { await db.delete(); location.reload(); } }}>Reset app</Button>
         </div>
       </Card>
     </div>

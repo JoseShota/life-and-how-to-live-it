@@ -53,7 +53,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `areaHours` | `id` | `areaId, date` | v10: non-focus hours per area (no XP), for the real MXN/h |
 | `unlocked` | `key` | — | Unlocked achievements |
 | `syncOutbox` | `id` (`<table>|<key>`) | — | v13, device-only: rows changed here and not yet pushed (`t`, `k`, `hlc`) |
-| `syncState` | `key` | — | v13, device-only: sync bookkeeping (`clock` = `{ hlc, offset }`) |
+| `syncState` | `key` | — | v13, device-only: `clock` (`{ hlc, offset }`), `device` (id), `keys` (non-extractable CryptoKeys), `vaultId`, `cursor` (last pulled seq), `session` (Supabase tokens), `replaceBefore` (after a backup import, until the next full pull) |
 | `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`; `teaching` pair since v12), `teachingSchedule` (v12, absent until entered), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
 ## Entities (abridged)

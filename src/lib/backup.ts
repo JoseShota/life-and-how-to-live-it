@@ -13,7 +13,7 @@ export async function importAll(json: unknown) {
   const b = json as { app?: string; data?: Record<string, unknown[]> };
   // 'ascenso' = backups made before the rename
   if (!['life-and-how-to-live-it', 'ascenso'].includes(b?.app ?? '') || !b.data) throw new Error('Not a Life and How to Live It backup file');
-  await db.transaction('rw', ALL_TABLES.map(t => db.table(t)), async () => {
+  await db.transaction('rw', [...ALL_TABLES.map(t => db.table(t)), db.syncState], async () => {
     for (const t of ALL_TABLES) {
       await db.table(t).clear();
       let rows = b.data![t] ?? [];
@@ -22,6 +22,10 @@ export async function importAll(json: unknown) {
       if (t === 'xp') rows = rekeyXpV13(rows as { id: string; refId: string; ts: number }[]);
       if (rows.length) await db.table(t).bulkAdd(rows);
     }
+    // P2 sync: the import is the truth from this moment. Every row it replaced is already a pending change; this
+    // mark also replaces cloud rows older than the import that this device never pulled (src/sync/engine.ts).
+    const clock = (await db.syncState.get('clock'))?.value as { hlc: number } | undefined;
+    await db.syncState.put({ key: 'replaceBefore', value: clock?.hlc ?? 0 });
   });
 }
 

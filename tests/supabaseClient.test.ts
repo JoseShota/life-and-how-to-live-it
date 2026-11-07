@@ -24,7 +24,7 @@ beforeEach(async () => { await db.syncState.clear(); });
 
 describe('Supabase client', () => {
   it('signs in with an emailed code and calls functions with the user token', async () => {
-    const f = fake([[200, {}], [200, tokens('1')], [200, null]]);
+    const f = fake([[200, {}], [200, tokens('1')], [200, { vault: null }]]);
     const sb = createSupabase(cfg, f.fn);
     await sb.sendCode(' me@example.com ');
     await sb.verifyCode('me@example.com', '123456');
@@ -37,7 +37,7 @@ describe('Supabase client', () => {
   });
 
   it('refreshes an expired token once and retries', async () => {
-    const f = fake([[200, tokens('1')], [401, { message: 'JWT expired' }], [200, tokens('2')], [200, null]]);
+    const f = fake([[200, tokens('1')], [401, { message: 'JWT expired' }], [200, tokens('2')], [200, { vault: null }]]);
     const sb = createSupabase(cfg, f.fn);
     await sb.verifyCode('me@example.com', '123456');
     await sb.server.getVault();
@@ -60,9 +60,10 @@ describe('Supabase client', () => {
   });
 
   it('errors raised by the SQL keep their code', async () => {
-    const sb = createSupabase(cfg, fake([[200, tokens('1')], [400, { code: 'P0001', message: 'sync:update-needed' }]]).fn);
+    const sb = createSupabase(cfg, fake([[200, tokens('1')], [200, { error: 'update-needed' }], [400, { code: 'P0001', message: 'sync:server' }]]).fn);
     await sb.verifyCode('me@example.com', '1');
     await expect(sb.server.push([], 13, 'v')).rejects.toMatchObject({ code: 'update-needed' });
+    await expect(sb.server.push([], 13, 'v')).rejects.toMatchObject({ code: 'server' });
     expect(errorFromMessage('sync:nonsense').code).toBe('server');
     expect(errorFromMessage('duplicate key').code).toBe('server');
   });

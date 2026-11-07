@@ -1,4 +1,4 @@
-// An in-memory sync server with the same rules as supabase/migrations (the `sync_push` / `sync_pull` functions):
+// An in-memory sync server with the same rules as supabase/migrations (the `sync_*` functions):
 // one user, last-write-wins by (hlc, dev), sequence numbers per accepted record, atomic pushes, a schema guard
 // and a vault check. Tests can make it fail before or after committing a push, or go offline.
 import type { Vault } from '../../src/sync/crypto';
