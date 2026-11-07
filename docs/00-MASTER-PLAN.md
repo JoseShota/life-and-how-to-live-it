@@ -13,7 +13,7 @@ You run seven activities and you don't have a steady job. That's a lot of plates
 |---|---|---|
 | ⚔️ **Quests** (work) | Am I moving the right things forward? | Deep-work hours/day, quests done, hours per area vs target |
 | 🛡️ **Routine** (body/mind) | Am I the person who can sustain this? | Perfect Days, streaks (wake, sleep, exercise) |
-| 💰 **Treasury** (wealth) | Is my net worth going up, and *where* does my money come from? | Net worth, savings rate, **MXN per hour by activity** |
+| 💰 **Treasury** (wealth) | Is my net worth going up, and *where* does my money come from? | Net worth, savings rate, **real MXN per hour by activity** |
 
 XP and coins connect all three: every good action pays you right away, and you spend coins on real rewards.
 
@@ -37,9 +37,9 @@ Treat your activities like an investment portfolio. Each one gets a **role**, a 
 **The strategic insight:** #3, #4 and #7 are really **one business**: *"Economist who builds AI automations and websites."* An economist who can automate with AI is rare and pricey. A generic web freelancer is a commodity. Point all your marketing at that combined identity. #1 (CIDE) gives you credibility. #5 and #6 give you the content skills that bring people in.
 
 **Rules for the portfolio (the app enforces these with data):**
-1. **The Wealth Engine table** (Money → "where your hours pay most") ranks activities by **MXN earned per focus hour** over 90 days. Every month, move 2–3 weekly hours from the lowest-paying monetizable activity to the highest.
-2. **Kill rule:** if a monetizable activity pays below your floor rate (say < 250 MXN/h) for 3 months and teaches you nothing new, shrink it.
-3. **Scale rule:** if an activity pays ≥ 2× your average, give it more hours *and* raise its price.
+1. **The Wealth Engine table** (Money → "where your hours pay most") ranks activities by **real MXN per hour** over 90 days (30 and 365 also available): what an activity leaves you after taxes and its own costs, divided by *all* the hours it takes (focus sessions plus commuting, admin, sales and class time). Every month, move 2–3 weekly hours from the lowest-paying monetizable activity to the highest.
+2. **Kill rule:** if a monetizable activity's real rate stays below your floor rate (250 MXN/h by default, editable in the Wealth Engine) for 3 months and teaches you nothing new, shrink it.
+3. **Scale rule:** if an activity's real rate is ≥ 2× your average real rate, give it more hours *and* raise its price.
 
 ---
 
@@ -201,7 +201,7 @@ A steady job **doesn't kill the plan, it funds it**. The stable salary fills the
 | 8 h deep work | **Focus** timer → Today ring → "Deep work 8 h" habit (automatic) |
 | Routine | **Today → Daily routine** + **Ideal day** + `.ics` export in Settings |
 | Cards, debt, cut-off/pay-by alerts | **Money → Accounts**, alerts on Today |
-| Where money comes from | **Money → Wealth engine** (MXN/h by activity) |
+| Where money comes from | **Money → Wealth engine** (real MXN/h by activity) |
 | December opportunities, leads | **Money → Opportunity pipeline** |
 | Milestones | **Money → Wealth goals** |
 | Motivation | XP, levels, streaks, Perfect Day, achievements, **Agora** (rewards) |

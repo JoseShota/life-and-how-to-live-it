@@ -6,13 +6,7 @@ import { Layout } from '@/components/Layout';
 import { ToastProvider } from '@/lib/toast';
 import { seedIfEmpty } from '@/db/seed';
 import { applyShields, ensureTaxQuests } from '@/game/engine';
-import Today from '@/pages/Today';
-import Quests from '@/pages/Quests';
-import Focus from '@/pages/Focus';
-import Money from '@/pages/Money';
-import Rewards from '@/pages/Rewards';
-import Stats from '@/pages/Stats';
-import SettingsPage from '@/pages/Settings';
+import { Today, Quests, Focus, Money, Rewards, Stats, SettingsPage, Review, preloadPages } from '@/pages';
 
 seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() => undefined).then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -28,10 +22,12 @@ seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() 
               <Route path="rewards" element={<Rewards />} />
               <Route path="stats" element={<Stats />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="review" element={<Review />} />
             </Route>
           </Routes>
         </BrowserRouter>
       </ToastProvider>
     </React.StrictMode>
   );
+  preloadPages();
 });

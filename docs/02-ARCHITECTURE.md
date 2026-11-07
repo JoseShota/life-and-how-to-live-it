@@ -27,8 +27,9 @@ src/
     rules.ts            # PURE balance functions (XP tables, level curve, multipliers) — no I/O
     engine.ts           # side-effectful actions: completeTask, setHabit, logSession, evaluateDay, redeem…
     achievements.ts     # achievement defs + checker + listener
+    review.ts           # PURE weekly-review aggregates (day grades, hours per area, leading indicators)
   finance/
-    finance.ts          # PURE money math: balances, card status, month totals, hourly rates, pipeline
+    finance.ts          # PURE money math: balances, card status, period totals, real MXN/h, pipeline
   lib/
     util.ts             # ids, dates (local YYYY-MM-DD keys), MXN formatting, cx()
     hooks.ts            # usePlayer (derived from ledger), useNow, useToday
@@ -38,9 +39,11 @@ src/
   components/
     ui.tsx              # Card (Win95 window), Button, Bar (chunky), Ring, Input, Select, Textarea, Modal, Chip, Empty, PageTitle
     Layout.tsx          # HUD + marquee ticker + vapor backdrop + Win95 taskbar/Start menu + archive footer
-    TaskBits.tsx        # TaskRow, TaskForm
+    TaskBits.tsx        # TaskRow, TaskForm (incl. repeats)
+    RealRate.tsx        # Wealth Engine card (real MXN/h), useRealRates(), non-focus hours form
     ActiveTimerPill.tsx
-  pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings
+  pages/index.ts        # React.lazy loaders for every page + idle preload (P1-9)
+  pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings, Review (menu only)
 tests/                  # vitest
 docs/                   # this documentation
 .cursor/rules/          # rules Cursor loads automatically
@@ -66,6 +69,13 @@ AGENTS.md               # entry point for any coding agent
 5. **Money is signed MXN numbers** on the transaction (`+` in, `−` out). Credit-card balances are negative when you owe. Transfers are two legs sharing `transferId`.
 6. **Dexie schema:** never edit an existing `version(n)` block. Add `version(n+1).stores({...}).upgrade(tx => …)`.
 7. `game/rules.ts` and `finance/finance.ts` stay **pure** (no DB, no React) and are unit-tested.
+
+## Bundle (P1-9)
+- Every page is a `React.lazy` chunk (`src/pages/index.ts`), shown under a `Suspense` fallback in `Layout`. After the first render the other pages preload when the browser is idle, and the service worker precaches every chunk, so tabs switch instantly and the app works offline.
+- React, the router and Dexie live in a `vendor` chunk (`manualChunks` in `vite.config.ts`): an app update doesn't re-download them.
+- `npm run build` runs `scripts/check-bundle.mjs`: it fails if the entry chunk is ≥ 300 kB or the startup JS (entry + preloaded vendor) is ≥ 350 kB.
+- Startup code avoids heavy libraries: `dateKey()` is hand-rolled instead of date-fns; Recharts only loads with Treasury and Archive.
+- Before P1-9: one 854 kB chunk (255 kB gzip). After: entry 74 kB + vendor 256 kB + Today 17 kB (about 120 kB gzip).
 
 ## Responsive strategy
 - All sizes: sticky HUD on top, Win95 taskbar (Start + 7 tabs + clock) at the bottom.

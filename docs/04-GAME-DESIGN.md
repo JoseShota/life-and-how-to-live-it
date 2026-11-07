@@ -36,6 +36,7 @@
 | Savings deposit (transfer into the shield or investments, e.g. from "split it") | +25, max 4 a month | 5 |
 | **Income engine** (Treasury → Pipeline, one tap): conversation / proposal / case study | 15 (max 45 a day) / 40 / 75 | XP ÷ 5 |
 | Lead moves to a new stage | +10 once per lead and stage | 2 |
+| **Weekly review** (`/review`; 3 wins and 3 quests for next week, current review week only) | 50 once per week | 10 |
 | Achievement | 25–500 | XP ÷ 5 |
 | Wealth level (Treasury → The Road) | 150 / 250 / 400 / 600 / 1,000 for levels 1–5, once | XP ÷ 5 |
 
@@ -50,6 +51,10 @@
 - **Streak shields:** earned every 7 Good-or-Perfect days in a row (hold 2). When the app opens, a shield covers each core habit missed yesterday whose streak was alive, in routine order. A shielded day doesn't add to the streak, it just doesn't break it.
 
 **A perfect weekday** ≈ 105 (habits) + 160 (8 h focus) + 30 (full workday) + 60 (perfect) + ~85 (quests) ≈ **440 XP ≈ 90 coins**. A realistic week earns about 330–390 dr (`scripts/eval-sim.ts`).
+
+**Weekly review (P1-4).** It covers the same Mon–Sun week as the scorecard: on Sunday the week ending today, on any other day the last finished week (so you have until Saturday). Incentive design: 50 XP is a third of the scorecard on purpose (the week's outcome is worth more than planning it) and pays only for a real review (3 wins written, 3 quests chosen). Old weeks can be saved and edited but never pay, so there's no backfilling. Deleting a review, or emptying it, takes the XP back.
+
+**Repeating quests (P1-1).** A quest can repeat every day, week or month (Quest form, "Repeats"). Completing it creates the next instance, due one period after the current due date; missed periods are skipped so the next one isn't born overdue. Each instance is a normal quest and pays its own XP. Reopening removes the next instance if it's untouched. The RESICO monthly declaration is a monthly series that never skips a month (every month must be filed); its estimate refreshes from the ledger each time the app opens while the quest is open. The estimate is shown read-only in the quest form; your own notes sit below it and are never overwritten.
 
 ## Levels
 `xpForLevel(n) = 50 × (n − 1)^1.8` (total XP needed to reach level *n*).

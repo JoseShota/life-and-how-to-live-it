@@ -5,7 +5,7 @@ import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
 import { uid } from '@/lib/util';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
-  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent
+  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent, Review, AreaHours
 } from './types';
 
 export class LifeDB extends Dexie {
@@ -25,6 +25,8 @@ export class LifeDB extends Dexie {
   statements!: Table<Statement, string>;
   installments!: Table<Installment, string>;
   pipelineEvents!: Table<PipelineEvent, string>;
+  reviews!: Table<Review, string>;
+  areaHours!: Table<AreaHours, string>;
 
   constructor(name = 'life-and-how-to-live-it') {
     super(name);
@@ -75,6 +77,20 @@ export class LifeDB extends Dexie {
     });
     // v7: leading indicators of the income engine (conversations, proposals, case studies, stage changes).
     this.version(7).stores({ pipelineEvents: 'id, date, kind, opportunityId' });
+    // v8: weekly reviews (P1-4), one row per Mon–Sun week keyed by its Monday. A new table: no rows to migrate.
+    this.version(8).stores({ reviews: 'id' });
+    // v9 (no index changes): repeating quests (P1-1). The RESICO monthly declaration becomes a monthly series.
+    this.version(9).stores({}).upgrade(async tx => {
+      await tx.table('tasks').toCollection().modify(migrateTaskV9);
+    });
+    // v10: non-focus hours per area for the real MXN/h (E-10). A new table: no rows to migrate. Expenses may now
+    // carry `areaId` too (an index that already exists), so nothing else changes.
+    this.version(10).stores({ areaHours: 'id, areaId, date' });
+    // v11 (no index changes): the app's tax estimate moves out of a quest's `notes` into `autoNotes`,
+    // so refreshing it never overwrites what the user wrote.
+    this.version(11).stores({}).upgrade(async tx => {
+      await tx.table('tasks').toCollection().modify(migrateTaskV11);
+    });
   }
 }
 
@@ -84,6 +100,27 @@ export function migrateHabitV3(h: { key: string; core: boolean; intrinsic?: bool
   if (['sleep', 'exercise', 'work', 'money'].includes(h.key)) h.core = true;
   if (h.key === 'intel') h.intrinsic = true;
   if (h.key === 'work') { h.name = 'Deep work'; h.target = DEFAULT_WORK_TARGETS.weekday.done; }
+}
+
+/** The RESICO monthly declaration series: due the 17th, and every month must be filed (no skipping). */
+export const TAX_MONTHLY_RECURRENCE = { every: 'month', anchorDay: 17, series: 'tax-m', keepMissed: true } as const;
+
+/** v9: monthly tax quests (`tax-m-<yyyy-mm>`) become a repeating series. Exported for tests. */
+export function migrateTaskV9(t: { id: string; recurrence?: unknown }) {
+  if (t.id.startsWith('tax-m-') && !t.recurrence) t.recurrence = { ...TAX_MONTHLY_RECURRENCE };
+}
+
+/** Text the app itself wrote in tax quests before v11 (the monthly estimate, the annual reminder). */
+export const isAppTaxNote = (notes: string) => notes.startsWith('Estimate: ISR ') || notes.startsWith('Annual return for personas físicas');
+
+/**
+ * v11: on tax quests, move the app's estimate from `notes` to `autoNotes`. A note the user rewrote stays in
+ * `notes` (the estimate comes back into `autoNotes` the next time the app opens). Exported for tests.
+ */
+export function migrateTaskV11(t: { id: string; notes?: string; autoNotes?: string }) {
+  if (!/^tax-[ma]-/.test(t.id) || !t.notes || !isAppTaxNote(t.notes)) return;
+  t.autoNotes = t.notes;
+  delete t.notes;
 }
 
 /** v4: credit cards get a bank preset and "due N days after the cut-off". Exported for tests. */
@@ -103,7 +140,7 @@ export const db = new LifeDB();
 
 export const ALL_TABLES = [
   'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',
-  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents'
+  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews', 'areaHours'
 ] as const;
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {

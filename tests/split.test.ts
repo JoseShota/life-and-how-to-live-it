@@ -21,7 +21,7 @@ describe('split it and RESICO quests (db)', () => {
     expect(await db.xp.filter(e => e.refId.startsWith('save:')).count()).toBe(SAVE_DEPOSITS_PER_MONTH - 1);
   });
 
-  it('creates last month\'s declaration quest once, due the 17th, with the estimate in its notes', async () => {
+  it('creates last month\'s declaration quest once, due the 17th, with the estimate in autoNotes (never in the user\'s notes)', async () => {
     const debit = (await db.accounts.toArray()).find(a => a.type === 'debit')!;
     const { deposit, ...incomeTax } = invoiceFromSubtotal(30_000, true, true);
     await db.transactions.add({ id: 'i', accountId: debit.id, date: '2026-10-10', amount: deposit, kind: 'income', category: 'Freelance', incomeTax, createdAt: 0 });
@@ -31,7 +31,8 @@ describe('split it and RESICO quests (db)', () => {
     expect(q).toMatchObject({ dueDate: '2026-11-17', status: 'todo' });
     expect(q!.title).toContain('octubre 2026');
     // ISR 1.1 % of 30,000 = 330, but 375 was withheld → 0 due; IVA 4,800 charged − 3,200 withheld = 1,600.
-    expect(q!.notes).toContain('ISR $0.00 + IVA $1,600.00');
+    expect(q!.autoNotes).toContain('ISR $0.00 + IVA $1,600.00');
+    expect(q!.notes).toBeUndefined();
     expect(await db.tasks.filter(t => t.id.startsWith('tax-')).count()).toBe(1);
   });
 

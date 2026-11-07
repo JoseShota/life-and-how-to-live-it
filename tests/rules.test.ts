@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { levelFromXp, xpForLevel, streakMultiplier, sessionXp } from '../src/game/rules';
-import { nextDayOfMonth, daysUntil, cardStatus, hourlyRates } from '../src/finance/finance';
+import { nextDayOfMonth, daysUntil, cardStatus } from '../src/finance/finance';
 
 describe('game rules', () => {
   it('level curve is monotonic and level 1 starts at 0', () => {
@@ -38,16 +38,5 @@ describe('finance', () => {
     const s = cardStatus(acc, [{ id: 't', accountId: 'c', date: '2026-11-01', amount: -1000, kind: 'expense', category: 'Food', createdAt: 0 }]);
     expect(s.debt).toBe(3000);
     expect(s.utilization).toBeCloseTo(0.3);
-  });
-  it('hourly rates rank activities by MXN/h', () => {
-    const areas = [
-      { id: 'a', name: 'A', short: 'A', emoji: '', color: '', kind: 'work' as const, weeklyHoursTarget: 1, monetizable: true, order: 0, archived: false },
-      { id: 'b', name: 'B', short: 'B', emoji: '', color: '', kind: 'work' as const, weeklyHoursTarget: 1, monetizable: true, order: 1, archived: false }
-    ];
-    const tx = (areaId: string, amount: number) => ({ id: areaId + amount, accountId: 'x', date: '2026-11-01', amount, kind: 'income' as const, category: 'Freelance', areaId, createdAt: 0 });
-    const ses = (areaId: string, minutes: number) => ({ id: areaId + minutes, areaId, date: '2026-11-01', start: 0, end: 0, minutes });
-    const r = hourlyRates(areas, [tx('a', 1000), tx('b', 3000)], [ses('a', 600), ses('b', 120)], '2026-10-01');
-    expect(r[0].area.id).toBe('b');
-    expect(r[0].rate).toBe(1500);
   });
 });

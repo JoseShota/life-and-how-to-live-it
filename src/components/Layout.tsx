@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { usePlayer, useNow } from '@/lib/hooks';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -20,6 +20,10 @@ export const NAV = [
   { to: '/rewards', label: 'Agora', jp: '市場', plain: 'rewards' },
   { to: '/stats', label: 'Archive', jp: '記録', plain: 'stats' },
   { to: '/settings', label: 'Control', jp: '設定', plain: 'settings' }
+];
+/** Pages reached from the menu (and from Today when they're due), not from the tab bar. */
+export const MENU_ONLY = [
+  { to: '/review', label: 'Review', jp: '回顧', plain: 'weekly review' }
 ];
 
 const INSCRIPTIONS = [
@@ -85,6 +89,11 @@ function Backdrop() {
   );
 }
 
+/** Shown for the moment a page's code loads: the empty room, quietly. */
+function PageLoading() {
+  return <p role="status" className="py-16 text-center font-type text-ink/60">the room is being prepared…</p>;
+}
+
 function Clock() {
   const now = useNow(15_000);
   return <span className="tabular-nums">{new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>;
@@ -108,7 +117,7 @@ function MenuBar({ onShutdown }: { onShutdown: () => void }) {
           <ul className="mac-window absolute left-2 top-11 w-64 py-1" onClick={e => e.stopPropagation()}>
             <li className="px-3 py-1 text-xs text-lav">About {APP_NAME}…</li>
             <li className="dither-gray mx-1 my-1 h-[2px]" />
-            {NAV.map(n => (
+            {[...NAV, ...MENU_ONLY].map(n => (
               <li key={n.to}><button onClick={() => { nav(n.to); setOpen(false); }} className="flex min-h-[40px] w-full items-center justify-between px-3 py-2 text-left hover:bg-ink hover:text-white">{n.label} <span className="text-xs opacity-70">{n.plain}</span><span className="font-jp text-xs opacity-70">{n.jp}</span></button></li>
             ))}
             <li className="dither-gray mx-1 my-1 h-[2px]" />
@@ -160,7 +169,9 @@ export function Layout() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-3 pb-24 pt-5 sm:px-6 md:pb-10">
-        <Outlet />
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
         <footer className="mt-12 flex flex-col items-center gap-2 text-center text-xs">
           <div className="meander w-full max-w-md opacity-70" />
           <div className="flex flex-wrap items-center justify-center gap-2">

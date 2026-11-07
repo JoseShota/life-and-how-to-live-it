@@ -2,14 +2,22 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v7)
+## Tables (Dexie v11)
+
+v11 (no index changes): tasks get `autoNotes`, text the app writes and keeps current (the RESICO estimate). The upgrade moves the app's estimate out of tax quests' `notes`; a note the user wrote stays in `notes`, which the app never rewrites.
+
+v10: new table `areaHours` (E-10): non-focus hours per area, one-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date` until `until`). Expenses may now carry `areaId` (an existing index): the activity they're a cost of, or `'shared'` for shared work costs. Settings gain `floorRate` (default 250) and `lastBackupAt`. Backups are `BACKUP_VERSION` 5.
+
+v9 (no index changes): tasks get `recurrence` (`every` day/week/month, `anchorDay` for monthly, `series`, `keepMissed`). Completing a repeating quest creates the next instance with the id `<series>@<due date>`; the RESICO monthly declaration is the series `tax-m` and keeps its `tax-m-<yyyy-mm>` ids. The upgrade marks existing `tax-m-*` quests as that series.
+
+v8: new table `reviews` (P1-4), one row per Mon–Sun week keyed by its Monday: `wins` (3 free-text lines), `nextQuestIds` (3 task ids), `note`. No rows to migrate. Backups are `BACKUP_VERSION` 4.
 
 v7: new table `pipelineEvents` (conversations, proposals, case studies, stage changes); opportunities gain `kind` (`job`, `project`, `retainer`) and `nextActionDate`. Backups are `BACKUP_VERSION` 3.
 
 
 v6 (no index changes): habits get `minLabel` and `plan`; a new "Eat well" ritual (`eat`). Plans live in `src/db/habitPlans.ts`.
 
-V-6 tax fields (no Dexie version needed, new optional fields only): income transactions can carry `incomeTax` (`kind` resico/salary/none, `subtotal`, `ivaCharged`, `isrWithheld`, `ivaWithheld`, `clientIsCompany`; `amount` stays what landed in the account) and expenses `ivaCreditable`. Settings gain `taxProfile` and `splitPlan` (`savingsPct`, `skillsPct`, `funPct`) and `smartAsked`. RESICO filing quests use deterministic task ids `tax-m-<yyyy-mm>` and `tax-a-<yyyy>`.
+V-6 tax fields (no Dexie version needed, new optional fields only): income transactions can carry `incomeTax` (`kind` resico/salary/none, `subtotal`, `ivaCharged`, `isrWithheld`, `ivaWithheld`, `clientIsCompany`; `amount` stays what landed in the account) and expenses `ivaCreditable`. Settings gain `taxProfile` and `splitPlan` (`savingsPct`, `skillsPct`, `funPct`) and `smartAsked`. RESICO filing quests use deterministic task ids `tax-m-<yyyy-mm>` and `tax-a-<yyyy>`; since v11 their estimate lives in `autoNotes`.
 
 v5 (no index changes): accounts get `role` (`operating`, `tax`, `shield`, `invest`, `skills`, `fun`), set by type on upgrade. Fresh installs also get the bucket accounts *Apartado impuestos*, *Escudo · CETES* and *Inversiones*. Settings gain `spendingEstimate`.
 
@@ -37,6 +45,8 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `statements` | `id` | `accountId, cutoffDate, dueDate` | v4: one credit-card statement with the exact amounts (saldo al corte, pago para no generar intereses, pago mínimo) |
 | `installments` | `id` | `accountId, txId` | v4: meses sin intereses plans (total, months, first cut-off) |
 | `pipelineEvents` | `id` | `date, kind, opportunityId` | v7: leading indicators of the income engine |
+| `reviews` | `id` (Monday) | — | v8: the weekly review of one Mon–Sun week |
+| `areaHours` | `id` | `areaId, date` | v10: non-focus hours per area (no XP), for the real MXN/h |
 | `unlocked` | `key` | — | Unlocked achievements |
 | `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
@@ -46,20 +56,22 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 Area        { id, name, short, icon, color, kind: 'work'|'growth'|'hobby'|'personal',
               weeklyHoursTarget, monetizable, order, archived }
 Task        { id, areaId, title, notes?, difficulty: 1..5, priority: 1|2|3, dueDate?, status: 'todo'|'doing'|'done',
-              createdAt, completedAt? }
+              createdAt, completedAt?, recurrence?: { every: 'day'|'week'|'month', anchorDay?, series, keepMissed? }, autoNotes? }
 Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, intrinsic?, minLabel?, plan?, order, archived }
 HabitLog    { id, habitId, date, value, done, min? }
 Session     { id, areaId, taskId?, date, start, end, minutes, note? }
 Account     { id, name, institution, type: 'debit'|'credit'|'cash'|'savings'|'investment',
               creditLimit?, cutoffDay?, paymentDueDay? (legacy), bank?, dueDaysAfterCutoff?, role?, openingBalance, color, archived, order }
 Transaction { id, accountId, date, amount (signed MXN), kind: 'income'|'expense'|'transfer', category,
-              areaId? (income source), description?, transferId?, installmentId?, incomeTax?, ivaCreditable?, createdAt }
+              areaId? (income: who earned it; expense: cost of which area, or 'shared'), description?, transferId?, installmentId?, incomeTax?, ivaCreditable?, createdAt }
 Statement   { id, accountId, cutoffDate, dueDate, statementBalance, noInterestPayment, minimumPayment, notes?, createdAt }
 Installment { id, accountId, description, total, months, firstCutoff, txId?, createdAt }
 Goal        { id, name, icon, target, current, deadline?, order }
 Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', kind?: 'job'|'project'|'retainer', monthlyValue,
               probability 0..1, expectedDate?, nextAction?, nextActionDate?, notes?, createdAt }
 PipelineEvent { id, kind: 'conversation'|'proposal'|'case-study'|'stage', opportunityId?, date, note?, createdAt }
+AreaHours   { id, areaId, date, hours, weekly?, until?, note?, createdAt }
+Review      { id (Monday), weekEnd, wins: string[], nextQuestIds: ID[], note?, createdAt, updatedAt }
 Reward      { id, title, icon, cost, archived }
 XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ```
@@ -74,7 +86,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ## Ledger `refId` scheme
 | Source | refId | Reversible by |
 |---|---|---|
-| task | `task:<taskId>` | reopen / delete task |
+| task | `task:<taskId>` (each instance of a repeating quest has its own id, so each pays once) | reopen / delete task |
 | habit | `habit:<habitId>:<date>` | unchecking habit |
 | perfect-day | `perfect:<date>` | any core habit becomes undone |
 | good-day | `good:<date>` | fewer than 3 core habits done, or the day becomes perfect |
@@ -87,6 +99,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | milestone | `wl:<n>` (wealth level reached) | permanent: spending the shield in an emergency never costs XP |
 | achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |
+| review | `review:<monday>` (once per week; only the current review week pays) | deleting the review, or saving it without 3 wins and 3 quests |
 
 ## Migration recipe (Dexie)
 ```ts

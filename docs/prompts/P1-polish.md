@@ -50,7 +50,7 @@ Do it page by page; run typecheck after each page.
 ## P1-8 Daily quests
 ```
 Ticket P1-8. Pure function suggestDailyQuests(state) in src/game/daily.ts returning 3 suggestions:
-1 money (highest MXN/h monetizable area from finance.hourlyRates, or 'Contact 1 lead' if pipeline is thin),
+1 money (highest real MXN/h monetizable area from finance.realRates, or 'Contact 1 lead' if pipeline is thin),
 1 routine-at-risk (habit with longest streak not yet done today), 1 growth (AI area).
 Show on Today as dismissible cards with "Accept" (creates priority-1 quest). Unit tests.
 ```

@@ -1,5 +1,6 @@
 // Side-effectful game actions. Every reward goes through `award` so the ledger stays the single source of truth.
-import { db } from '@/db/db';
+import { db, TAX_MONTHLY_RECURRENCE } from '@/db/db';
+import { instanceId, nextDue } from '@/lib/recurrence';
 import type { Difficulty, Habit, IncomeTax, Opportunity, PipelineEventKind, Statement, Task, Transaction, XpSource } from '@/db/types';
 import { DEFAULT_TAX_PROFILE, monthTax, monthlyDueDate, type TaxProfile } from '@/finance/tax';
 import { mxn } from '@/lib/util';
@@ -9,7 +10,7 @@ import {
   TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
   MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, DEFAULT_WORK_TARGETS, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
   MIN_VERSION_SHARE, WORK_MIN_HOURS, SHIELD_EVERY, SHIELD_MAX, LEAD_XP, CONVERSATION_DAILY_CAP_XP,
-  type WorkTargets
+  REVIEW_XP, reviewComplete, reviewWeekFor, type WorkTargets
 } from './rules';
 import { checkAchievements } from './achievements';
 
@@ -49,13 +50,50 @@ export async function completeTask(task: Task) {
     if (today >= MAX_FULL_EPICS_PER_DAY) xp = TASK_XP[4];
   }
   await award('task', `task:${task.id}`, xp, `Quest: ${task.title}`);
+  if (task.recurrence) await spawnNext(task, dateKey());
   await checkAchievements();
 }
 
 export async function reopenTask(task: Task) {
   await db.tasks.update(task.id, { status: 'todo', completedAt: undefined });
   await revoke(`task:${task.id}`);
+  // Undo the instance that completing it created, unless it has been used since (edited, timed or done).
+  if (task.recurrence && task.completedAt) {
+    const next = await db.tasks.get(nextInstance(task, dateKey(task.completedAt)).id);
+    const used = !next || next.status !== 'todo' || next.title !== task.title || (await db.sessions.filter(s => s.taskId === next.id).count()) > 0;
+    if (!used) await db.tasks.delete(next.id);
+  }
   await checkAchievements();
+}
+
+// ---------- Repeating quests (P1-1) ----------
+/** The next instance of a repeating quest completed on `doneOn`: its deterministic id and due date. */
+export function nextInstance(task: Task, doneOn: string) {
+  const r = task.recurrence!;
+  const due = nextDue(r, task.dueDate, doneOn);
+  // The tax series keeps its month-based ids (`tax-m-<yyyy-mm>`), the same ones ensureTaxQuests uses, so they can't collide.
+  if (r.series === TAX_MONTHLY_RECURRENCE.series && task.id.startsWith('tax-m-')) {
+    const [y, m] = task.id.slice(6).split('-').map(Number);
+    const month = dateKey(new Date(y, m, 1)).slice(0, 7);
+    return { id: `tax-m-${month}`, due: monthlyDueDate(month), month };
+  }
+  return { id: instanceId(r.series, due), due, month: undefined };
+}
+
+/** Creates the next instance once (deterministic id). Returns its id. */
+export async function spawnNext(task: Task, doneOn: string) {
+  const n = nextInstance(task, doneOn);
+  if (await db.tasks.get(n.id)) return n.id;
+  if (n.month) {
+    const area = await db.areas.get(task.areaId) ? task.areaId : (await taxArea())?.id;
+    if (area) await db.tasks.add(await taxMonthQuest(n.month, area));
+    return n.id;
+  }
+  await db.tasks.add({
+    id: n.id, areaId: task.areaId, title: task.title, notes: task.notes, difficulty: task.difficulty, priority: task.priority,
+    dueDate: n.due, status: 'todo', createdAt: Date.now(), recurrence: task.recurrence
+  });
+  return n.id;
 }
 
 // ---------- Habits ----------
@@ -320,7 +358,7 @@ export async function editTransaction(tx: Transaction, e: TxEdit) {
       await db.transactions.put({
         ...tx, amount: tx.kind === 'income' ? n : -n, date: e.date, description: e.description,
         accountId: e.accountId, category: e.category ?? tx.category,
-        areaId: tx.kind === 'income' ? e.areaId : undefined,
+        areaId: e.areaId, // income: who earned it; expense: which activity it's a cost of (E-10)
         incomeTax: tx.kind === 'income' ? (e.incomeTax === undefined ? tx.incomeTax : e.incomeTax ?? undefined) : undefined,
         ivaCreditable: tx.kind === 'expense' ? (e.ivaCreditable === undefined ? tx.ivaCreditable : e.ivaCreditable || undefined) : undefined
       });
@@ -389,30 +427,45 @@ const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio
  * Creates the RESICO filing quests once each: last month's declaration (due the 17th; RESICO files even with zero
  * income) and, in April, last year's annual return. Deterministic ids, never overwritten.
  */
+async function taxArea() {
+  const areas = await db.areas.toArray();
+  return areas.find(a => a.short === 'Wealth') ?? areas[areas.length - 1];
+}
+
+async function taxNotes(month: string) {
+  const m = monthTax(await db.transactions.where('date').startsWith(month).toArray(), month);
+  return `Estimate: ISR ${mxn(m.isrDue, 2)} + IVA ${mxn(m.ivaDue, 2)} = ${mxn(m.totalDue, 2)} (income collected ${mxn(m.base, 2)} at ${(m.rate * 100).toFixed(2)} %). File even if it's zero. Pay from the tax reserve.`;
+}
+
+/** The monthly declaration quest for `month` (YYYY-MM): due the 17th of the next month, part of the monthly series. */
+export async function taxMonthQuest(month: string, areaId: string): Promise<Task> {
+  const [y, mo] = month.split('-').map(Number);
+  return {
+    id: `tax-m-${month}`, areaId, difficulty: 2, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: monthlyDueDate(month),
+    title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`, autoNotes: await taxNotes(month), recurrence: { ...TAX_MONTHLY_RECURRENCE }
+  };
+}
+
 export async function ensureTaxQuests(today = dateKey()) {
   const profile = await getTaxProfile();
   if (profile.regime !== 'resico') return;
-  const areas = await db.areas.toArray();
-  const area = areas.find(a => a.short === 'Wealth') ?? areas[areas.length - 1];
+  const area = await taxArea();
   if (!area) return;
   const t = parseKey(today);
   const prev = dateKey(new Date(t.getFullYear(), t.getMonth() - 1, 1)).slice(0, 7);
-  const id = `tax-m-${prev}`;
-  if (!(await db.tasks.get(id))) {
-    const m = monthTax(await db.transactions.where('date').startsWith(prev).toArray(), prev);
-    const [y, mo] = prev.split('-').map(Number);
-    await db.tasks.add({
-      id, areaId: area.id, difficulty: 2, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: monthlyDueDate(prev),
-      title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`,
-      notes: `Estimate: ISR ${mxn(m.isrDue, 2)} + IVA ${mxn(m.ivaDue, 2)} = ${mxn(m.totalDue, 2)} (income collected ${mxn(m.base, 2)} at ${(m.rate * 100).toFixed(2)} %). File even if it's zero. Pay from the tax reserve.`
-    });
+  if (!(await db.tasks.get(`tax-m-${prev}`))) await db.tasks.add(await taxMonthQuest(prev, area.id));
+  // The series can create a month's quest before the month ends: keep open estimates in step with the ledger.
+  // Only `autoNotes` is rewritten; the user's own `notes` are never touched.
+  for (const q of await db.tasks.where('status').notEqual('done').filter(x => x.id.startsWith('tax-m-')).toArray()) {
+    const autoNotes = await taxNotes(q.id.slice(6));
+    if (q.autoNotes !== autoNotes) await db.tasks.update(q.id, { autoNotes });
   }
   if (t.getMonth() === 3) {
     const year = t.getFullYear() - 1;
     const aid = `tax-a-${year}`;
     if (!(await db.tasks.get(aid))) {
       await db.tasks.add({ id: aid, areaId: area.id, difficulty: 3, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: `${year + 1}-04-30`,
-        title: `Declaración anual ${year} (RESICO)`, notes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' });
+        title: `Declaración anual ${year} (RESICO)`, autoNotes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' });
     }
   }
 }
@@ -508,6 +561,54 @@ export async function deleteOpportunity(o: Opportunity) {
 
 /** True when a lead's next action date has passed (and it's still open). */
 export const isStale = (o: Opportunity, today = dateKey()) => o.status !== 'won' && o.status !== 'lost' && !!o.nextActionDate && o.nextActionDate < today;
+
+// ---------- Weekly review (P1-4) ----------
+export interface ReviewInput {
+  /** Monday of the reviewed week */
+  monday: string;
+  wins: string[];
+  /** Existing quests chosen for next week */
+  questIds: string[];
+  /** New quests typed in the review: created as "This week" quests in `areaId` */
+  newQuests?: { title: string; areaId: string }[];
+  note?: string;
+}
+
+/**
+ * Saves the review of a Mon–Sun week. A complete review (3 wins, 3 quests) of the current review week pays REVIEW_XP
+ * once (`review:<monday>`); editing never pays again, and making it incomplete takes the XP back.
+ * Next week's quests become "This week" quests due on next week's Sunday.
+ */
+export async function saveReview(r: ReviewInput, today = dateKey()) {
+  const end = parseKey(r.monday); end.setDate(end.getDate() + 6);
+  const weekEnd = dateKey(end);
+  const nextSunday = parseKey(r.monday); nextSunday.setDate(nextSunday.getDate() + 13);
+  const due = dateKey(nextSunday);
+  const ids = [...r.questIds];
+  for (const q of r.newQuests ?? []) {
+    if (!q.title.trim()) continue;
+    const id = uid();
+    await db.tasks.add({ id, areaId: q.areaId, title: q.title.trim(), difficulty: 3, priority: 2, dueDate: due, status: 'todo', createdAt: Date.now() });
+    ids.push(id);
+  }
+  // A quest chosen from "Someday" moves up to "This week": it's one of the week's three.
+  for (const id of r.questIds) {
+    const t = await db.tasks.get(id);
+    if (t && t.priority === 3) await db.tasks.update(id, { priority: 2 });
+  }
+  const before = await db.reviews.get(r.monday);
+  const wins = r.wins.map(w => w.trim());
+  await db.reviews.put({ id: r.monday, weekEnd, wins, nextQuestIds: ids, note: r.note?.trim() || undefined, createdAt: before?.createdAt ?? Date.now(), updatedAt: Date.now() });
+  const ref = `review:${r.monday}`;
+  if (!reviewComplete(wins, ids)) await revoke(ref);
+  else if (r.monday === reviewWeekFor(today)) await awardOnce('review', ref, REVIEW_XP, `Weekly review (${r.monday.slice(5)} to ${weekEnd.slice(5)})`, coinsFor(REVIEW_XP), today);
+  return ids;
+}
+
+export async function deleteReview(monday: string) {
+  await db.reviews.delete(monday);
+  await revoke(`review:${monday}`);
+}
 
 // ---------- Rewards ----------
 /** Spends coins on a reward. Returns the ledger refId (for undo), or null if there aren't enough coins. */

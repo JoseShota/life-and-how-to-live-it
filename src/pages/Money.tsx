@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { subDays } from 'date-fns';
 import { db } from '@/db/db';
 import type { Account, AccountRole, BankKey, Goal, IncomeTax, IncomeTaxKind, Installment, Opportunity, OpportunityKind, OpportunityStatus, PipelineEventKind, Statement, Transaction, TxKind } from '@/db/types';
-import { balanceOf, cardStatus, monthTotals, expenseByCategory, hourlyRates, pipelineValue, netWorth, splitLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
+import { balanceOf, cardStatus, monthTotals, expenseByCategory, hoursOfWork, SHARED_WORK_AREA, pipelineValue, netWorth, splitLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
   BANKS, dueDaysFor, lastCutoff, dueDateFor, estimateStatement, statementStatus, newSinceCutoff, installmentRemaining } from '@/finance/finance';
 import { deleteOpportunity, deletePipelineEvent, deleteStatement, deleteTransaction, editTransaction, evaluateStatements, getTaxProfile, isStale, weekStartKey, logPipelineEvent, saveOpportunity, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments, transfer } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
@@ -13,6 +13,7 @@ import { FINANCE_XP, LEAD_XP, WEEKLY_CONVERSATIONS } from '@/game/rules';
 import { cx, dateKey, mxn, uid } from '@/lib/util';
 import { Bar, Button, Card, Chip, Empty, Input, Label, Modal, Select, PageTitle } from '@/components/ui';
 import { WealthRoad } from '@/components/WealthRoad';
+import { RealRateCard, useRealRates } from '@/components/RealRate';
 import { useToast } from '@/lib/toast';
 import { SplitSheet, TaxCard } from '@/components/TaxBits';
 import { IVA_RATE, invoiceFromSubtotal } from '@/finance/tax';
@@ -23,7 +24,6 @@ export default function Money() {
   const accounts = useLiveQuery(() => db.accounts.orderBy('order').filter(a => !a.archived).toArray(), [], []);
   const txs = useLiveQuery(() => db.transactions.orderBy('date').reverse().toArray(), [], []);
   const areas = useLiveQuery(() => db.areas.orderBy('order').toArray(), [], []);
-  const sessions = useLiveQuery(() => db.sessions.toArray(), [], []);
   const goals = useLiveQuery(() => db.goals.orderBy('order').toArray(), [], []);
   const opps = useLiveQuery(() => db.opportunities.toArray(), [], []);
   const [txOpen, setTxOpen] = useState(false);
@@ -40,8 +40,8 @@ export default function Money() {
   const cats = expenseByCategory(txs);
   const allAccounts = useLiveQuery(() => db.accounts.toArray(), [], []);
   const nw = netWorth(allAccounts, txs);
-  const since = dateKey(subDays(new Date(), 90));
-  const rates = useMemo(() => hourlyRates(areas.filter(a => a.monetizable), txs, sessions, since), [areas, txs, sessions, since]);
+  // "This purchase = N hours of your work", at the 90-day average real rate (Your Money or Your Life).
+  const avgRate = useRealRates(dateKey(subDays(new Date(), 89)), dateKey())?.average ?? null;
   const debt = accounts.filter(a => a.type === 'credit').reduce((s, a) => s + Math.max(0, -balanceOf(a, txs)), 0);
   // What's actually due now: the unpaid part of each card's latest statement (pago para no generar intereses).
   const latest = (accId: string) => statements.filter(x => x.accountId === accId).sort((a, b) => b.cutoffDate.localeCompare(a.cutoffDate))[0];
@@ -82,16 +82,7 @@ export default function Money() {
       <TaxCard />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="The Wealth Engine · MXN per hour, 90 days">
-          {rates.every(r => r.income === 0) ? <Empty>Log income with its activity (e.g. “Freelance”) and track focus time. This table will rank which activity pays most per hour — that is where your next hour goes.</Empty> : (
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-[11px] uppercase text-ink/55"><th className="py-1">Activity</th><th>Income</th><th>Hours</th><th className="text-right">MXN/h</th></tr></thead>
-              <tbody>{rates.map(r => (
-                <tr key={r.area.id} className="border-t border-line"><td className="py-2"><span className="inline-flex items-center gap-1.5"><Glyph name={r.area.icon} size={16} />{r.area.short}</span></td><td>{mxn(r.income)}</td><td>{r.hours.toFixed(1)}</td><td className="text-right font-bold text-gold">{r.rate ? mxn(r.rate) : '—'}</td></tr>
-              ))}</tbody>
-            </table>
-          )}
-        </Card>
+        <RealRateCard />
 
         <Card title="Spending · this month">
           {cats.length === 0 ? <Empty>No expenses logged this month.</Empty> : (
@@ -120,7 +111,7 @@ export default function Money() {
               return (
                 <li key={t.id} className="flex items-center gap-3 py-2 text-sm">
                   <span className="w-12 shrink-0 text-[11px] text-ink/55">{t.date.slice(5)}</span>
-                  <div className="min-w-0 flex-1"><div className="truncate">{t.description || t.category}</div><div className="text-[11px] text-ink/55">{acc?.name} · {t.category}{area ? ` · ${area.short}` : ''}</div></div>
+                  <div className="min-w-0 flex-1"><div className="truncate">{t.description || t.category}</div><div className="text-[11px] text-ink/55">{acc?.name} · {t.category}{area ? ` · ${area.short}` : t.areaId === SHARED_WORK_AREA ? ' · shared work cost' : ''}{t.kind === 'expense' && (hoursOfWork(t.amount, avgRate) ?? 0) >= 1 ? ` · ≈ ${hoursOfWork(t.amount, avgRate)!.toFixed(1)} h of work` : ''}</div></div>
                   <span className={cx('shrink-0 font-semibold', t.amount >= 0 ? 'text-ok' : 'text-ink/90')}>{mxn(t.amount, 2)}</span>
                   <div className="-my-1 flex shrink-0">
                     {t.kind === 'income' && <button className="flex h-10 w-10 items-center justify-center text-ink/45 hover:text-cyan focus-visible:text-cyan" aria-label="Split this income" title="Split it" onClick={() => setSplitTx(t)}><Glyph name="scales" size={16}/></button>}
@@ -274,7 +265,8 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
   const { from, to: toLeg } = tx?.transferId ? splitLegs(legs) : { from: tx, to: undefined };
   // Keep the accounts this transaction already uses selectable even if they've been archived since.
   const accounts = useLiveQuery(() => db.accounts.orderBy('order').filter(a => !a.archived || a.id === from?.accountId || a.id === toLeg?.accountId).toArray(), [from?.accountId, toLeg?.accountId], []);
-  const areas = useLiveQuery(() => db.areas.orderBy('order').filter(a => a.monetizable && !a.archived).toArray(), [], []);
+  const allAreas = useLiveQuery(() => db.areas.orderBy('order').filter(a => !a.archived).toArray(), [], []);
+  const areas = allAreas.filter(a => a.monetizable);
   const plan = useLiveQuery(() => (tx?.installmentId ? db.installments.get(tx.installmentId) : undefined), [tx?.installmentId]);
   const [kind, setKind] = useState<TxKind>(tx?.kind ?? preset?.kind ?? 'expense');
   const [amount, setAmount] = useState(tx ? String(Math.abs(tx.amount)) : preset?.amount ? String(preset.amount) : '');
@@ -333,7 +325,7 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
       await evaluateStatements(acc);
     } else {
       const id = uid();
-      await db.transactions.add({ ...base, id, accountId: acc, amount: kind === 'income' ? n : -n, kind, category: cat || EXPENSE_CATEGORIES[0], areaId: kind === 'income' ? (areaId || undefined) : undefined, incomeTax, ivaCreditable });
+      await db.transactions.add({ ...base, id, accountId: acc, amount: kind === 'income' ? n : -n, kind, category: cat || EXPENSE_CATEGORIES[0], areaId: areaId || undefined, incomeTax, ivaCreditable });
       if (kind === 'expense') await db.settings.put({ key: 'lastExpenseCategory', value: cat });
       await rewardTransactionLogged(id);
       if (months) await setInstallments((await db.transactions.get(id))!, months);
@@ -381,6 +373,7 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
           <div className="grid grid-cols-2 gap-3">
             <Label text="Category"><Select value={cat} onChange={e => setCategory(e.target.value)}>{catOptions(kind === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}</Select></Label>
             {kind === 'income' && <Label text="Earned by"><Select value={areaId} onChange={e => setAreaId(e.target.value)}><option value="">—</option>{areas.map(a => <option key={a.id} value={a.id}>{a.short}</option>)}</Select></Label>}
+            {kind === 'expense' && <Label text="Cost of (real MXN/h)"><Select value={areaId} onChange={e => setAreaId(e.target.value)}><option value="">Personal</option><option value={SHARED_WORK_AREA}>Shared work cost</option>{allAreas.map(a => <option key={a.id} value={a.id}>{a.short}</option>)}</Select></Label>}
             {isCardExpense && <Label text="Meses sin intereses"><Select value={msiValue} onChange={e => setMsi(e.target.value)}><option value="">No (one payment)</option>{MSI_MONTHS.map(m => <option key={m} value={m}>{m} MSI · {mxn(Math.abs(Number(amount) || 0) / m, 2)}/mo</option>)}</Select></Label>}
           </div>
         )}

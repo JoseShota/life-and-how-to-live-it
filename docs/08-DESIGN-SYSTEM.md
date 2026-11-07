@@ -57,7 +57,7 @@ All fonts are **self-hosted** in `public/fonts/` (licences in `public/fonts/LICE
 Slow and ambient only: the pool caustics (14 s), the bust floating (11 s), sparkles twinkling, the maxims ticker (70 s). Everything stops under `prefers-reduced-motion`.
 
 ## Clarity rules (V-8)
-- **Every themed name has a plain one**: Treasury · money, Agora · rewards, Archive · stats, Control · settings, Quests · tasks, Focus · timer. It shows next to the kanji in page titles, in nav tooltips and in the menu.
+- **Every themed name has a plain one**: Treasury · money, Agora · rewards, Archive · stats, Control · settings, Quests · tasks, Focus · timer, Review · weekly review (回顧, menu only: the tab bar keeps 7 tabs). It shows next to the kanji in page titles, in nav tooltips and in the menu.
 - **Today starts with "Now"**: the current block of the ideal day and one primary action, above the rings. It must fit in the first viewport at 820 × 1180 and 1366 × 768.
 - **Tap targets ≥ 40 px everywhere** (nav links are 40 px tall). The 15 px close box keeps its look but has a 43 px tap area.
 - The maxims ticker can be turned off in Control → Display, and stops under reduced motion.

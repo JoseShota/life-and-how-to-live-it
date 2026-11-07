@@ -37,6 +37,21 @@ export interface Task {
   status: TaskStatus;
   createdAt: number;
   completedAt?: number;
+  /** v9: a repeating quest. Completing it creates the next instance. */
+  recurrence?: Recurrence;
+  /** v11: written and kept current by the app (the tax estimate). Read-only in the UI, so `notes` stay yours. */
+  autoNotes?: string;
+}
+
+/** v9 (P1-1): how a quest repeats. Every instance of a series carries the same `series` id. */
+export interface Recurrence {
+  every: 'day' | 'week' | 'month';
+  /** Monthly: the day of the month it falls on (clamped to short months, never drifts) */
+  anchorDay?: number;
+  /** Shared by every instance; next instances get the id `${series}@${dueDate}` */
+  series: string;
+  /** Every period must happen even if late (the monthly tax declaration); otherwise missed periods are skipped */
+  keepMissed?: boolean;
 }
 
 export type HabitKind = 'check' | 'number' | 'auto';
@@ -124,7 +139,7 @@ export interface Transaction {
   amount: number;
   kind: TxKind;
   category: string;
-  /** For income: which activity produced it (wealth engine) */
+  /** Income: which activity produced it. Expense (E-10): which activity it's a cost of, or SHARED_WORK_AREA. */
   areaId?: ID;
   description?: string;
   /** Both legs of a transfer share this id */
@@ -255,6 +270,7 @@ export type XpSource =
   | 'finance'
   | 'achievement'
   | 'reward'
+  | 'review'
   | 'manual';
 
 /** Append-only ledger. Level, XP and coins are always DERIVED from this table. */
@@ -268,6 +284,36 @@ export interface XpEvent {
   xp: number;
   coins: number;
   label: string;
+}
+
+/**
+ * v10 (E-10): time spent on an area outside focus sessions (admin, sales, commuting, class time).
+ * One-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date`, until `until`). Pays no XP.
+ */
+export interface AreaHours {
+  id: ID;
+  areaId: ID;
+  date: DateKey;
+  hours: number;
+  weekly?: boolean;
+  until?: DateKey;
+  note?: string;
+  createdAt: number;
+}
+
+/** v8: the Sunday review of one Mon–Sun week (keyed by that Monday). */
+export interface Review {
+  /** Monday (local) of the reviewed week */
+  id: DateKey;
+  /** Sunday of the reviewed week */
+  weekEnd: DateKey;
+  /** Top 3 wins, free text */
+  wins: string[];
+  /** Next week's top 3 quests (ids in `tasks`) */
+  nextQuestIds: ID[];
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Unlocked {

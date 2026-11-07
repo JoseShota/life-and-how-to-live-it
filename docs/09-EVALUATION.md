@@ -50,7 +50,16 @@ All Phase V tickets are built, one commit each, with tests (91 → 92 with the u
 | V-7 Leading indicators | #3 | One-tap conversations, proposals, case studies; stale leads; Rainmaker |
 | V-8 Usability | #5, #9, #12, #13, #15, #16 | Now card, tap targets, plain names, category memory, savings-rate edge cases, redeem undo |
 
-Not done (still open): Option C (coins backed by the fun budget), the weekly review screen (P1-4), and a real-hourly-wage column in the Wealth Engine (E-10).
+Not done (still open): Option C (coins backed by the fun budget).
+
+### Season 1 essentials (2026-11-07)
+| Ticket | What changed |
+|---|---|
+| P1-4 Weekly review | `/review` (menu, and a card on Today on Sundays): Good-or-Perfect rate, scorecard, hours per area vs target, money in/out and savings rate, statements due, wealth level progress, conversations/proposals/case studies, 3 wins and next week's 3 quests, backup export. Dexie v8 `reviews`. +50 XP once per week (`REVIEW_XP`, new constant), only for a complete review of the current review week |
+| E-10 Real MXN/h | The Wealth Engine shows gross and **real** MXN/h. Real = (net income − the area's costs − its share of shared work costs) ÷ (focus + non-focus hours). RESICO income counts its subtotal minus ISR at the rate its month actually reaches (IVA and withholdings excluded), salary what landed; creditable IVA lowers costs only when IVA is charged. Non-focus hours are one-off or standing weekly (class time), Dexie v10 `areaHours`. Window 30/90/365 days. Kill (below the 250 MXN/h floor, editable) and scale (≥ 2× the average) flags from 5 h. Large expenses show "≈ N h of work"; the weekly review shows the week's real rate |
+| P1-9 Faster first load | Pages split with `React.lazy`, vendor chunk, idle preload; startup JS 854 → 347 kB (255 → 120 kB gzip). The build fails over budget (entry < 300 kB, startup < 350 kB). Works offline (all chunks precached) |
+| Tax quest notes | The RESICO estimate moves to its own read-only field (`autoNotes`, Dexie v11), so the user's notes on a tax quest are never overwritten |
+| P1-1 Repeating quests | Daily, weekly or monthly quests (Dexie v9 `recurrence`); completing one creates the next with a deterministic id; the RESICO declaration is a monthly series that never skips |
 
 ### D4. Why investing unlocks at 3 and 6 months
 - Irregular income needs a buffer: Housel's room for error and the master plan both point at 6 months.
