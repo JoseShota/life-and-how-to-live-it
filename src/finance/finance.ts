@@ -78,19 +78,6 @@ export function expenseByCategory(txs: Transaction[], month = dateKey().slice(0,
   return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 }
 
-/**
- * The "wealth engine": for each monetizable activity, how much it paid and how many hours it consumed
- * in the window -> effective hourly rate. This tells you where your next hour is worth the most.
- */
-export function hourlyRates(areas: Area[], txs: Transaction[], sessions: Session[], sinceKey: string) {
-  return areas.filter(a => !a.archived).map(a => {
-    const income = txs.filter(t => t.kind === 'income' && t.areaId === a.id && t.date >= sinceKey).reduce((s, t) => s + t.amount, 0);
-    const minutes = sessions.filter(s => s.areaId === a.id && s.date >= sinceKey).reduce((s, x) => s + x.minutes, 0);
-    const hours = minutes / 60;
-    return { area: a, income, hours, rate: hours > 0 ? income / hours : 0 };
-  }).sort((x, y) => y.rate - x.rate || y.income - x.income);
-}
-
 // ---------- Real MXN per hour (E-10, "Your Money or Your Life") ----------
 
 /** `areaId` on an expense that is a cost of all paid work (internet, laptop, accountant): split by hours. */
