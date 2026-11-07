@@ -27,6 +27,7 @@ src/
     rules.ts            # PURE balance functions (XP tables, level curve, multipliers) — no I/O
     engine.ts           # side-effectful actions: completeTask, setHabit, logSession, evaluateDay, redeem…
     achievements.ts     # achievement defs + checker + listener
+    review.ts           # PURE weekly-review aggregates (day grades, hours per area, leading indicators)
   finance/
     finance.ts          # PURE money math: balances, card status, month totals, hourly rates, pipeline
   lib/
@@ -40,7 +41,7 @@ src/
     Layout.tsx          # HUD + marquee ticker + vapor backdrop + Win95 taskbar/Start menu + archive footer
     TaskBits.tsx        # TaskRow, TaskForm
     ActiveTimerPill.tsx
-  pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings
+  pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings, Review (menu only)
 tests/                  # vitest
 docs/                   # this documentation
 .cursor/rules/          # rules Cursor loads automatically

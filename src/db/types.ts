@@ -255,6 +255,7 @@ export type XpSource =
   | 'finance'
   | 'achievement'
   | 'reward'
+  | 'review'
   | 'manual';
 
 /** Append-only ledger. Level, XP and coins are always DERIVED from this table. */
@@ -268,6 +269,21 @@ export interface XpEvent {
   xp: number;
   coins: number;
   label: string;
+}
+
+/** v8: the Sunday review of one Mon–Sun week (keyed by that Monday). */
+export interface Review {
+  /** Monday (local) of the reviewed week */
+  id: DateKey;
+  /** Sunday of the reviewed week */
+  weekEnd: DateKey;
+  /** Top 3 wins, free text */
+  wins: string[];
+  /** Next week's top 3 quests (ids in `tasks`) */
+  nextQuestIds: ID[];
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Unlocked {

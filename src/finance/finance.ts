@@ -58,7 +58,12 @@ export const REFUND_CATEGORIES = ['Refund'];
  * `savingsRate` is null with no income: "0 %" would be a false alarm.
  */
 export function monthTotals(txs: Transaction[], month = dateKey().slice(0, 7)) {
-  const m = txs.filter(t => t.date.startsWith(month) && t.kind !== 'transfer');
+  return periodTotals(txs, `${month}-01`, `${month}-31`);
+}
+
+/** Same as monthTotals, for any inclusive date range (e.g. the week of a review). */
+export function periodTotals(txs: Transaction[], from: string, to: string) {
+  const m = txs.filter(t => t.date >= from && t.date <= to && t.kind !== 'transfer');
   const isRefund = (t: Transaction) => t.kind === 'income' && REFUND_CATEGORIES.includes(t.category);
   const income = m.filter(t => t.kind === 'income' && !isRefund(t)).reduce((s, t) => s + t.amount, 0);
   const refunds = m.filter(isRefund).reduce((s, t) => s + t.amount, 0);

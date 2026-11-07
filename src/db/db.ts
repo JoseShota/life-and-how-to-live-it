@@ -5,7 +5,7 @@ import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
 import { uid } from '@/lib/util';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
-  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent
+  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent, Review
 } from './types';
 
 export class LifeDB extends Dexie {
@@ -25,6 +25,7 @@ export class LifeDB extends Dexie {
   statements!: Table<Statement, string>;
   installments!: Table<Installment, string>;
   pipelineEvents!: Table<PipelineEvent, string>;
+  reviews!: Table<Review, string>;
 
   constructor(name = 'life-and-how-to-live-it') {
     super(name);
@@ -75,6 +76,8 @@ export class LifeDB extends Dexie {
     });
     // v7: leading indicators of the income engine (conversations, proposals, case studies, stage changes).
     this.version(7).stores({ pipelineEvents: 'id, date, kind, opportunityId' });
+    // v8: weekly reviews (P1-4), one row per Mon–Sun week keyed by its Monday. A new table: no rows to migrate.
+    this.version(8).stores({ reviews: 'id' });
   }
 }
 
@@ -103,7 +106,7 @@ export const db = new LifeDB();
 
 export const ALL_TABLES = [
   'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',
-  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents'
+  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews'
 ] as const;
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {

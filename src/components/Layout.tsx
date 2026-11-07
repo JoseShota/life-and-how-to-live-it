@@ -21,6 +21,10 @@ export const NAV = [
   { to: '/stats', label: 'Archive', jp: '記録', plain: 'stats' },
   { to: '/settings', label: 'Control', jp: '設定', plain: 'settings' }
 ];
+/** Pages reached from the menu (and from Today when they're due), not from the tab bar. */
+export const MENU_ONLY = [
+  { to: '/review', label: 'Review', jp: '回顧', plain: 'weekly review' }
+];
 
 const INSCRIPTIONS = [
   'ΓΝΩΘΙ ΣΑΥΤΟΝ · know thyself',
@@ -108,7 +112,7 @@ function MenuBar({ onShutdown }: { onShutdown: () => void }) {
           <ul className="mac-window absolute left-2 top-11 w-64 py-1" onClick={e => e.stopPropagation()}>
             <li className="px-3 py-1 text-xs text-lav">About {APP_NAME}…</li>
             <li className="dither-gray mx-1 my-1 h-[2px]" />
-            {NAV.map(n => (
+            {[...NAV, ...MENU_ONLY].map(n => (
               <li key={n.to}><button onClick={() => { nav(n.to); setOpen(false); }} className="flex min-h-[40px] w-full items-center justify-between px-3 py-2 text-left hover:bg-ink hover:text-white">{n.label} <span className="text-xs opacity-70">{n.plain}</span><span className="font-jp text-xs opacity-70">{n.jp}</span></button></li>
             ))}
             <li className="dither-gray mx-1 my-1 h-[2px]" />

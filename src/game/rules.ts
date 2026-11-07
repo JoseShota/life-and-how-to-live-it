@@ -116,3 +116,28 @@ export const LEAD_XP = { conversation: 15, proposal: 40, 'case-study': 75, stage
 export const CONVERSATION_DAILY_CAP_XP = 45;
 /** The plan's weekly target: 5 new conversations. */
 export const WEEKLY_CONVERSATIONS = 5;
+
+/**
+ * Weekly review (P1-4): +50 XP once per Mon–Sun week, and only for a real review (3 wins and 3 quests for next week).
+ * Below the scorecard (150) on purpose: the week's outcome is worth more than planning it.
+ */
+export const REVIEW_XP = 50;
+export const REVIEW_WINS = 3;
+export const REVIEW_QUESTS = 3;
+
+/**
+ * The week a review made on `today` covers (its Monday): on Sunday, the week ending today; on any other day,
+ * the last finished week. Only this week's review pays, so old weeks can't be backfilled for XP.
+ */
+export function reviewWeekFor(today: DateKey): DateKey {
+  const [y, m, d] = today.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const dow = date.getDay(); // 0 = Sunday
+  date.setDate(date.getDate() - (dow === 0 ? 6 : dow + 6));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+
+/** A review counts (and pays) only with every win written and every quest chosen. */
+export const reviewComplete = (wins: string[], questIds: string[]) =>
+  wins.filter(w => w.trim()).length >= REVIEW_WINS && new Set(questIds).size >= REVIEW_QUESTS;

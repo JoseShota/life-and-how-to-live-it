@@ -9,7 +9,7 @@ import {
   TASK_XP, coinsFor, PERFECT_DAY_XP, GOOD_DAY_XP, WORKDAY_BONUS_XP, WEEKLY_SCORECARD, streakMultiplier, FINANCE_XP,
   MAX_FULL_EPICS_PER_DAY, MAX_SESSION_MINUTES, DEFAULT_WORK_TARGETS, targetsFor, allocateFocusXp, dayGrade, weeklyScore,
   MIN_VERSION_SHARE, WORK_MIN_HOURS, SHIELD_EVERY, SHIELD_MAX, LEAD_XP, CONVERSATION_DAILY_CAP_XP,
-  type WorkTargets
+  REVIEW_XP, reviewComplete, reviewWeekFor, type WorkTargets
 } from './rules';
 import { checkAchievements } from './achievements';
 
@@ -508,6 +508,54 @@ export async function deleteOpportunity(o: Opportunity) {
 
 /** True when a lead's next action date has passed (and it's still open). */
 export const isStale = (o: Opportunity, today = dateKey()) => o.status !== 'won' && o.status !== 'lost' && !!o.nextActionDate && o.nextActionDate < today;
+
+// ---------- Weekly review (P1-4) ----------
+export interface ReviewInput {
+  /** Monday of the reviewed week */
+  monday: string;
+  wins: string[];
+  /** Existing quests chosen for next week */
+  questIds: string[];
+  /** New quests typed in the review: created as "This week" quests in `areaId` */
+  newQuests?: { title: string; areaId: string }[];
+  note?: string;
+}
+
+/**
+ * Saves the review of a Mon–Sun week. A complete review (3 wins, 3 quests) of the current review week pays REVIEW_XP
+ * once (`review:<monday>`); editing never pays again, and making it incomplete takes the XP back.
+ * Next week's quests become "This week" quests due on next week's Sunday.
+ */
+export async function saveReview(r: ReviewInput, today = dateKey()) {
+  const end = parseKey(r.monday); end.setDate(end.getDate() + 6);
+  const weekEnd = dateKey(end);
+  const nextSunday = parseKey(r.monday); nextSunday.setDate(nextSunday.getDate() + 13);
+  const due = dateKey(nextSunday);
+  const ids = [...r.questIds];
+  for (const q of r.newQuests ?? []) {
+    if (!q.title.trim()) continue;
+    const id = uid();
+    await db.tasks.add({ id, areaId: q.areaId, title: q.title.trim(), difficulty: 3, priority: 2, dueDate: due, status: 'todo', createdAt: Date.now() });
+    ids.push(id);
+  }
+  // A quest chosen from "Someday" moves up to "This week": it's one of the week's three.
+  for (const id of r.questIds) {
+    const t = await db.tasks.get(id);
+    if (t && t.priority === 3) await db.tasks.update(id, { priority: 2 });
+  }
+  const before = await db.reviews.get(r.monday);
+  const wins = r.wins.map(w => w.trim());
+  await db.reviews.put({ id: r.monday, weekEnd, wins, nextQuestIds: ids, note: r.note?.trim() || undefined, createdAt: before?.createdAt ?? Date.now(), updatedAt: Date.now() });
+  const ref = `review:${r.monday}`;
+  if (!reviewComplete(wins, ids)) await revoke(ref);
+  else if (r.monday === reviewWeekFor(today)) await awardOnce('review', ref, REVIEW_XP, `Weekly review (${r.monday.slice(5)} to ${weekEnd.slice(5)})`, coinsFor(REVIEW_XP), today);
+  return ids;
+}
+
+export async function deleteReview(monday: string) {
+  await db.reviews.delete(monday);
+  await revoke(`review:${monday}`);
+}
 
 // ---------- Rewards ----------
 /** Spends coins on a reward. Returns the ledger refId (for undo), or null if there aren't enough coins. */

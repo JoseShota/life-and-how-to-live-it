@@ -50,7 +50,12 @@ All Phase V tickets are built, one commit each, with tests (91 → 92 with the u
 | V-7 Leading indicators | #3 | One-tap conversations, proposals, case studies; stale leads; Rainmaker |
 | V-8 Usability | #5, #9, #12, #13, #15, #16 | Now card, tap targets, plain names, category memory, savings-rate edge cases, redeem undo |
 
-Not done (still open): Option C (coins backed by the fun budget), the weekly review screen (P1-4), and a real-hourly-wage column in the Wealth Engine (E-10).
+Not done (still open): Option C (coins backed by the fun budget), and a real-hourly-wage column in the Wealth Engine (E-10).
+
+### Season 1 essentials (2026-11-07)
+| Ticket | What changed |
+|---|---|
+| P1-4 Weekly review | `/review` (menu, and a card on Today on Sundays): Good-or-Perfect rate, scorecard, hours per area vs target, money in/out and savings rate, statements due, wealth level progress, conversations/proposals/case studies, 3 wins and next week's 3 quests, backup export. Dexie v8 `reviews`. +50 XP once per week (`REVIEW_XP`, new constant), only for a complete review of the current review week |
 
 ### D4. Why investing unlocks at 3 and 6 months
 - Irregular income needs a buffer: Housel's room for error and the master plan both point at 6 months.

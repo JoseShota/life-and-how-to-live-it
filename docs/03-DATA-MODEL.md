@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v7)
+## Tables (Dexie v8)
+
+v8: new table `reviews` (P1-4), one row per Mon–Sun week keyed by its Monday: `wins` (3 free-text lines), `nextQuestIds` (3 task ids), `note`. No rows to migrate. Backups are `BACKUP_VERSION` 4.
 
 v7: new table `pipelineEvents` (conversations, proposals, case studies, stage changes); opportunities gain `kind` (`job`, `project`, `retainer`) and `nextActionDate`. Backups are `BACKUP_VERSION` 3.
 
@@ -37,6 +39,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `statements` | `id` | `accountId, cutoffDate, dueDate` | v4: one credit-card statement with the exact amounts (saldo al corte, pago para no generar intereses, pago mínimo) |
 | `installments` | `id` | `accountId, txId` | v4: meses sin intereses plans (total, months, first cut-off) |
 | `pipelineEvents` | `id` | `date, kind, opportunityId` | v7: leading indicators of the income engine |
+| `reviews` | `id` (Monday) | — | v8: the weekly review of one Mon–Sun week |
 | `unlocked` | `key` | — | Unlocked achievements |
 | `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
@@ -60,6 +63,7 @@ Goal        { id, name, icon, target, current, deadline?, order }
 Opportunity { id, title, areaId?, status: 'lead'|'applied'|'interview'|'won'|'lost', kind?: 'job'|'project'|'retainer', monthlyValue,
               probability 0..1, expectedDate?, nextAction?, nextActionDate?, notes?, createdAt }
 PipelineEvent { id, kind: 'conversation'|'proposal'|'case-study'|'stage', opportunityId?, date, note?, createdAt }
+Review      { id (Monday), weekEnd, wins: string[], nextQuestIds: ID[], note?, createdAt, updatedAt }
 Reward      { id, title, icon, cost, archived }
 XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ```
@@ -87,6 +91,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 | milestone | `wl:<n>` (wealth level reached) | permanent: spending the shield in an emergency never costs XP |
 | achievement | `ach:<key>` | re-locked (and revoked) by `checkAchievements` when its condition becomes false |
 | reward | `reward:<rewardId>:<ts>` | (permanent; negative coins) |
+| review | `review:<monday>` (once per week; only the current review week pays) | deleting the review, or saving it without 3 wins and 3 quests |
 
 ## Migration recipe (Dexie)
 ```ts

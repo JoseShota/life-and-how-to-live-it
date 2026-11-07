@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { LifeDB } from '../src/db/db';
 
 /** Opens a database exactly as the deployed app (schema v2) left it, then upgrades it with today's LifeDB. */
-describe('upgrade from the deployed schema (v2 → v7)', () => {
+describe('upgrade from the deployed schema (v2 → latest)', () => {
   it('keeps data and applies every migration', async () => {
     const name = 'upgrade-test';
     const old = new Dexie(name);
@@ -32,7 +32,7 @@ describe('upgrade from the deployed schema (v2 → v7)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(8);
     const habits = await db.habits.toArray();
     const by = (k: string) => habits.find(h => h.key === k)!;
     expect(by('wake').core).toBe(false);
@@ -47,6 +47,7 @@ describe('upgrade from the deployed schema (v2 → v7)', () => {
     expect(await db.transactions.get('t1')).toMatchObject({ amount: -230 });
     expect(await db.statements.count()).toBe(0);
     expect(await db.pipelineEvents.count()).toBe(0);
+    expect(await db.reviews.count()).toBe(0); // v8
     db.close();
   });
 });

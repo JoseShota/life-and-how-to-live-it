@@ -13,6 +13,7 @@ import Money from '@/pages/Money';
 import Rewards from '@/pages/Rewards';
 import Stats from '@/pages/Stats';
 import SettingsPage from '@/pages/Settings';
+import Review from '@/pages/Review';
 
 seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() => undefined).then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -28,6 +29,7 @@ seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() 
               <Route path="rewards" element={<Rewards />} />
               <Route path="stats" element={<Stats />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="review" element={<Review />} />
             </Route>
           </Routes>
         </BrowserRouter>
