@@ -36,7 +36,7 @@ End-to-end encrypted sync through the user's own Supabase project: the server st
 | ID | Ticket | AC | Status |
 |---|---|---|---|
 | P2-1 🔴 | **Groundwork, no network** | Dexie v13: `syncOutbox` + `syncState` (device-only); XP id = refId (upgrade keeps every point); a DBCore middleware records every real change (no-op writes skipped, pulled rows not recorded, weak "create if missing" writes); seed rows get fixed ids; pulled rows fire no toasts. Migration + tracking tests | Done |
-| P2-2 🔴 | **Encryption + sync engine, fake server** | AES-GCM per row from a passphrase (PBKDF2); opaque HMAC row ids; hybrid logical clock; pull → apply in one transaction → re-check touched days → push; server-side last-write-wins; tests with two simulated devices | |
+| P2-2 🔴 | **Encryption + sync engine, fake server** | AES-GCM per row from a passphrase (PBKDF2); opaque HMAC row ids; hybrid logical clock; pull → apply in one transaction → re-check touched days → push; server-side last-write-wins; tests with two simulated devices | Done |
 | P2-3 🔴 | **Supabase + sign-in + status** | `supabase/migrations/` (RLS, atomic push with serialized sequence numbers); plain `fetch` client (no new dependency, lazy-loaded); email-code sign-in in Control; HUD cloud glyph; triggers (open, focus, online, 60 s, 3 s after a write); `.env.example` | |
 | P2-4 🔴 | **First sync, import and reset** | First device uploads; a second device saves a backup file and takes the cloud copy in one step; import while synced replaces the cloud copy (said in its confirmation); reset erases this device only and signs it out; "Delete cloud copy" with a double confirmation | |
 

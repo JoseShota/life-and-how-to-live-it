@@ -40,7 +40,9 @@ export class LifeDB extends Dexie {
   syncState!: Table<SyncStateRow, string>;
 
   constructor(name = 'life-and-how-to-live-it') {
-    super(name);
+    // The environment's IndexedDB at creation time (in the browser, the same as Dexie's default). Sync tests give
+    // each simulated device its own fake IndexedDB this way.
+    super(name, { indexedDB: globalThis.indexedDB, IDBKeyRange: globalThis.IDBKeyRange });
     // NEVER edit an existing version block. Add version(N+1) with an upgrade() instead.
     this.version(1).stores({
       areas: 'id, order',

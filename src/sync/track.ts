@@ -21,8 +21,11 @@ export const SYNC_STATE = 'syncState';
  */
 export type WriteKind = 'remote' | 'weak';
 
-/** One pending change. `id` = `${t}|${k}`; repeated writes to a row collapse into one entry. */
-export interface OutboxEntry { id: string; t: string; k: string; hlc: number }
+/**
+ * One pending change. `id` = `${t}|${k}`; repeated writes to a row collapse into one entry. `n` counts the writes,
+ * so a push only clears an entry that nothing changed while it was being pushed.
+ */
+export interface OutboxEntry { id: string; t: string; k: string; hlc: number; n: number }
 
 /** Local sync bookkeeping (syncState rows hold any JSON value under a key). */
 export interface SyncStateRow { key: string; value: unknown }
@@ -147,8 +150,8 @@ async function recordChanges(down: DBCore, trans: DBCoreTransaction, t: string, 
     hlc = nextHlc(clock);
     await state.mutate({ type: 'put', trans, values: [{ key: 'clock', value: { ...clock, hlc } }] });
   }
+  const pending = await outbox.getMany({ trans, keys: ids }) as (OutboxEntry | undefined)[];
   // A weak write never lowers a pending real change on the same row.
-  const pending = weak ? await outbox.getMany({ trans, keys: ids }) as (OutboxEntry | undefined)[] : [];
-  const values: OutboxEntry[] = ids.map((id, i) => ({ id, t, k: keys[i], hlc: weak ? pending[i]?.hlc ?? 0 : hlc }));
+  const values: OutboxEntry[] = ids.map((id, i) => ({ id, t, k: keys[i], hlc: weak ? pending[i]?.hlc ?? 0 : hlc, n: (pending[i]?.n ?? 0) + 1 }));
   await outbox.mutate({ type: 'put', trans, values });
 }
