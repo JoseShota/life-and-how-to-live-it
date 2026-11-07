@@ -86,6 +86,11 @@ export class LifeDB extends Dexie {
     // v10: non-focus hours per area for the real MXN/h (E-10). A new table: no rows to migrate. Expenses may now
     // carry `areaId` too (an index that already exists), so nothing else changes.
     this.version(10).stores({ areaHours: 'id, areaId, date' });
+    // v11 (no index changes): the app's tax estimate moves out of a quest's `notes` into `autoNotes`,
+    // so refreshing it never overwrites what the user wrote.
+    this.version(11).stores({}).upgrade(async tx => {
+      await tx.table('tasks').toCollection().modify(migrateTaskV11);
+    });
   }
 }
 
@@ -103,6 +108,19 @@ export const TAX_MONTHLY_RECURRENCE = { every: 'month', anchorDay: 17, series: '
 /** v9: monthly tax quests (`tax-m-<yyyy-mm>`) become a repeating series. Exported for tests. */
 export function migrateTaskV9(t: { id: string; recurrence?: unknown }) {
   if (t.id.startsWith('tax-m-') && !t.recurrence) t.recurrence = { ...TAX_MONTHLY_RECURRENCE };
+}
+
+/** Text the app itself wrote in tax quests before v11 (the monthly estimate, the annual reminder). */
+export const isAppTaxNote = (notes: string) => notes.startsWith('Estimate: ISR ') || notes.startsWith('Annual return for personas físicas');
+
+/**
+ * v11: on tax quests, move the app's estimate from `notes` to `autoNotes`. A note the user rewrote stays in
+ * `notes` (the estimate comes back into `autoNotes` the next time the app opens). Exported for tests.
+ */
+export function migrateTaskV11(t: { id: string; notes?: string; autoNotes?: string }) {
+  if (!/^tax-[ma]-/.test(t.id) || !t.notes || !isAppTaxNote(t.notes)) return;
+  t.autoNotes = t.notes;
+  delete t.notes;
 }
 
 /** v4: credit cards get a bank preset and "due N days after the cut-off". Exported for tests. */

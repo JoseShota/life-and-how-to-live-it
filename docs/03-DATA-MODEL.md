@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v10)
+## Tables (Dexie v11)
+
+v11 (no index changes): tasks get `autoNotes`, text the app writes and keeps current (the RESICO estimate). The upgrade moves the app's estimate out of tax quests' `notes`; a note the user wrote stays in `notes`, which the app never rewrites.
 
 v10: new table `areaHours` (E-10): non-focus hours per area, one-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date` until `until`). Expenses may now carry `areaId` (an existing index): the activity they're a cost of, or `'shared'` for shared work costs. Settings gain `floorRate` (default 250) and `lastBackupAt`. Backups are `BACKUP_VERSION` 5.
 
@@ -15,7 +17,7 @@ v7: new table `pipelineEvents` (conversations, proposals, case studies, stage ch
 
 v6 (no index changes): habits get `minLabel` and `plan`; a new "Eat well" ritual (`eat`). Plans live in `src/db/habitPlans.ts`.
 
-V-6 tax fields (no Dexie version needed, new optional fields only): income transactions can carry `incomeTax` (`kind` resico/salary/none, `subtotal`, `ivaCharged`, `isrWithheld`, `ivaWithheld`, `clientIsCompany`; `amount` stays what landed in the account) and expenses `ivaCreditable`. Settings gain `taxProfile` and `splitPlan` (`savingsPct`, `skillsPct`, `funPct`) and `smartAsked`. RESICO filing quests use deterministic task ids `tax-m-<yyyy-mm>` and `tax-a-<yyyy>`.
+V-6 tax fields (no Dexie version needed, new optional fields only): income transactions can carry `incomeTax` (`kind` resico/salary/none, `subtotal`, `ivaCharged`, `isrWithheld`, `ivaWithheld`, `clientIsCompany`; `amount` stays what landed in the account) and expenses `ivaCreditable`. Settings gain `taxProfile` and `splitPlan` (`savingsPct`, `skillsPct`, `funPct`) and `smartAsked`. RESICO filing quests use deterministic task ids `tax-m-<yyyy-mm>` and `tax-a-<yyyy>`; since v11 their estimate lives in `autoNotes`.
 
 v5 (no index changes): accounts get `role` (`operating`, `tax`, `shield`, `invest`, `skills`, `fun`), set by type on upgrade. Fresh installs also get the bucket accounts *Apartado impuestos*, *Escudo · CETES* and *Inversiones*. Settings gain `spendingEstimate`.
 
@@ -54,7 +56,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 Area        { id, name, short, icon, color, kind: 'work'|'growth'|'hobby'|'personal',
               weeklyHoursTarget, monetizable, order, archived }
 Task        { id, areaId, title, notes?, difficulty: 1..5, priority: 1|2|3, dueDate?, status: 'todo'|'doing'|'done',
-              createdAt, completedAt?, recurrence?: { every: 'day'|'week'|'month', anchorDay?, series, keepMissed? } }
+              createdAt, completedAt?, recurrence?: { every: 'day'|'week'|'month', anchorDay?, series, keepMissed? }, autoNotes? }
 Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, intrinsic?, minLabel?, plan?, order, archived }
 HabitLog    { id, habitId, date, value, done, min? }
 Session     { id, areaId, taskId?, date, start, end, minutes, note? }

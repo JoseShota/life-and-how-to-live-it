@@ -105,7 +105,13 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
           </Label>
         </div>
         {every && <p className="text-xs text-ink/60">Completing it creates the next one, {RECURRENCE_LABEL[every]} from its due date{task?.recurrence?.keepMissed ? ' (every period, even when late)' : '; missed periods are skipped'}.</p>}
-        <Label text={v.difficulty === 5 ? 'Done means… (required for Epic)' : 'Notes'}><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
+        {task?.autoNotes && (
+          <div className="mac-inset bg-panel2 p-2 text-sm">
+            <div className="font-display text-[13px] text-lav">Estimate · kept current by the app</div>
+            <p className="font-type">{task.autoNotes}</p>
+          </div>
+        )}
+        <Label text={v.difficulty === 5 ? 'Done means… (required for Epic)' : task?.autoNotes ? 'Your notes' : 'Notes'}><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
         {err && <p role="alert" className="font-type text-sm text-hp">{err}</p>}
         {v.difficulty === 5 && <p className="text-xs text-ink/60">Only your first Epic each day pays Epic XP; later ones pay Hard.</p>}
         <div className="mt-2 flex gap-2">

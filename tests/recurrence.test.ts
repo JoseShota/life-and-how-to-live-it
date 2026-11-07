@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { db, migrateTaskV9, TAX_MONTHLY_RECURRENCE } from '../src/db/db';
+import { db, migrateTaskV9, migrateTaskV11, TAX_MONTHLY_RECURRENCE } from '../src/db/db';
 import { seedIfEmpty } from '../src/db/seed';
 import { completeTask, ensureTaxQuests, reopenTask, totals } from '../src/game/engine';
 import { addPeriod, instanceId, makeRecurrence, nextDue } from '../src/lib/recurrence';
@@ -83,6 +83,38 @@ describe('repeating quests', () => {
     // The app opening next month finds it already there (same id): no duplicate.
     await ensureTaxQuests('2026-12-02');
     expect((await db.tasks.toArray()).filter(x => x.id.startsWith('tax-m-'))).toHaveLength(2);
+  });
+
+  it('refreshing the estimate never touches the user\'s own notes', async () => {
+    await ensureTaxQuests('2026-11-07');
+    const before = (await db.tasks.get('tax-m-2026-10'))!;
+    expect(before.autoNotes).toMatch(/^Estimate: ISR /);
+    expect(before.notes).toBeUndefined();
+    await db.tasks.update('tax-m-2026-10', { notes: 'ask the contador about the IVA in favor' });
+    const acc = (await db.accounts.toArray())[0];
+    const area = (await db.areas.toArray())[0];
+    await db.transactions.add({ id: 'inc', accountId: acc.id, date: '2026-10-20', amount: 10000, kind: 'income', category: 'Freelance', areaId: area.id, createdAt: 0,
+      incomeTax: { kind: 'resico', subtotal: 10000, ivaCharged: 1600, isrWithheld: 0, ivaWithheld: 0, clientIsCompany: false } });
+    await ensureTaxQuests('2026-11-08');
+    const after = (await db.tasks.get('tax-m-2026-10'))!;
+    expect(after.notes).toBe('ask the contador about the IVA in favor');
+    expect(after.autoNotes).not.toBe(before.autoNotes);
+    expect(after.autoNotes).toContain('10,000');
+  });
+
+  it('v11 moves the app\'s estimate out of notes, and keeps notes the user wrote', () => {
+    const auto = { id: 'tax-m-2026-10', notes: 'Estimate: ISR $0.00 + IVA $0.00 = $0.00 (…)' } as { id: string; notes?: string; autoNotes?: string };
+    migrateTaskV11(auto);
+    expect(auto).toEqual({ id: 'tax-m-2026-10', autoNotes: 'Estimate: ISR $0.00 + IVA $0.00 = $0.00 (…)' });
+    const mine = { id: 'tax-m-2026-09', notes: 'paid with línea de captura 123' } as { id: string; notes?: string; autoNotes?: string };
+    migrateTaskV11(mine);
+    expect(mine).toEqual({ id: 'tax-m-2026-09', notes: 'paid with línea de captura 123' });
+    const annual = { id: 'tax-a-2025', notes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' } as { id: string; notes?: string; autoNotes?: string };
+    migrateTaskV11(annual);
+    expect(annual.notes).toBeUndefined();
+    const other = { id: 'q1', notes: 'Estimate: ISR is a word I use' } as { id: string; notes?: string; autoNotes?: string };
+    migrateTaskV11(other);
+    expect(other.notes).toBe('Estimate: ISR is a word I use');
   });
 
   it('v9 marks existing tax quests as the monthly series', () => {

@@ -442,7 +442,7 @@ export async function taxMonthQuest(month: string, areaId: string): Promise<Task
   const [y, mo] = month.split('-').map(Number);
   return {
     id: `tax-m-${month}`, areaId, difficulty: 2, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: monthlyDueDate(month),
-    title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`, notes: await taxNotes(month), recurrence: { ...TAX_MONTHLY_RECURRENCE }
+    title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`, autoNotes: await taxNotes(month), recurrence: { ...TAX_MONTHLY_RECURRENCE }
   };
 }
 
@@ -455,16 +455,17 @@ export async function ensureTaxQuests(today = dateKey()) {
   const prev = dateKey(new Date(t.getFullYear(), t.getMonth() - 1, 1)).slice(0, 7);
   if (!(await db.tasks.get(`tax-m-${prev}`))) await db.tasks.add(await taxMonthQuest(prev, area.id));
   // The series can create a month's quest before the month ends: keep open estimates in step with the ledger.
+  // Only `autoNotes` is rewritten; the user's own `notes` are never touched.
   for (const q of await db.tasks.where('status').notEqual('done').filter(x => x.id.startsWith('tax-m-')).toArray()) {
-    const notes = await taxNotes(q.id.slice(6));
-    if (q.notes !== notes) await db.tasks.update(q.id, { notes });
+    const autoNotes = await taxNotes(q.id.slice(6));
+    if (q.autoNotes !== autoNotes) await db.tasks.update(q.id, { autoNotes });
   }
   if (t.getMonth() === 3) {
     const year = t.getFullYear() - 1;
     const aid = `tax-a-${year}`;
     if (!(await db.tasks.get(aid))) {
       await db.tasks.add({ id: aid, areaId: area.id, difficulty: 3, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: `${year + 1}-04-30`,
-        title: `Declaración anual ${year} (RESICO)`, notes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' });
+        title: `Declaración anual ${year} (RESICO)`, autoNotes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' });
     }
   }
 }

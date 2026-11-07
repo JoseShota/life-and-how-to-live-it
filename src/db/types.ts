@@ -39,6 +39,8 @@ export interface Task {
   completedAt?: number;
   /** v9: a repeating quest. Completing it creates the next instance. */
   recurrence?: Recurrence;
+  /** v11: written and kept current by the app (the tax estimate). Read-only in the UI, so `notes` stay yours. */
+  autoNotes?: string;
 }
 
 /** v9 (P1-1): how a quest repeats. Every instance of a series carries the same `series` id. */
