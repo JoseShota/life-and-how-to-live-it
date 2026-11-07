@@ -1,5 +1,5 @@
 import { db } from '@/db/db';
-import { dateKey, uid } from '@/lib/util';
+import { dateKey } from '@/lib/util';
 import { totaleroStreak } from '@/finance/finance';
 import { WEALTH_LEVELS, levelsToAward, wealthSnapshot } from '@/finance/wealth';
 import { coinsFor } from './rules';
@@ -92,7 +92,7 @@ export async function evaluateWealth() {
   const snap = await loadWealthSnapshot();
   for (const n of levelsToAward(await wealthLevelReached(), snap.qualifies)) {
     const def = WEALTH_LEVELS[n - 1];
-    await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'milestone', refId: `wl:${n}`, xp: def.xp, coins: coinsFor(def.xp), label: `Wealth level ${n}: ${def.name}` });
+    await db.xp.put({ id: `wl:${n}`, ts: Date.now(), date: dateKey(), source: 'milestone', refId: `wl:${n}`, xp: def.xp, coins: coinsFor(def.xp), label: `Wealth level ${n}: ${def.name}` });
     const ach = { key: `wl:${n}`, icon: 'temple', name: `Wealth level ${n}: ${def.name}`, description: def.unlock, xp: def.xp };
     listeners.forEach(l => l(ach));
   }
@@ -118,7 +118,7 @@ export async function checkAchievements() {
       }
       if (c[a.key] && !have.has(a.key)) {
         await db.unlocked.put({ key: a.key, unlockedAt: Date.now() });
-        await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'achievement', refId: `ach:${a.key}`, xp: a.xp, coins: Math.round(a.xp / 5), label: `Achievement: ${a.name}` });
+        await db.xp.put({ id: `ach:${a.key}`, ts: Date.now(), date: dateKey(), source: 'achievement', refId: `ach:${a.key}`, xp: a.xp, coins: Math.round(a.xp / 5), label: `Achievement: ${a.name}` });
         listeners.forEach(l => l(a));
       }
     }

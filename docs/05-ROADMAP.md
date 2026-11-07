@@ -30,14 +30,15 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | P1-9 🟢 ✅ | **Code-split routes** | `React.lazy` per page. Main chunk < 300 kB |
 | P1-10 🟢 | **More achievements** | Add the list in `04-GAME-DESIGN.md` → "To add" |
 
-## Phase 2 — Cloud sync between tablet and laptop (Weeks 3–5)
-| ID | Ticket | AC |
-|---|---|---|
-| P2-1 🟡 | Supabase project + schema SQL in `supabase/migrations/` | Tables mirror Dexie with `user_id uuid`, `updated_at`, `deleted_at`. **RLS enabled** with `user_id = auth.uid()` |
-| P2-2 🟡 | Dexie v3 (next free version): add `updatedAt`, `deletedAt` to all syncable tables | Upgrade backfills. All writes go through helpers that set `updatedAt` |
-| P2-3 🟡 | Auth (magic link email) | Settings → "Sign in to sync". Session persisted |
-| P2-4 🔴 | Sync engine `src/sync/` | Push/pull by `updatedAt`, last-write-wins, tombstones, ledger union. Runs on focus + every 60 s + debounced after writes. Status indicator in HUD. Tests with two simulated clients |
-| P2-5 🟢 | Env config | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` in `.env.local` (never commit). `.env.example` committed |
+## Phase 2 — Cloud sync between tablet and laptop (plan approved 2026-11-07)
+End-to-end encrypted sync through the user's own Supabase project: the server stores only ciphertext under opaque ids. Design in `02-ARCHITECTURE.md` ("Sync design"); handoff in `docs/handoffs/2026-11-07-sync.md`. One commit per ticket.
+
+| ID | Ticket | AC | Status |
+|---|---|---|---|
+| P2-1 🔴 | **Groundwork, no network** | Dexie v13: `syncOutbox` + `syncState` (device-only); XP id = refId (upgrade keeps every point); a DBCore middleware records every real change (no-op writes skipped, pulled rows not recorded, weak "create if missing" writes); seed rows get fixed ids; pulled rows fire no toasts. Migration + tracking tests | Done |
+| P2-2 🔴 | **Encryption + sync engine, fake server** | AES-GCM per row from a passphrase (PBKDF2); opaque HMAC row ids; hybrid logical clock; pull → apply in one transaction → re-check touched days → push; server-side last-write-wins; tests with two simulated devices | |
+| P2-3 🔴 | **Supabase + sign-in + status** | `supabase/migrations/` (RLS, atomic push with serialized sequence numbers); plain `fetch` client (no new dependency, lazy-loaded); email-code sign-in in Control; HUD cloud glyph; triggers (open, focus, online, 60 s, 3 s after a write); `.env.example` | |
+| P2-4 🔴 | **First sync, import and reset** | First device uploads; a second device saves a backup file and takes the cloud copy in one step; import while synced replaces the cloud copy (said in its confirmation); reset erases this device only and signs it out; "Delete cloud copy" with a double confirmation | |
 
 ## Phase V — v2 economy and money engine (approved and built 2026-11-06)
 From `09-EVALUATION.md` (decisions D-1 to D-7). All eight tickets are done, one commit each (`V-1` … `V-8`). One commit per ticket. Sizes: (S) ≤ 1 h, (M) 1–3 h, (L) split into several commits. Each follows the Definition of Done in `AGENTS.md`.

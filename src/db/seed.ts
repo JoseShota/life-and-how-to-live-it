@@ -1,6 +1,7 @@
 import { db } from './db';
+import Dexie from 'dexie';
+import { tagTransaction } from '@/sync/track';
 import type { Area, Habit, Account, Reward, Goal, Opportunity } from './types';
-import { uid } from '@/lib/util';
 import { DEFAULT_WORK_TARGETS } from '@/game/rules';
 import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
 
@@ -82,18 +83,26 @@ export const SEED_TASKS: [number, string, 1 | 2 | 3 | 4 | 5, 1 | 2 | 3][] = [
   [7, 'Rename my two December opportunities and set their next actions', 1, 1]
 ];
 
+/**
+ * Seed rows get fixed ids (`seed-area-0`, `seed-habit-sleep`…), the same on every device, and are written as weak
+ * changes: two fresh devices seed identical rows instead of duplicates, and a seed never overwrites real data
+ * that another device already synced. Exported for tests.
+ */
+export const seedId = (kind: string, n: number | string) => `seed-${kind}-${n}`;
+
 export async function seedIfEmpty() {
   const n = await db.areas.count();
   if (n > 0) return false;
   await db.transaction('rw', [db.tasks, db.areas, db.habits, db.accounts, db.rewards, db.goals, db.opportunities, db.settings], async () => {
-    const areas = SEED_AREAS.map(a => ({ ...a, id: uid() }));
+    tagTransaction(Dexie.currentTransaction, 'weak');
+    const areas = SEED_AREAS.map((a, i) => ({ ...a, id: seedId('area', i) }));
     await db.areas.bulkAdd(areas);
-    await db.tasks.bulkAdd(SEED_TASKS.map(([i, title, difficulty, priority]) => ({ id: uid(), areaId: areas[i].id, title, difficulty, priority, status: 'todo' as const, createdAt: Date.now() })));
-    await db.habits.bulkAdd(SEED_HABITS.map(h => ({ ...h, id: uid() })));
-    await db.accounts.bulkAdd(SEED_ACCOUNTS.map(a => ({ ...a, id: uid() })));
-    await db.rewards.bulkAdd(SEED_REWARDS.map(r => ({ ...r, id: uid() })));
-    await db.goals.bulkAdd(SEED_GOALS.map(g => ({ ...g, id: uid() })));
-    await db.opportunities.bulkAdd(SEED_OPPS.map(o => ({ ...o, id: uid(), createdAt: Date.now() })));
+    await db.tasks.bulkAdd(SEED_TASKS.map(([i, title, difficulty, priority], j) => ({ id: seedId('quest', j), areaId: areas[i].id, title, difficulty, priority, status: 'todo' as const, createdAt: Date.now() })));
+    await db.habits.bulkAdd(SEED_HABITS.map(h => ({ ...h, id: seedId('habit', h.key) })));
+    await db.accounts.bulkAdd(SEED_ACCOUNTS.map((a, i) => ({ ...a, id: seedId('account', i) })));
+    await db.rewards.bulkAdd(SEED_REWARDS.map((r, i) => ({ ...r, id: seedId('reward', i) })));
+    await db.goals.bulkAdd(SEED_GOALS.map((g, i) => ({ ...g, id: seedId('goal', i) })));
+    await db.opportunities.bulkAdd(SEED_OPPS.map((o, i) => ({ ...o, id: seedId('opp', i), createdAt: Date.now() })));
     await db.settings.bulkPut([
       { key: 'playerName', value: 'Economist' },
       { key: 'wakeTime', value: '05:45' },

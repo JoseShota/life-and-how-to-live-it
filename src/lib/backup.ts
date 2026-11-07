@@ -1,4 +1,4 @@
-import { db, ALL_TABLES } from '@/db/db';
+import { db, ALL_TABLES, rekeyXpV13 } from '@/db/db';
 import { legacyIcon, ICON_TABLES } from '@/db/legacy';
 
 export const BACKUP_VERSION = 5; // v2 adds statements and installments, v3 pipelineEvents, v4 reviews, v5 areaHours (older backups import with them empty)
@@ -18,6 +18,8 @@ export async function importAll(json: unknown) {
       await db.table(t).clear();
       let rows = b.data![t] ?? [];
       if ((ICON_TABLES as readonly string[]).includes(t)) rows = rows.map(r => legacyIcon({ ...(r as Record<string, unknown>) }, t));
+      // Backups made before v13 have random XP ids; give each row its refId as id, like the v13 upgrade does.
+      if (t === 'xp') rows = rekeyXpV13(rows as { id: string; refId: string; ts: number }[]);
       if (rows.length) await db.table(t).bulkAdd(rows);
     }
   });

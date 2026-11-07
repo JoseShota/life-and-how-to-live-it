@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { trackChanges, tagTransaction, OUTBOX, SYNC_STATE, type OutboxEntry, type SyncStateRow } from '@/sync/track';
 import { legacyIcon, ICON_TABLES } from './legacy';
 import { DEFAULT_WORK_TARGETS } from '@/game/rules';
 import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
@@ -7,6 +8,12 @@ import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
   Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent, Review, AreaHours
 } from './types';
+
+/** Every table with user data: what backups hold and what syncs (the two sync tables are device-only). */
+export const ALL_TABLES = [
+  'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',
+  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews', 'areaHours'
+] as const;
 
 export class LifeDB extends Dexie {
   areas!: Table<Area, string>;
@@ -27,6 +34,10 @@ export class LifeDB extends Dexie {
   pipelineEvents!: Table<PipelineEvent, string>;
   reviews!: Table<Review, string>;
   areaHours!: Table<AreaHours, string>;
+  /** v13 (device-only): rows changed here and not yet pushed. */
+  syncOutbox!: Table<OutboxEntry, string>;
+  /** v13 (device-only): sync bookkeeping (clock, cursor, device id, keys). */
+  syncState!: Table<SyncStateRow, string>;
 
   constructor(name = 'life-and-how-to-live-it') {
     super(name);
@@ -97,7 +108,29 @@ export class LifeDB extends Dexie {
       const row = await tx.table('settings').get('workTargets');
       if (row) await tx.table('settings').put({ key: 'workTargets', value: migrateWorkTargetsV12(row.value) });
     });
+    // v13 (P2 sync): two device-only tables for change tracking, and each XP row's id becomes its refId, so the
+    // same reward earned on both devices is one row (never doubled) and an undo is a delete that can sync.
+    this.version(13).stores({ [OUTBOX]: 'id', [SYNC_STATE]: 'key' }).upgrade(async tx => {
+      const rows = await tx.table('xp').toArray();
+      await tx.table('xp').clear();
+      await tx.table('xp').bulkAdd(rekeyXpV13(rows));
+    });
+    // Records every change to a synced table in the outbox (src/sync/track.ts).
+    this.use(trackChanges(ALL_TABLES));
   }
+}
+
+/**
+ * v13: XP ids become their refId. Rows that already share a refId (none should) keep every row, oldest first,
+ * as `<refId>#2`, `#3`…, so no XP or coins are lost or added by the upgrade. Exported for tests.
+ */
+export function rekeyXpV13<T extends { id: string; refId: string; ts: number }>(rows: T[]): T[] {
+  const seen = new Map<string, number>();
+  return [...rows].sort((a, b) => a.ts - b.ts || a.id.localeCompare(b.id)).map(r => {
+    const n = (seen.get(r.refId) ?? 0) + 1;
+    seen.set(r.refId, n);
+    return { ...r, id: n === 1 ? r.refId : `${r.refId}#${n}` };
+  });
 }
 
 /** v3 habit changes, by stable key. Exported for tests. */
@@ -150,10 +183,18 @@ export function migrateAccountV5(a: { type: string; role?: string }) {
 
 export const db = new LifeDB();
 
-export const ALL_TABLES = [
-  'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',
-  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews', 'areaHours'
-] as const;
+/**
+ * Runs a "create it if it's missing" write as a weak change: if another device already has that row (with real
+ * edits), its version wins when they sync, instead of this fresh default overwriting it. Inside an existing
+ * transaction it can't tag only this write, so it runs as a normal write there.
+ */
+export async function weakly<T>(fn: () => Promise<T>): Promise<T> {
+  if (Dexie.currentTransaction) return fn();
+  return db.transaction('rw', ALL_TABLES.map(t => db.table(t)), () => {
+    tagTransaction(Dexie.currentTransaction, 'weak');
+    return fn();
+  });
+}
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const s = await db.settings.get(key);

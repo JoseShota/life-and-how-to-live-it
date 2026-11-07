@@ -36,6 +36,8 @@ src/
     toast.tsx           # reward toasts (hooks into db.xp 'creating')
     routine.ts          # IDEAL_DAY template + .ics generator
     backup.ts           # JSON export/import
+  sync/
+    track.ts            # startup: DBCore middleware recording changes in syncOutbox, the clock, device-only settings
   components/
     ui.tsx              # Card (Win95 window), Button, Bar (chunky), Ring, Input, Select, Textarea, Modal, Chip, Empty, PageTitle
     Layout.tsx          # HUD + marquee ticker + vapor backdrop + Win95 taskbar/Start menu + archive footer
@@ -63,12 +65,13 @@ AGENTS.md               # entry point for any coding agent
 
 ### Key invariants (do not break)
 1. **XP/coins only change via `award()` / `revoke()` / `redeem()`** in `game/engine.ts` (achievements write via `checkAchievements`). Never store XP totals anywhere.
-2. **Every award has a deterministic `refId`** (`task:<id>`, `habit:<habitId>:<date>`, `session:<id>`, `perfect:<date>`, `workday:<date>`, `tx:<id>`, `ach:<key>`). Undo = `revoke(refId)`.
+2. **Every award has a deterministic `refId`** (`task:<id>`, `habit:<habitId>:<date>`, `session:<id>`, `perfect:<date>`, `workday:<date>`, `tx:<id>`, `ach:<key>`), and since v13 the row's `id` **is** its refId (one row per refId, written with `put`). Undo = `revoke(refId)`.
 3. **`evaluateDay(date)` is idempotent.** Call it after anything that affects habits or sessions.
 4. **Dates are local `YYYY-MM-DD` strings** (`dateKey()`), never UTC ISO dates, so "today" means Mexico City today.
 5. **Money is signed MXN numbers** on the transaction (`+` in, `−` out). Credit-card balances are negative when you owe. Transfers are two legs sharing `transferId`.
 6. **Dexie schema:** never edit an existing `version(n)` block. Add `version(n+1).stores({...}).upgrade(tx => …)`.
 7. `game/rules.ts` and `finance/finance.ts` stay **pure** (no DB, no React) and are unit-tested.
+8. **Sync-safe writes (v13).** Every write is tracked automatically (`src/sync/track.ts`); never write to `syncOutbox`/`syncState` by hand. A write that changes nothing is not recorded, so derived code may re-run freely. Rows the app creates by itself get deterministic ids, and "create it if it's missing" writes go through `weakly()`.
 
 ## Bundle (P1-9)
 - Every page is a `React.lazy` chunk (`src/pages/index.ts`), shown under a `Suspense` fallback in `Layout`. After the first render the other pages preload when the browser is idle, and the service worker precaches every chunk, so tabs switch instantly and the app works offline.
