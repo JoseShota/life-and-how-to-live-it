@@ -2,11 +2,13 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v11)
+## Tables (Dexie v12)
+
+v12 (no index changes): teaching days (2026-11-07). The `workTargets` setting gains `teaching` (`{ done: 4, full: 5 }`); the upgrade adds it when missing and keeps the user's weekday and weekend numbers (reads also fill missing pairs, so an older backup restores safely). A new setting `teachingSchedule` (`TeachingSchedule` in `src/game/rules.ts`: `days` as JS weekdays, `leave`, optional `arrive`, `classStart`, `classEnd`, `homeBy` as local `HH:MM`, `semesterStart`, `semesterEnd`, `areaId`) is absent by default and entered in Control; it changes nothing until every field is valid. Its hours are **not stored**: `scheduleAreaHours()` turns each teaching date in the semester into a virtual one-off `AreaHours` row (id `teaching:<date>`, `homeBy − leave` hours) wherever hours are summed. Settings are already in backups, so `BACKUP_VERSION` stays 5.
 
 v11 (no index changes): tasks get `autoNotes`, text the app writes and keeps current (the RESICO estimate). The upgrade moves the app's estimate out of tax quests' `notes`; a note the user wrote stays in `notes`, which the app never rewrites.
 
-v10: new table `areaHours` (E-10): non-focus hours per area, one-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date` until `until`). Expenses may now carry `areaId` (an existing index): the activity they're a cost of, or `'shared'` for shared work costs. Settings gain `floorRate` (default 250) and `lastBackupAt`. Backups are `BACKUP_VERSION` 5.
+v10: new table `areaHours` (E-10): non-focus hours per area, one-off (`hours` on `date`) or standing (`weekly`: `hours` every week from `date` until `until`). Expenses may now carry `areaId` (an existing index): the activity they're a cost of, or `'shared'` for shared work costs. Settings gain `floorRate` (only when set by hand; otherwise the floor is computed from spending, savings % and paid hours) and `lastBackupAt`. Backups are `BACKUP_VERSION` 5.
 
 v9 (no index changes): tasks get `recurrence` (`every` day/week/month, `anchorDay` for monthly, `series`, `keepMissed`). Completing a repeating quest creates the next instance with the id `<series>@<due date>`; the RESICO monthly declaration is the series `tax-m` and keeps its `tax-m-<yyyy-mm>` ids. The upgrade marks existing `tax-m-*` quests as that series.
 
@@ -48,7 +50,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `reviews` | `id` (Monday) | — | v8: the weekly review of one Mon–Sun week |
 | `areaHours` | `id` | `areaId, date` | v10: non-focus hours per area (no XP), for the real MXN/h |
 | `unlocked` | `key` | — | Unlocked achievements |
-| `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
+| `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`; `teaching` pair since v12), `teachingSchedule` (v12, absent until entered), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
 ## Entities (abridged)
 

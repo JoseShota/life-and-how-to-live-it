@@ -13,15 +13,104 @@ export const sessionXp = (minutes: number) => Math.floor((Math.max(0, minutes) *
 
 /** Deep-work targets in hours. "done" checks the deep-work habit; "full" earns the workday bonus and is where focus XP stops. */
 export interface DayTargets { done: number; full: number }
-export interface WorkTargets { weekday: DayTargets; weekend: DayTargets }
-export const DEFAULT_WORK_TARGETS: WorkTargets = { weekday: { done: 6, full: 8 }, weekend: { done: 4, full: 6 } };
+export interface WorkTargets { weekday: DayTargets; weekend: DayTargets; teaching: DayTargets }
+/**
+ * Teaching days (approved 2026-11-07, T-3): 5 h is the focus window before leaving for class, and done stays
+ * about 75 % of full, like weekdays. The class itself is not focus time (T-4).
+ */
+export const DEFAULT_WORK_TARGETS: WorkTargets = { weekday: { done: 6, full: 8 }, weekend: { done: 4, full: 6 }, teaching: { done: 4, full: 5 } };
+
+/** Fills targets missing from a stored value (stored before v12, or restored from an older backup). */
+export function withTargetDefaults(t?: Partial<WorkTargets> | null): WorkTargets {
+  return { ...DEFAULT_WORK_TARGETS, ...(t ?? {}) };
+}
+
+/**
+ * The user's teaching schedule (the `teachingSchedule` setting; empty by default, entered in Control).
+ * Times are local "HH:MM"; `days` are JS weekdays (0 = Sunday). `arrive` is optional: when set, the time between
+ * arriving and the class is its own "prepare the classroom" block.
+ */
+export interface TeachingSchedule {
+  days: number[];
+  leave: string;
+  arrive?: string;
+  classStart: string;
+  classEnd: string;
+  homeBy: string;
+  semesterStart: DateKey | '';
+  semesterEnd: DateKey | '';
+  areaId: string;
+}
+export const EMPTY_TEACHING_SCHEDULE: TeachingSchedule = {
+  days: [], leave: '', classStart: '', classEnd: '', homeBy: '', semesterStart: '', semesterEnd: '', areaId: ''
+};
+
+/** Minutes after midnight for "HH:MM", or null if it isn't a time. */
+export function clockMin(hhmm?: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
+  if (!m) return null;
+  const h = Number(m[1]), min = Number(m[2]);
+  return h < 24 && min < 60 ? h * 60 + min : null;
+}
+
+/**
+ * What still keeps a schedule from applying (empty = it applies). Nothing about teaching changes until every
+ * field is in place, so a half-typed schedule never moves targets or hours.
+ */
+export function teachingProblems(s?: Partial<TeachingSchedule> | null): string[] {
+  if (!s) return ['days', 'times', 'semester', 'area'];
+  const out: string[] = [];
+  if (!s.days?.length) out.push('days');
+  const [leave, arrive, start, end, home] = [s.leave, s.arrive, s.classStart, s.classEnd, s.homeBy].map(clockMin);
+  if (leave === null || start === null || end === null || home === null) out.push('times');
+  else if (!(leave < start && start < end && end <= home) || (s.arrive && (arrive === null || arrive < leave || arrive > start))) out.push('time order');
+  if (!s.semesterStart || !s.semesterEnd) out.push('semester');
+  else if (s.semesterStart > s.semesterEnd) out.push('semester order');
+  if (!s.areaId) out.push('area');
+  return out;
+}
+export const teachingReady = (s?: Partial<TeachingSchedule> | null): s is TeachingSchedule => teachingProblems(s).length === 0;
+
+const weekdayOf = (key: DateKey) => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d).getDay(); };
+
+/** A teaching day: one of the schedule's weekdays, inside the semester (inclusive). */
+export function isTeachingDay(key: DateKey, s?: Partial<TeachingSchedule> | null): boolean {
+  if (!teachingReady(s)) return false;
+  return key >= s.semesterStart && key <= s.semesterEnd && s.days.includes(weekdayOf(key));
+}
+
+/**
+ * Dates up to `until` whose teaching status differs between two schedules, oldest first: the past days a schedule
+ * change re-grades (their targets moved). Only the semesters' ranges can differ, so only those are scanned.
+ */
+export function teachingStatusChanged(before: Partial<TeachingSchedule> | null | undefined, after: Partial<TeachingSchedule> | null | undefined, until: DateKey): DateKey[] {
+  const ranges = [before, after].filter(teachingReady).map(s => [s.semesterStart, s.semesterEnd] as const);
+  if (!ranges.length) return [];
+  const from = ranges.map(r => r[0]).sort()[0];
+  const lastEnd = ranges.map(r => r[1]).sort().pop()!;
+  const to = until < lastEnd ? until : lastEnd;
+  const out: DateKey[] = [];
+  const [y, m, d] = from.split('-').map(Number);
+  const day = new Date(y, m - 1, d);
+  const key = () => `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  for (let k = key(); k <= to; day.setDate(day.getDate() + 1), k = key()) {
+    if (isTeachingDay(k, before) !== isTeachingDay(k, after)) out.push(k);
+  }
+  return out;
+}
+
+/** Hours away from the desk on a teaching day (leave home → home again): travel, classroom and class. */
+export function teachingHoursPerDay(s: TeachingSchedule) {
+  return ((clockMin(s.homeBy) ?? 0) - (clockMin(s.leave) ?? 0)) / 60;
+}
 
 export const isWeekend = (key: DateKey) => {
-  const [y, m, d] = key.split('-').map(Number);
-  const day = new Date(y, m - 1, d).getDay();
+  const day = weekdayOf(key);
   return day === 0 || day === 6;
 };
-export const targetsFor = (key: DateKey, t: WorkTargets = DEFAULT_WORK_TARGETS) => (isWeekend(key) ? t.weekend : t.weekday);
+/** The day's deep-work targets: teaching days first (they can fall on any weekday), then weekend or weekday. */
+export const targetsFor = (key: DateKey, t: WorkTargets = DEFAULT_WORK_TARGETS, s?: Partial<TeachingSchedule> | null) =>
+  isTeachingDay(key, s) ? (t.teaching ?? DEFAULT_WORK_TARGETS.teaching) : isWeekend(key) ? t.weekend : t.weekday;
 
 /**
  * Focus XP for each session of one day, in start order. Only minutes up to the day's full target pay,

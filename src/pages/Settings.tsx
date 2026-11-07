@@ -8,6 +8,7 @@ import { routineIcs } from '@/lib/routine';
 import { useToast } from '@/lib/toast';
 import { dateKey } from '@/lib/util';
 import { useWorkTargets } from '@/lib/hooks';
+import { TeachingScheduleCard } from '@/components/TeachingBits';
 import { evaluateDay } from '@/game/engine';
 import { TaxSettings } from '@/components/TaxBits';
 import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
@@ -16,9 +17,9 @@ export default function SettingsPage() {
   const toast = useToast();
   const file = useRef<HTMLInputElement>(null);
   const name = (useLiveQuery(() => db.settings.get('playerName'))?.value as string) ?? '';
-  const { all: targets } = useWorkTargets();
+  const { all: targets, schedule } = useWorkTargets();
   const showMarquee = (useLiveQuery(() => db.settings.get('showMarquee'))?.value as boolean | undefined) ?? true;
-  const setTarget = (kind: 'weekday' | 'weekend', which: 'done' | 'full', v: string) => {
+  const setTarget = (kind: 'weekday' | 'weekend' | 'teaching', which: 'done' | 'full', v: string) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n < 0 || n > 16) return;
     const next = { ...targets, [kind]: { ...targets[kind], [which]: n } };
@@ -26,6 +27,7 @@ export default function SettingsPage() {
     setSetting('workTargets', next).then(() => evaluateDay(dateKey()));
   };
   const areas = useLiveQuery(() => db.areas.orderBy('order').toArray(), [], []);
+  const place = areas.find(a => a.id === schedule?.areaId)?.short;
   const [iconFor, setIconFor] = useState<string | null>(null);
   const iconArea = areas.find(a => a.id === iconFor);
 
@@ -38,13 +40,20 @@ export default function SettingsPage() {
         </div>
         <h3 className="mt-4 font-display text-sm text-lav">Deep-work targets (hours)</h3>
         <p className="mb-2 text-xs text-ink/60">"Done" checks the deep-work habit. "Full" earns the workday bonus, and focus stops paying XP after it.</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Label text="Weekday · done"><Input inputMode="decimal" value={targets.weekday.done} onChange={e => setTarget('weekday', 'done', e.target.value)} /></Label>
-          <Label text="Weekday · full"><Input inputMode="decimal" value={targets.weekday.full} onChange={e => setTarget('weekday', 'full', e.target.value)} /></Label>
-          <Label text="Weekend · done"><Input inputMode="decimal" value={targets.weekend.done} onChange={e => setTarget('weekend', 'done', e.target.value)} /></Label>
-          <Label text="Weekend · full"><Input inputMode="decimal" value={targets.weekend.full} onChange={e => setTarget('weekend', 'full', e.target.value)} /></Label>
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-[7rem_1fr_1fr] gap-3 font-display text-[13px] text-lav" aria-hidden><span /><span>Done</span><span>Full</span></div>
+          {([['weekday', 'Weekday'], ['weekend', 'Weekend'], ['teaching', 'Teaching day']] as const).map(([kind, name]) => (
+            <div key={kind} className="grid grid-cols-[7rem_1fr_1fr] items-center gap-3">
+              <span className="font-display text-sm">{name}</span>
+              <Input inputMode="decimal" aria-label={`${name} · done`} value={targets[kind].done} onChange={e => setTarget(kind, 'done', e.target.value)} />
+              <Input inputMode="decimal" aria-label={`${name} · full`} value={targets[kind].full} onChange={e => setTarget(kind, 'full', e.target.value)} />
+            </div>
+          ))}
+          <p className="text-xs text-ink/60">Teaching days are the ones in "Teaching days" below, inside the semester.</p>
         </div>
       </Card>
+
+      <TeachingScheduleCard />
 
       <TaxSettings />
 
@@ -72,9 +81,9 @@ export default function SettingsPage() {
       </Card>
 
       <Card title="Reminders">
-        <p className="mb-3 text-sm text-ink/60">Your device calendar is the most reliable reminder engine. Import the ideal-day routine as daily recurring events with a 5-minute alert (works with Google Calendar, Apple Calendar, Outlook).</p>
+        <p className="mb-3 text-sm text-ink/60">Your device calendar is the most reliable reminder engine. Import the ideal-day routine as recurring events (teaching days get their own, until the semester ends) with a 5-minute alert (works with Google Calendar, Apple Calendar, Outlook).</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => download('life-routine.ics', routineIcs(), 'text/calendar')}><Glyph name="calendar" size={16}/>Download routine (.ics)</Button>
+          <Button variant="ghost" onClick={() => download('life-routine.ics', routineIcs(schedule, place), 'text/calendar')}><Glyph name="calendar" size={16}/>Download routine (.ics)</Button>
           <Button variant="ghost" onClick={async () => { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Notifications enabled' : 'Notifications blocked', r === 'granted' ? 'xp' : 'bad'); }}><Glyph name="bell" size={16}/>Allow notifications</Button>
         </div>
         <p className="mt-2 text-xs text-ink/50">This only grants permission. Scheduled reminders arrive in Phase 4; until then, use Download routine (.ics).</p>

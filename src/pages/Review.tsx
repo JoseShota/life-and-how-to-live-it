@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Glyph } from '@/components/Glyph';
 import { db, setSetting } from '@/db/db';
 import type { Task } from '@/db/types';
-import { deleteReview, saveReview, weekStats } from '@/game/engine';
+import { deleteReview, getTeachingSchedule, saveReview, weekStats } from '@/game/engine';
 import { REVIEW_QUESTS, REVIEW_WINS, REVIEW_XP, WEEKLY_CONVERSATIONS, WEEKLY_SCORECARD, coinsFor, reviewComplete, reviewWeekFor } from '@/game/rules';
 import { hoursByArea, pipelineCounts, weekDays, weekGrades } from '@/game/review';
 import { loadWealthSnapshot, wealthLevelReached } from '@/game/achievements';
@@ -12,7 +12,7 @@ import { WEALTH_LEVELS } from '@/finance/wealth';
 import { periodTotals, statementStatus } from '@/finance/finance';
 import { exportAll, download } from '@/lib/backup';
 import { useRealRates } from '@/components/RealRate';
-import { extraHoursByArea } from '@/finance/finance';
+import { extraHoursByArea, scheduleAreaHours } from '@/finance/finance';
 import { useToday } from '@/lib/hooks';
 import { cx, dateKey, mxn, parseKey } from '@/lib/util';
 import { Bar, Button, Card, Empty, Input, Label, PageTitle, Select, Textarea } from '@/components/ui';
@@ -56,7 +56,7 @@ export default function Review() {
   }, [monday, sunday]);
   const openQuests = useLiveQuery(() => db.tasks.where('status').notEqual('done').toArray(), [], []);
   const real = useRealRates(monday, sunday);
-  const extra = useLiveQuery(async () => extraHoursByArea(await db.areaHours.toArray(), monday, sunday), [monday, sunday]);
+  const extra = useLiveQuery(async () => extraHoursByArea([...await db.areaHours.toArray(), ...scheduleAreaHours(await getTeachingSchedule())], monday, sunday), [monday, sunday]);
 
   if (!data) return null;
   const grades = weekGrades(days, data.xp);

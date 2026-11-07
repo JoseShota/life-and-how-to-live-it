@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { db } from '@/db/db';
-import { levelFromXp, titleForLevel, targetsFor, DEFAULT_WORK_TARGETS, type WorkTargets } from '@/game/rules';
+import { levelFromXp, titleForLevel, targetsFor, isTeachingDay, withTargetDefaults, type WorkTargets, type TeachingSchedule } from '@/game/rules';
 import { dateKey } from './util';
 
 export function usePlayer() {
@@ -28,8 +28,14 @@ export function useToday() {
   return dateKey(now);
 }
 
-/** Deep-work targets from settings, and the ones that apply to `day` (weekday or weekend). */
+/** The teaching schedule from settings (undefined until entered, or while loading). */
+export function useTeachingSchedule() {
+  return useLiveQuery(() => db.settings.get('teachingSchedule'))?.value as TeachingSchedule | undefined;
+}
+
+/** Deep-work targets from settings, and the ones that apply to `day` (teaching day, weekday or weekend). */
 export function useWorkTargets(day: string = dateKey()) {
-  const all = (useLiveQuery(() => db.settings.get('workTargets'))?.value as WorkTargets | undefined) ?? DEFAULT_WORK_TARGETS;
-  return { all, today: targetsFor(day, all) };
+  const all = withTargetDefaults(useLiveQuery(() => db.settings.get('workTargets'))?.value as Partial<WorkTargets> | undefined);
+  const schedule = useTeachingSchedule();
+  return { all, today: targetsFor(day, all, schedule), teaching: isTeachingDay(day, schedule), schedule };
 }

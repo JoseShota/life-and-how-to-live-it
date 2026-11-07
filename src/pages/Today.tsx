@@ -7,7 +7,7 @@ import type { Area, Habit, HabitLog, Task } from '@/db/types';
 import { setHabit, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
 import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, REVIEW_XP, reviewWeekFor, type DayTargets } from '@/game/rules';
 import { usePlayer, useToday, useNow, useWorkTargets } from '@/lib/hooks';
-import { IDEAL_DAY, currentBlockIndex } from '@/lib/routine';
+import { idealDayFor, currentBlockIndex, type Block } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
 import { cardAlerts } from '@/finance/finance';
 import { cx, dateKey, hm, mxn, parseKey } from '@/lib/util';
@@ -85,12 +85,13 @@ const XP_DAY_GUIDE = 250; // about a realistic good day (scripts/eval-sim.ts)
 /**
  * The 5-second answer to "what should I do now?": the current block of the ideal day and one primary action.
  */
-function NowCard({ now, habits, logs, tasks, areas, today }: { now: number; habits: Habit[]; logs: HabitLog[]; tasks: Task[]; areas: Area[]; today: string }) {
+function NowCard({ now, habits, logs, tasks, areas, today, blocks, teaching }: { now: number; habits: Habit[]; logs: HabitLog[]; tasks: Task[]; areas: Area[]; today: string; blocks: Block[]; teaching: boolean }) {
   const nav = useNavigate();
   const active = useLiveQuery(() => db.settings.get('activeTimer'))?.value as { areaId: string; start: number } | undefined;
-  const i = currentBlockIndex(new Date(now));
-  const block = i >= 0 ? IDEAL_DAY[i] : undefined;
-  const next = IDEAL_DAY[i + 1] ?? IDEAL_DAY[0];
+  const i = currentBlockIndex(new Date(now), blocks);
+  const block = i >= 0 ? blocks[i] : undefined;
+  // After the last block, "next" is tomorrow's first one (the same wake-up every day).
+  const next = blocks[i + 1] ?? blocks[0];
   const habit = (key: string) => habits.find(h => h.key === key);
   const isDone = (h?: Habit) => !!h && !!logs.find(l => l.habitId === h.id && l.done);
   const open = tasks.filter(t => t.status !== 'done');
@@ -109,8 +110,18 @@ function NowCard({ now, habits, logs, tasks, areas, today }: { now: number; habi
   let what: string, action: JSX.Element | null = null;
   if (!block) {
     what = 'Sleep. Lights out by 22:00, up at 5:45.';
+  } else if (block.role === 'travel') {
+    // On the road: nothing to tap. The hours count for the real MXN/h by themselves (Control → Teaching days).
+    what = `${block.title}.`;
+  } else if (block.role === 'classroom') {
+    what = 'Set up the classroom: board, slides, attendance.';
+  } else if (block.role === 'class') {
+    what = `${block.title}. Teach; the timer stays off.`;
+  } else if (block.role === 'pack') {
+    what = 'Money check-in, then pack and go.';
+    action = <div className="flex flex-wrap gap-2"><Link to="/money" className="mac-btn inline-flex min-h-[40px] items-center gap-2 bg-laurel px-4 font-display text-[15px]"><Glyph name="drachma" size={16} />Log money</Link><HabitButtons h={habit('money')} /></div>;
   } else if (block.kind === 'work') {
-    const area = BLOCK_AREA_ICON[block.icon] ? areas.find(a => a.icon === BLOCK_AREA_ICON[block.icon]) : undefined;
+    const area = block.areaId ? areas.find(a => a.id === block.areaId) : BLOCK_AREA_ICON[block.icon] ? areas.find(a => a.icon === BLOCK_AREA_ICON[block.icon]) : undefined;
     const quest = best(area?.id) ?? best();
     what = block.title;
     action = active
@@ -128,7 +139,7 @@ function NowCard({ now, habits, logs, tasks, areas, today }: { now: number; habi
   } else { what = block.title; }
 
   return (
-    <Card title={block ? `Now · ${block.start}–${block.end}` : 'Now · night'} className="border-xp">
+    <Card title={`${block ? `Now · ${block.start}–${block.end}` : 'Now · night'}${teaching ? ' · teaching day' : ''}`} className="border-xp">
       <div className="flex flex-col gap-2">
         <p className="font-display text-xl leading-6">{what}</p>
         {action}
@@ -160,21 +171,23 @@ export default function Today() {
     return [...focus, ...doneToday];
   }, [today], []);
   const minutes = useLiveQuery(async () => (await db.sessions.where('date').equals(today).toArray()).reduce((s, x) => s + x.minutes, 0), [today], 0);
-  const { today: targets } = useWorkTargets(today);
+  const { today: targets, teaching, schedule } = useWorkTargets(today);
+  const place = areas.find(a => a.id === schedule?.areaId)?.short;
+  const blocks = idealDayFor(today, schedule, place);
   const week = useLiveQuery(() => weekStats(weekStartKey(today)), [today, logs, minutes]);
   const alerts = useLiveQuery(async () => cardAlerts(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray(), await db.installments.toArray(), today), [today], []);
   const xpLog = useLiveQuery(() => db.xp.where('date').equals(today).reverse().sortBy('ts'), [today], []);
 
   const coreDone = habits.filter(h => h.core && logs.find(l => l.habitId === h.id)?.done).length;
   const coreTotal = habits.filter(h => h.core).length;
-  const cur = currentBlockIndex(new Date(now));
+  const cur = currentBlockIndex(new Date(now), blocks);
   const areaOf = (id: string) => areas.find(a => a.id === id);
 
   return (
     <div className="flex flex-col gap-4">
       <PageTitle jp="今日" plain="what to do now" sub={`${new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()} · ${greeting(new Date(now).getHours())}`}>Today</PageTitle>
 
-      <NowCard now={now} habits={habits} logs={logs} tasks={tasks} areas={areas} today={today} />
+      <NowCard now={now} habits={habits} logs={logs} tasks={tasks} areas={areas} today={today} blocks={blocks} teaching={teaching} />
 
       <ReviewPrompt today={today} />
 
@@ -185,7 +198,7 @@ export default function Today() {
         </Card>
         <Card className="flex flex-col items-center gap-1 !p-3">
           <Ring value={minutes / (targets.full * 60)} size={84} color="#cf9a95"><span className="font-display text-xl leading-none text-xp">{hm(minutes)}</span></Ring>
-          <span className="text-center text-[11px] text-ink/60">Deep work · {targets.done}h done · {targets.full}h full</span>
+          <span className="text-center text-[11px] text-ink/60">Deep work · {targets.done}h done · {targets.full}h full{teaching ? ' · teaching day' : ''}</span>
         </Card>
         <Card className="flex flex-col items-center gap-1 !p-3">
           <Ring value={Math.min(1, player.todayXp / XP_DAY_GUIDE)} size={84} color="#8fc3cf"><span className="font-display text-2xl leading-none text-cyan">{player.todayXp}</span></Ring>
@@ -243,9 +256,9 @@ export default function Today() {
           )}
         </Card>
 
-        <Card title="The Ideal Day">
+        <Card title={teaching ? 'The Ideal Day · teaching day' : 'The Ideal Day'}>
           <ol className="flex flex-col">
-            {IDEAL_DAY.map((b, i) => (
+            {blocks.map((b, i) => (
               <li key={b.start} className={cx('flex gap-3 px-2 py-1.5 text-sm', i === cur ? 'bg-ink font-bold text-white' : i < cur ? 'text-ink/45 line-through' : 'text-ink/90')}>
                 <span className="w-12 shrink-0 font-display text-[14px] tabular-nums opacity-80">{b.start}</span><Glyph name={b.icon} size={16} className="mt-0.5 shrink-0" /><span>{b.title}</span>
               </li>
@@ -269,7 +282,7 @@ export default function Today() {
           <div className="mt-3"><Bar value={player.progress} /><p className="mt-1 text-xs text-ink/55">{player.needed - player.into} XP to level {player.level + 1}</p></div>
         </Card>
 
-        <CutUpCard lines={[...tasks.map(t => t.title), ...habits.map(h => h.name), ...IDEAL_DAY.slice(4, 9).map(b => b.title)]} />
+        <CutUpCard lines={[...tasks.map(t => t.title), ...habits.map(h => h.name), ...blocks.slice(4, 9).map(b => b.title)]} />
       </div>
     </div>
   );

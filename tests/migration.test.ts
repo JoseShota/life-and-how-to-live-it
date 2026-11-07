@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { describe, it, expect } from 'vitest';
-import { LifeDB } from '../src/db/db';
+import { LifeDB, migrateWorkTargetsV12 } from '../src/db/db';
 
 /** Opens a database exactly as the deployed app (schema v2) left it, then upgrades it with today's LifeDB. */
 describe('upgrade from the deployed schema (v2 → latest)', () => {
@@ -37,14 +37,14 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(11);
+    expect(db.verno).toBe(12);
     const habits = await db.habits.toArray();
     const by = (k: string) => habits.find(h => h.key === k)!;
     expect(by('wake').core).toBe(false);
     expect(by('intel')).toMatchObject({ core: false, intrinsic: true });
     expect(by('work')).toMatchObject({ core: true, name: 'Deep work', minLabel: '2 h of focus' });
     expect(by('eat')).toMatchObject({ core: false });
-    expect(await db.settings.get('workTargets')).toMatchObject({ value: { weekday: { done: 6, full: 8 } } });
+    expect(await db.settings.get('workTargets')).toMatchObject({ value: { weekday: { done: 6, full: 8 }, weekend: { done: 4, full: 6 }, teaching: { done: 4, full: 5 } } }); // v3 + v12
     expect(await db.accounts.get('c1')).toMatchObject({ bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 30000 });
     expect((await db.accounts.get('d1'))!.role).toBe('operating');
     // Existing data is untouched: the ledger history and the transaction are still there.
@@ -63,6 +63,46 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
     expect((await db.tasks.get('tax-m-2026-10'))!.notes).toBeUndefined();
     expect(await db.tasks.get('tax-m-2026-09')).toMatchObject({ notes: 'paid with my línea de captura', status: 'done' });
     expect((await db.transactions.get('t1'))!.areaId).toBeUndefined(); // untagged expenses stay untagged
+    expect(await db.settings.get('teachingSchedule')).toBeUndefined(); // v12: empty until the user enters it
     db.close();
+  });
+});
+
+/** v11 → v12: targets the user edited survive and gain the teaching pair; everything else is untouched. */
+describe('upgrade from v11 (teaching-day targets)', () => {
+  it('adds the teaching pair and keeps the user\'s numbers and data', async () => {
+    const name = 'upgrade-v11-test';
+    const old = new Dexie(name);
+    old.version(11).stores({
+      areas: 'id, order', tasks: 'id, areaId, status, dueDate, priority, completedAt', habits: 'id, &key, order',
+      habitLogs: 'id, habitId, date, [habitId+date]', sessions: 'id, areaId, date, start', accounts: 'id, order',
+      transactions: 'id, accountId, date, kind, areaId, transferId', goals: 'id, order', opportunities: 'id, status',
+      rewards: 'id', xp: 'id, date, source, refId, ts', unlocked: 'key', settings: 'key',
+      statements: 'id, accountId, cutoffDate, dueDate', installments: 'id, accountId, txId',
+      pipelineEvents: 'id, date, kind, opportunityId', reviews: 'id', areaHours: 'id, areaId, date'
+    });
+    await old.open();
+    await old.table('settings').bulkPut([
+      { key: 'workTargets', value: { weekday: { done: 5, full: 7 }, weekend: { done: 3, full: 5 } } },
+      { key: 'playerName', value: 'P' }
+    ]);
+    await old.table('sessions').add({ id: 's1', areaId: 'a', date: '2026-11-02', start: 1, end: 2, minutes: 300 });
+    await old.table('areaHours').add({ id: 'h1', areaId: 'a', date: '2026-09-01', hours: 6, weekly: true, createdAt: 1 });
+    await old.table('xp').add({ id: 'x1', ts: 1, date: '2026-11-02', source: 'session', refId: 'session:s1', xp: 100, coins: 20, label: 'Focus' });
+    old.close();
+
+    const db = new LifeDB(name);
+    await db.open();
+    expect(db.verno).toBe(12);
+    expect((await db.settings.get('workTargets'))!.value).toEqual({ weekday: { done: 5, full: 7 }, weekend: { done: 3, full: 5 }, teaching: { done: 4, full: 5 } });
+    expect(await db.settings.get('playerName')).toMatchObject({ value: 'P' });
+    expect(await db.sessions.get('s1')).toMatchObject({ minutes: 300 });
+    expect(await db.areaHours.get('h1')).toMatchObject({ hours: 6, weekly: true });
+    expect(await db.xp.get('x1')).toMatchObject({ xp: 100 });
+    db.close();
+  });
+
+  it('keeps a teaching pair that is already there', () => {
+    expect(migrateWorkTargetsV12({ weekday: { done: 6, full: 8 }, weekend: { done: 4, full: 6 }, teaching: { done: 3, full: 4 } }).teaching).toEqual({ done: 3, full: 4 });
   });
 });

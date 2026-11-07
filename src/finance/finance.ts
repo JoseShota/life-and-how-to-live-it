@@ -1,6 +1,7 @@
 import type { Account, AreaHours, BankKey, Installment, Statement, Transaction, Session, Area, Opportunity } from '@/db/types';
 import { monthTax } from './tax';
 import { dateKey, parseKey } from '@/lib/util';
+import { isTeachingDay, teachingHoursPerDay, teachingReady, type TeachingSchedule } from '@/game/rules';
 
 export function balanceOf(acc: Account, txs: Transaction[]) {
   return acc.openingBalance + txs.filter(t => t.accountId === acc.id).reduce((s, t) => s + t.amount, 0);
@@ -82,8 +83,10 @@ export function expenseByCategory(txs: Transaction[], month = dateKey().slice(0,
 
 /** `areaId` on an expense that is a cost of all paid work (internet, laptop, accountant): split by hours. */
 export const SHARED_WORK_AREA = 'shared';
-/** The master plan's kill rule floor (00-MASTER-PLAN.md §2): below it for 3 months, shrink the activity. */
+/** Fallback floor until there's a month of logged spending (the plan's original example, 00-MASTER-PLAN.md §2). */
 export const DEFAULT_FLOOR_RATE = 250;
+/** Logged paid hours are trusted for the floor once this many days of history exist; before that, the area targets. */
+export const FLOOR_MIN_HISTORY_DAYS = 14;
 /** Under this many hours in the window, a rate is too noisy for a kill/scale verdict. */
 export const MIN_VERDICT_HOURS = 5;
 
@@ -102,6 +105,28 @@ export function extraHoursByArea(entries: AreaHours[], from: string, to: string)
     if (h > 0) out.set(e.areaId, (out.get(e.areaId) ?? 0) + h);
   }
   return out;
+}
+
+/**
+ * The teaching schedule as non-focus hours (T-5): every teaching day inside the semester counts (home-by − leave)
+ * hours for the schedule's area, one entry per date so partial weeks and the semester's end are exact. Virtual:
+ * never stored, recomputed from the setting wherever hours are summed (real MXN/h, the floor, the weekly review).
+ */
+export function scheduleAreaHours(s?: Partial<TeachingSchedule> | null): AreaHours[] {
+  if (!teachingReady(s)) return [];
+  const perDay = teachingHoursPerDay(s);
+  const out: AreaHours[] = [];
+  const d = parseKey(s.semesterStart);
+  for (let k = dateKey(d); k <= s.semesterEnd; d.setDate(d.getDate() + 1), k = dateKey(d)) {
+    if (isTeachingDay(k, s)) out.push({ id: `teaching:${k}`, areaId: s.areaId, date: k, hours: perDay, note: 'teaching day (schedule)', createdAt: 0 });
+  }
+  return out;
+}
+
+/** Manual standing weekly hours on the schedule's area that overlap the semester: they would count twice. */
+export function teachingDoubleCount(entries: AreaHours[], s?: Partial<TeachingSchedule> | null): AreaHours[] {
+  if (!teachingReady(s)) return [];
+  return entries.filter(e => e.weekly && e.areaId === s.areaId && e.date <= s.semesterEnd && (!e.until || e.until >= s.semesterStart));
 }
 
 /**
@@ -181,6 +206,35 @@ export function realRates(i: RealRateInput) {
   }
   rows.sort((x, y) => (y.realRate ?? -Infinity) - (x.realRate ?? -Infinity) || y.net - x.net);
   return { rows, average, unallocatedShared: earningHours > 0 ? 0 : shared, floor };
+}
+
+export interface FloorInput {
+  /** Median monthly spending (or the manual estimate); null when there's nothing yet */
+  monthlySpending: number | null;
+  /** Share of income saved first ("split it" plan), 0–100 */
+  savingsPct: number;
+  /** Paid hours (focus + non-focus, earning areas) logged in the last `historyDays` days */
+  paidHours: number;
+  /** Days of history behind `paidHours` (at most 90) */
+  historyDays: number;
+  /** Sum of the earning areas' weekly hour targets (used until there's enough history) */
+  plannedWeeklyHours: number;
+}
+
+/**
+ * The floor from your real numbers: what an hour must leave you so your paid hours cover your spending and your
+ * savings. floor = spending / (1 − savings %) ÷ paid hours per month. It's an after-tax figure, like the real rate.
+ */
+export function autoFloorRate(i: FloorInput) {
+  const fromLog = i.historyDays >= FLOOR_MIN_HISTORY_DAYS && i.paidHours > 0;
+  const hoursPerMonth = fromLog ? i.paidHours * 30 / i.historyDays : i.plannedWeeklyHours * 52 / 12;
+  const save = Math.min(0.9, Math.max(0, i.savingsPct / 100));
+  const need = i.monthlySpending ? i.monthlySpending / (1 - save) : null;
+  const ready = need !== null && hoursPerMonth > 0;
+  return {
+    rate: ready ? Math.round(need! / hoursPerMonth) : DEFAULT_FLOOR_RATE,
+    ready, need, hoursPerMonth, hoursFrom: fromLog ? 'logged' as const : 'targets' as const
+  };
 }
 
 /** "This purchase = N hours of your work", at the average real rate (null when there's no rate yet). */

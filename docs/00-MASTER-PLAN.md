@@ -38,7 +38,7 @@ Treat your activities like an investment portfolio. Each one gets a **role**, a 
 
 **Rules for the portfolio (the app enforces these with data):**
 1. **The Wealth Engine table** (Money → "where your hours pay most") ranks activities by **real MXN per hour** over 90 days (30 and 365 also available): what an activity leaves you after taxes and its own costs, divided by *all* the hours it takes (focus sessions plus commuting, admin, sales and class time). Every month, move 2–3 weekly hours from the lowest-paying monetizable activity to the highest.
-2. **Kill rule:** if a monetizable activity's real rate stays below your floor rate (250 MXN/h by default, editable in the Wealth Engine) for 3 months and teaches you nothing new, shrink it.
+2. **Kill rule:** if a monetizable activity's real rate stays below your floor rate for 3 months and teaches you nothing new, shrink it. The floor comes from your real numbers: monthly spending ÷ (1 − the savings % you pay yourself first) ÷ the paid hours you actually work in a month. It moves as they change (it can be set by hand in the Wealth Engine).
 3. **Scale rule:** if an activity's real rate is ≥ 2× your average real rate, give it more hours *and* raise its price.
 
 ---
@@ -69,7 +69,24 @@ Treat your activities like an investment portfolio. Each one gets a **role**, a 
 | 20:00 | **Shutdown ritual:** pick tomorrow's top 3 quests in the app | ⚔️ |
 | 21:45 | Bed. Lights out 22:00 | 🛡️ |
 
-4 × 2 h blocks = **8 h deep work**. On teaching days, class time *replaces* block 3. The Focus timer logs it automatically.
+4 × 2 h blocks = **8 h deep work**. The Focus timer logs it automatically.
+
+**Teaching days** (approved 2026-11-07). On the days you leave home to teach, the app builds this variant from your schedule in Control (your times stay on your device):
+
+| Time | Block |
+|---|---|
+| 05:45–08:00 | Same as every day (wake, exercise, breakfast, intel) |
+| 08:00 | **Deep work 1 — class prep** |
+| 10:15 | **Deep work 2 — prep and grading** |
+| 12:15 | Lunch |
+| 13:15 | **Deep work 3 — final prep**, until 15 min before leaving |
+| leave − 15 m | Money check-in, pack |
+| leave | Travel to class (and prepare the classroom, if you set an arrival time) |
+| class | **Teach.** Not focus time: it pays in MXN/h, not XP |
+| class end | Travel home |
+| home | **Shutdown:** pick tomorrow's top 3 quests (15 m), then dinner, wind down, bed at 21:45 |
+
+Targets on those days: **4 h done, 5 h full**. The weekly 30 h stays. The hours away (leave → home) count automatically as non-focus hours for the real MXN/h.
 
 ### Anti-fragility rules (this is why most routines fail, and how yours won't)
 1. **Never miss twice.** One missed day is noise. Two in a row is the start of a new habit. The app shows streaks, and in Phase 4 it adds a "streak shield".
