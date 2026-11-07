@@ -44,7 +44,7 @@ export default function Quests() {
       </div>
 
       <Card title={areaId === 'all' ? 'All Quests' : `${areas.find(a => a.id === areaId)?.name}`} action={
-        <label className="flex items-center gap-2 text-xs text-ink/60"><input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} />Show completed</label>
+        <label className="flex min-h-[40px] cursor-pointer items-center gap-2 px-1 text-xs text-ink/60"><input type="checkbox" className="h-5 w-5" checked={showDone} onChange={e => setShowDone(e.target.checked)} />Show completed</label>
       }>
         <div className="flex flex-col gap-2">
           {visible.length === 0 ? <Empty>No quests here. Break the next big outcome into a quest you can finish in one sitting.</Empty> :

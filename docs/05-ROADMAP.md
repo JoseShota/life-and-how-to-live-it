@@ -17,7 +17,7 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 ## Phase 1 — Polish & personal fit (Weeks 1–3)
 | ID | Ticket | AC |
 |---|---|---|
-| P1-1 🟡 | **Recurring quests** (daily/weekly/monthly, e.g. "Grade weekly quizzes") | Field `recurrence` on Task. Completing a recurring quest creates the next instance. Dexie v3 migration (next free version). Tests |
+| P1-1 🟡 ✅ | **Recurring quests** (daily/weekly/monthly, e.g. "Grade weekly quizzes") | Field `recurrence` on Task. Completing a recurring quest creates the next instance. Dexie v3 migration (next free version). Tests |
 | P1-2 🟡 | **Sub-tasks / checklist** inside a quest | `checklist: {id,text,done}[]` on Task. Progress chip on TaskRow |
 | P1-3 🟡 | **Habit editor** in Settings (add/edit/archive/reorder habits, change XP, core flag) | Changes reflect on Today. Archived habits keep history |
 | P1-4 🟡 ✅ | **Weekly Review screen** (`/review`) | Shows last 7 days: perfect-day rate, hours per area vs target, money in/out, top 3 wins (free text), next week's top 3. Saves a `reviews` row. +50 XP once per week |

@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v8)
+## Tables (Dexie v9)
+
+v9 (no index changes): tasks get `recurrence` (`every` day/week/month, `anchorDay` for monthly, `series`, `keepMissed`). Completing a repeating quest creates the next instance with the id `<series>@<due date>`; the RESICO monthly declaration is the series `tax-m` and keeps its `tax-m-<yyyy-mm>` ids. The upgrade marks existing `tax-m-*` quests as that series.
 
 v8: new table `reviews` (P1-4), one row per Mon–Sun week keyed by its Monday: `wins` (3 free-text lines), `nextQuestIds` (3 task ids), `note`. No rows to migrate. Backups are `BACKUP_VERSION` 4.
 
@@ -49,7 +51,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 Area        { id, name, short, icon, color, kind: 'work'|'growth'|'hobby'|'personal',
               weeklyHoursTarget, monetizable, order, archived }
 Task        { id, areaId, title, notes?, difficulty: 1..5, priority: 1|2|3, dueDate?, status: 'todo'|'doing'|'done',
-              createdAt, completedAt? }
+              createdAt, completedAt?, recurrence?: { every: 'day'|'week'|'month', anchorDay?, series, keepMissed? } }
 Habit       { id, key, name, icon, kind: 'check'|'number'|'auto', target?, unit?, xp, core, intrinsic?, minLabel?, plan?, order, archived }
 HabitLog    { id, habitId, date, value, done, min? }
 Session     { id, areaId, taskId?, date, start, end, minutes, note? }
@@ -78,7 +80,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ## Ledger `refId` scheme
 | Source | refId | Reversible by |
 |---|---|---|
-| task | `task:<taskId>` | reopen / delete task |
+| task | `task:<taskId>` (each instance of a repeating quest has its own id, so each pays once) | reopen / delete task |
 | habit | `habit:<habitId>:<date>` | unchecking habit |
 | perfect-day | `perfect:<date>` | any core habit becomes undone |
 | good-day | `good:<date>` | fewer than 3 core habits done, or the day becomes perfect |

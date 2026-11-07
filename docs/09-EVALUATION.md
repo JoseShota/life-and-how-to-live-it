@@ -56,6 +56,7 @@ Not done (still open): Option C (coins backed by the fun budget), and a real-hou
 | Ticket | What changed |
 |---|---|
 | P1-4 Weekly review | `/review` (menu, and a card on Today on Sundays): Good-or-Perfect rate, scorecard, hours per area vs target, money in/out and savings rate, statements due, wealth level progress, conversations/proposals/case studies, 3 wins and next week's 3 quests, backup export. Dexie v8 `reviews`. +50 XP once per week (`REVIEW_XP`, new constant), only for a complete review of the current review week |
+| P1-1 Repeating quests | Daily, weekly or monthly quests (Dexie v9 `recurrence`); completing one creates the next with a deterministic id; the RESICO declaration is a monthly series that never skips |
 
 ### D4. Why investing unlocks at 3 and 6 months
 - Irregular income needs a buffer: Housel's room for error and the master plan both point at 6 months.

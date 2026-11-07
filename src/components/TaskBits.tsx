@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/db/db';
-import type { Area, Difficulty, Task } from '@/db/types';
+import type { Area, Difficulty, Recurrence, Task } from '@/db/types';
+import { RECURRENCE_LABEL, makeRecurrence } from '@/lib/recurrence';
 import { completeTask, reopenTask, revoke } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
 import { DIFFICULTY_LABEL, TASK_XP } from '@/game/rules';
@@ -35,6 +36,7 @@ export function TaskRow({ task, area, compact }: { task: Task; area?: Area; comp
           {area && !compact && <Chip color={area.color}><Glyph name={area.icon} size={13} stroke={2} />{area.short}</Chip>}
           <Chip color="#c7c2e3">+{TASK_XP[task.difficulty]} XP</Chip>
           {task.priority === 1 && !done && <Chip color="#e3b9b2">Today</Chip>}
+          {task.recurrence && <Chip color="#a6d9d1"><Glyph name="path" size={12} stroke={2} />{RECURRENCE_LABEL[task.recurrence.every]}</Chip>}
           {task.dueDate && <Chip color={overdue ? '#a8383a' : '#d4d9d6'}>{overdue ? 'Overdue ' : ''}{task.dueDate.slice(5)}</Chip>}
         </div>
       </div>
@@ -49,14 +51,20 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
   const areas = useLiveQuery(() => db.areas.orderBy('order').filter(a => !a.archived).toArray(), [], []);
   const [f, setF] = useState<Partial<Task>>(task ?? {});
   const [err, setErr] = useState('');
+  const [every, setEvery] = useState<Recurrence['every'] | ''>(task?.recurrence?.every ?? '');
   const v = { title: '', areaId: defaultAreaId ?? areas[0]?.id, difficulty: 2 as Difficulty, priority: defaultPriority, ...f };
   const save = async () => {
     if (!v.title?.trim() || !v.areaId) return;
     // Epic is self-rated and pays the most, so it has to say what "done" looks like.
     if (v.difficulty === 5 && !v.notes?.trim()) { setErr('An Epic quest needs a note: what does "done" look like?'); return; }
     setErr('');
-    if (task) await db.tasks.update(task.id, { title: v.title.trim(), areaId: v.areaId, difficulty: v.difficulty, priority: v.priority, dueDate: v.dueDate || undefined, notes: v.notes });
-    else await db.tasks.add({ id: uid(), title: v.title.trim(), areaId: v.areaId, difficulty: v.difficulty as Difficulty, priority: v.priority as 1 | 2 | 3, dueDate: v.dueDate || undefined, notes: v.notes, status: 'todo', createdAt: Date.now() });
+    const id = task?.id ?? uid();
+    // A repeating quest needs a due date to step from: today when none is set.
+    const dueDate = v.dueDate || (every ? dateKey() : undefined);
+    const prev = task?.recurrence;
+    const recurrence = every ? { ...makeRecurrence(every, prev?.series ?? id, dueDate!), ...(prev?.keepMissed ? { keepMissed: true } : {}) } : undefined;
+    if (task) await db.tasks.update(task.id, { title: v.title.trim(), areaId: v.areaId, difficulty: v.difficulty, priority: v.priority, dueDate, notes: v.notes, recurrence });
+    else await db.tasks.add({ id, title: v.title.trim(), areaId: v.areaId, difficulty: v.difficulty as Difficulty, priority: v.priority as 1 | 2 | 3, dueDate, notes: v.notes, status: 'todo', createdAt: Date.now(), recurrence });
     setF({});
     onClose();
   };
@@ -88,7 +96,15 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
             </Select>
           </Label>
         </div>
-        <Label text="Due date"><Input type="date" value={v.dueDate ?? ''} onChange={e => setF({ ...v, dueDate: e.target.value })} /></Label>
+        <div className="grid grid-cols-2 gap-3">
+          <Label text="Due date"><Input type="date" value={v.dueDate ?? ''} onChange={e => setF({ ...v, dueDate: e.target.value })} /></Label>
+          <Label text="Repeats">
+            <Select value={every} onChange={e => setEvery(e.target.value as Recurrence['every'] | '')}>
+              <option value="">Never</option><option value="day">Every day</option><option value="week">Every week</option><option value="month">Every month</option>
+            </Select>
+          </Label>
+        </div>
+        {every && <p className="text-xs text-ink/60">Completing it creates the next one, {RECURRENCE_LABEL[every]} from its due date{task?.recurrence?.keepMissed ? ' (every period, even when late)' : '; missed periods are skipped'}.</p>}
         <Label text={v.difficulty === 5 ? 'Done means… (required for Epic)' : 'Notes'}><textarea value={v.notes ?? ''} onChange={e => setF({ ...v, notes: e.target.value })} rows={3} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
         {err && <p role="alert" className="font-type text-sm text-hp">{err}</p>}
         {v.difficulty === 5 && <p className="text-xs text-ink/60">Only your first Epic each day pays Epic XP; later ones pay Hard.</p>}

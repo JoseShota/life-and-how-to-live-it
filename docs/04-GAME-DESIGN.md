@@ -54,6 +54,8 @@
 
 **Weekly review (P1-4).** It covers the same Mon–Sun week as the scorecard: on Sunday the week ending today, on any other day the last finished week (so you have until Saturday). Incentive design: 50 XP is a third of the scorecard on purpose (the week's outcome is worth more than planning it) and pays only for a real review (3 wins written, 3 quests chosen). Old weeks can be saved and edited but never pay, so there's no backfilling. Deleting a review, or emptying it, takes the XP back.
 
+**Repeating quests (P1-1).** A quest can repeat every day, week or month (Quest form, "Repeats"). Completing it creates the next instance, due one period after the current due date; missed periods are skipped so the next one isn't born overdue. Each instance is a normal quest and pays its own XP. Reopening removes the next instance if it's untouched. The RESICO monthly declaration is a monthly series that never skips a month (every month must be filed); its estimate refreshes from the ledger each time the app opens while it's open.
+
 ## Levels
 `xpForLevel(n) = 50 × (n − 1)^1.8` (total XP needed to reach level *n*).
 

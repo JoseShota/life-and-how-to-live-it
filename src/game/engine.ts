@@ -1,5 +1,6 @@
 // Side-effectful game actions. Every reward goes through `award` so the ledger stays the single source of truth.
-import { db } from '@/db/db';
+import { db, TAX_MONTHLY_RECURRENCE } from '@/db/db';
+import { instanceId, nextDue } from '@/lib/recurrence';
 import type { Difficulty, Habit, IncomeTax, Opportunity, PipelineEventKind, Statement, Task, Transaction, XpSource } from '@/db/types';
 import { DEFAULT_TAX_PROFILE, monthTax, monthlyDueDate, type TaxProfile } from '@/finance/tax';
 import { mxn } from '@/lib/util';
@@ -49,13 +50,50 @@ export async function completeTask(task: Task) {
     if (today >= MAX_FULL_EPICS_PER_DAY) xp = TASK_XP[4];
   }
   await award('task', `task:${task.id}`, xp, `Quest: ${task.title}`);
+  if (task.recurrence) await spawnNext(task, dateKey());
   await checkAchievements();
 }
 
 export async function reopenTask(task: Task) {
   await db.tasks.update(task.id, { status: 'todo', completedAt: undefined });
   await revoke(`task:${task.id}`);
+  // Undo the instance that completing it created, unless it has been used since (edited, timed or done).
+  if (task.recurrence && task.completedAt) {
+    const next = await db.tasks.get(nextInstance(task, dateKey(task.completedAt)).id);
+    const used = !next || next.status !== 'todo' || next.title !== task.title || (await db.sessions.filter(s => s.taskId === next.id).count()) > 0;
+    if (!used) await db.tasks.delete(next.id);
+  }
   await checkAchievements();
+}
+
+// ---------- Repeating quests (P1-1) ----------
+/** The next instance of a repeating quest completed on `doneOn`: its deterministic id and due date. */
+export function nextInstance(task: Task, doneOn: string) {
+  const r = task.recurrence!;
+  const due = nextDue(r, task.dueDate, doneOn);
+  // The tax series keeps its month-based ids (`tax-m-<yyyy-mm>`), the same ones ensureTaxQuests uses, so they can't collide.
+  if (r.series === TAX_MONTHLY_RECURRENCE.series && task.id.startsWith('tax-m-')) {
+    const [y, m] = task.id.slice(6).split('-').map(Number);
+    const month = dateKey(new Date(y, m, 1)).slice(0, 7);
+    return { id: `tax-m-${month}`, due: monthlyDueDate(month), month };
+  }
+  return { id: instanceId(r.series, due), due, month: undefined };
+}
+
+/** Creates the next instance once (deterministic id). Returns its id. */
+export async function spawnNext(task: Task, doneOn: string) {
+  const n = nextInstance(task, doneOn);
+  if (await db.tasks.get(n.id)) return n.id;
+  if (n.month) {
+    const area = await db.areas.get(task.areaId) ? task.areaId : (await taxArea())?.id;
+    if (area) await db.tasks.add(await taxMonthQuest(n.month, area));
+    return n.id;
+  }
+  await db.tasks.add({
+    id: n.id, areaId: task.areaId, title: task.title, notes: task.notes, difficulty: task.difficulty, priority: task.priority,
+    dueDate: n.due, status: 'todo', createdAt: Date.now(), recurrence: task.recurrence
+  });
+  return n.id;
 }
 
 // ---------- Habits ----------
@@ -389,23 +427,37 @@ const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio
  * Creates the RESICO filing quests once each: last month's declaration (due the 17th; RESICO files even with zero
  * income) and, in April, last year's annual return. Deterministic ids, never overwritten.
  */
+async function taxArea() {
+  const areas = await db.areas.toArray();
+  return areas.find(a => a.short === 'Wealth') ?? areas[areas.length - 1];
+}
+
+async function taxNotes(month: string) {
+  const m = monthTax(await db.transactions.where('date').startsWith(month).toArray(), month);
+  return `Estimate: ISR ${mxn(m.isrDue, 2)} + IVA ${mxn(m.ivaDue, 2)} = ${mxn(m.totalDue, 2)} (income collected ${mxn(m.base, 2)} at ${(m.rate * 100).toFixed(2)} %). File even if it's zero. Pay from the tax reserve.`;
+}
+
+/** The monthly declaration quest for `month` (YYYY-MM): due the 17th of the next month, part of the monthly series. */
+export async function taxMonthQuest(month: string, areaId: string): Promise<Task> {
+  const [y, mo] = month.split('-').map(Number);
+  return {
+    id: `tax-m-${month}`, areaId, difficulty: 2, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: monthlyDueDate(month),
+    title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`, notes: await taxNotes(month), recurrence: { ...TAX_MONTHLY_RECURRENCE }
+  };
+}
+
 export async function ensureTaxQuests(today = dateKey()) {
   const profile = await getTaxProfile();
   if (profile.regime !== 'resico') return;
-  const areas = await db.areas.toArray();
-  const area = areas.find(a => a.short === 'Wealth') ?? areas[areas.length - 1];
+  const area = await taxArea();
   if (!area) return;
   const t = parseKey(today);
   const prev = dateKey(new Date(t.getFullYear(), t.getMonth() - 1, 1)).slice(0, 7);
-  const id = `tax-m-${prev}`;
-  if (!(await db.tasks.get(id))) {
-    const m = monthTax(await db.transactions.where('date').startsWith(prev).toArray(), prev);
-    const [y, mo] = prev.split('-').map(Number);
-    await db.tasks.add({
-      id, areaId: area.id, difficulty: 2, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: monthlyDueDate(prev),
-      title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`,
-      notes: `Estimate: ISR ${mxn(m.isrDue, 2)} + IVA ${mxn(m.ivaDue, 2)} = ${mxn(m.totalDue, 2)} (income collected ${mxn(m.base, 2)} at ${(m.rate * 100).toFixed(2)} %). File even if it's zero. Pay from the tax reserve.`
-    });
+  if (!(await db.tasks.get(`tax-m-${prev}`))) await db.tasks.add(await taxMonthQuest(prev, area.id));
+  // The series can create a month's quest before the month ends: keep open estimates in step with the ledger.
+  for (const q of await db.tasks.where('status').notEqual('done').filter(x => x.id.startsWith('tax-m-')).toArray()) {
+    const notes = await taxNotes(q.id.slice(6));
+    if (q.notes !== notes) await db.tasks.update(q.id, { notes });
   }
   if (t.getMonth() === 3) {
     const year = t.getFullYear() - 1;

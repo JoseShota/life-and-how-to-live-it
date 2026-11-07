@@ -78,6 +78,10 @@ export class LifeDB extends Dexie {
     this.version(7).stores({ pipelineEvents: 'id, date, kind, opportunityId' });
     // v8: weekly reviews (P1-4), one row per Mon–Sun week keyed by its Monday. A new table: no rows to migrate.
     this.version(8).stores({ reviews: 'id' });
+    // v9 (no index changes): repeating quests (P1-1). The RESICO monthly declaration becomes a monthly series.
+    this.version(9).stores({}).upgrade(async tx => {
+      await tx.table('tasks').toCollection().modify(migrateTaskV9);
+    });
   }
 }
 
@@ -87,6 +91,14 @@ export function migrateHabitV3(h: { key: string; core: boolean; intrinsic?: bool
   if (['sleep', 'exercise', 'work', 'money'].includes(h.key)) h.core = true;
   if (h.key === 'intel') h.intrinsic = true;
   if (h.key === 'work') { h.name = 'Deep work'; h.target = DEFAULT_WORK_TARGETS.weekday.done; }
+}
+
+/** The RESICO monthly declaration series: due the 17th, and every month must be filed (no skipping). */
+export const TAX_MONTHLY_RECURRENCE = { every: 'month', anchorDay: 17, series: 'tax-m', keepMissed: true } as const;
+
+/** v9: monthly tax quests (`tax-m-<yyyy-mm>`) become a repeating series. Exported for tests. */
+export function migrateTaskV9(t: { id: string; recurrence?: unknown }) {
+  if (t.id.startsWith('tax-m-') && !t.recurrence) t.recurrence = { ...TAX_MONTHLY_RECURRENCE };
 }
 
 /** v4: credit cards get a bank preset and "due N days after the cut-off". Exported for tests. */

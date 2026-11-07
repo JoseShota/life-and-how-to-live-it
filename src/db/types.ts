@@ -37,6 +37,19 @@ export interface Task {
   status: TaskStatus;
   createdAt: number;
   completedAt?: number;
+  /** v9: a repeating quest. Completing it creates the next instance. */
+  recurrence?: Recurrence;
+}
+
+/** v9 (P1-1): how a quest repeats. Every instance of a series carries the same `series` id. */
+export interface Recurrence {
+  every: 'day' | 'week' | 'month';
+  /** Monthly: the day of the month it falls on (clamped to short months, never drifts) */
+  anchorDay?: number;
+  /** Shared by every instance; next instances get the id `${series}@${dueDate}` */
+  series: string;
+  /** Every period must happen even if late (the monthly tax declaration); otherwise missed periods are skipped */
+  keepMissed?: boolean;
 }
 
 export type HabitKind = 'check' | 'number' | 'auto';
