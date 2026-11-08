@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { describe, it, expect } from 'vitest';
-import { LifeDB, migrateWorkTargetsV12 } from '../src/db/db';
+import { LifeDB, migrateWorkTargetsV12, rekeyXpV13 } from '../src/db/db';
 
 /** Opens a database exactly as the deployed app (schema v2) left it, then upgrades it with today's LifeDB. */
 describe('upgrade from the deployed schema (v2 → latest)', () => {
@@ -37,7 +37,7 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(12);
+    expect(db.verno).toBe(13);
     const habits = await db.habits.toArray();
     const by = (k: string) => habits.find(h => h.key === k)!;
     expect(by('wake').core).toBe(false);
@@ -47,8 +47,8 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
     expect(await db.settings.get('workTargets')).toMatchObject({ value: { weekday: { done: 6, full: 8 }, weekend: { done: 4, full: 6 }, teaching: { done: 4, full: 5 } } }); // v3 + v12
     expect(await db.accounts.get('c1')).toMatchObject({ bank: 'banorte', dueDaysAfterCutoff: 20, creditLimit: 30000 });
     expect((await db.accounts.get('d1'))!.role).toBe('operating');
-    // Existing data is untouched: the ledger history and the transaction are still there.
-    expect(await db.xp.get('x1')).toMatchObject({ xp: 100 });
+    // Existing data is untouched: the ledger history and the transaction are still there (v13: id = refId).
+    expect(await db.xp.get('workday:2026-11-01')).toMatchObject({ xp: 100, refId: 'workday:2026-11-01' });
     expect(await db.transactions.get('t1')).toMatchObject({ amount: -230 });
     expect(await db.statements.count()).toBe(0);
     expect(await db.pipelineEvents.count()).toBe(0);
@@ -93,16 +93,71 @@ describe('upgrade from v11 (teaching-day targets)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(12);
+    expect(db.verno).toBe(13);
     expect((await db.settings.get('workTargets'))!.value).toEqual({ weekday: { done: 5, full: 7 }, weekend: { done: 3, full: 5 }, teaching: { done: 4, full: 5 } });
     expect(await db.settings.get('playerName')).toMatchObject({ value: 'P' });
     expect(await db.sessions.get('s1')).toMatchObject({ minutes: 300 });
     expect(await db.areaHours.get('h1')).toMatchObject({ hours: 6, weekly: true });
-    expect(await db.xp.get('x1')).toMatchObject({ xp: 100 });
+    expect(await db.xp.get('session:s1')).toMatchObject({ xp: 100 });
     db.close();
   });
 
   it('keeps a teaching pair that is already there', () => {
     expect(migrateWorkTargetsV12({ weekday: { done: 6, full: 8 }, weekend: { done: 4, full: 6 }, teaching: { done: 3, full: 4 } }).teaching).toEqual({ done: 3, full: 4 });
+  });
+});
+
+/** v12 → v13 (P2 sync): XP ids become their refId; totals, dates and labels don't change; nothing is queued to sync. */
+describe('upgrade from v12 (sync groundwork)', () => {
+  const V12 = {
+    areas: 'id, order', tasks: 'id, areaId, status, dueDate, priority, completedAt', habits: 'id, &key, order',
+    habitLogs: 'id, habitId, date, [habitId+date]', sessions: 'id, areaId, date, start', accounts: 'id, order',
+    transactions: 'id, accountId, date, kind, areaId, transferId', goals: 'id, order', opportunities: 'id, status',
+    rewards: 'id', xp: 'id, date, source, refId, ts', unlocked: 'key', settings: 'key',
+    statements: 'id, accountId, cutoffDate, dueDate', installments: 'id, accountId, txId',
+    pipelineEvents: 'id, date, kind, opportunityId', reviews: 'id', areaHours: 'id, areaId, date'
+  };
+
+  it('re-keys the ledger by refId and keeps every XP point and coin', async () => {
+    const name = 'upgrade-v12-test';
+    const old = new Dexie(name);
+    old.version(12).stores(V12);
+    await old.open();
+    const rows = [
+      { id: 'f3c1', ts: 10, date: '2026-11-02', source: 'habit', refId: 'habit:h1:2026-11-02', xp: 25, coins: 5, label: 'Exercise' },
+      { id: '09ab', ts: 20, date: '2026-11-02', source: 'perfect-day', refId: 'perfect:2026-11-02', xp: 60, coins: 12, label: 'Perfect day' },
+      { id: 'aa01', ts: 30, date: '2026-11-03', source: 'reward', refId: 'reward:r1:30', xp: 0, coins: -40, label: 'Redeemed' },
+      // Two rows with one refId (an old double award): both survive, so the total doesn't change.
+      { id: 'zz99', ts: 40, date: '2026-11-03', source: 'task', refId: 'task:k1', xp: 35, coins: 7, label: 'Quest' },
+      { id: 'yy88', ts: 50, date: '2026-11-03', source: 'task', refId: 'task:k1', xp: 35, coins: 7, label: 'Quest' }
+    ];
+    await old.table('xp').bulkAdd(rows);
+    await old.table('tasks').add({ id: 'k1', areaId: 'a', title: 'Grade', difficulty: 3, priority: 1, status: 'done', createdAt: 1, completedAt: 2 });
+    old.close();
+
+    const db = new LifeDB(name);
+    await db.open();
+    expect(db.verno).toBe(13);
+    const after = await db.xp.toArray();
+    expect(after).toHaveLength(5);
+    expect(after.reduce((s, e) => s + e.xp, 0)).toBe(155);
+    expect(after.reduce((s, e) => s + e.coins, 0)).toBe(-9); // 5 + 12 − 40 + 7 + 7
+    expect(await db.xp.get('perfect:2026-11-02')).toMatchObject({ xp: 60, date: '2026-11-02', label: 'Perfect day', ts: 20 });
+    expect(await db.xp.get('reward:r1:30')).toMatchObject({ coins: -40 });
+    expect(await db.xp.get('task:k1')).toMatchObject({ ts: 40 });
+    expect(await db.xp.get('task:k1#2')).toMatchObject({ ts: 50, refId: 'task:k1' });
+    expect(await db.tasks.get('k1')).toMatchObject({ status: 'done' });
+    // The upgrade runs on each device by itself: nothing is queued to sync.
+    expect(await db.syncOutbox.count()).toBe(0);
+    db.close();
+  });
+
+  it('rekeyXpV13 is stable when run twice (backups made after v13)', () => {
+    const rows = [
+      { id: 'a', ts: 1, refId: 'x' }, { id: 'b', ts: 2, refId: 'x' }, { id: 'c', ts: 3, refId: 'y' }
+    ];
+    const once = rekeyXpV13(rows);
+    expect(once.map(r => r.id)).toEqual(['x', 'x#2', 'y']);
+    expect(rekeyXpV13(once).map(r => r.id)).toEqual(['x', 'x#2', 'y']);
   });
 });

@@ -1,5 +1,5 @@
 // Side-effectful game actions. Every reward goes through `award` so the ledger stays the single source of truth.
-import { db, TAX_MONTHLY_RECURRENCE } from '@/db/db';
+import { db, TAX_MONTHLY_RECURRENCE, weakly } from '@/db/db';
 import { instanceId, nextDue } from '@/lib/recurrence';
 import type { Difficulty, Habit, IncomeTax, Opportunity, PipelineEventKind, Statement, Task, Transaction, XpSource } from '@/db/types';
 import { DEFAULT_TAX_PROFILE, monthTax, monthlyDueDate, type TaxProfile } from '@/finance/tax';
@@ -14,8 +14,9 @@ import {
 } from './rules';
 import { checkAchievements } from './achievements';
 
+/** One ledger row per refId, and its id IS the refId (v13), so two devices awarding the same thing can't double it. */
 export async function award(source: XpSource, refId: string, xp: number, label: string, coins = coinsFor(xp), date = dateKey()) {
-  await db.xp.add({ id: uid(), ts: Date.now(), date, source, refId, xp, coins, label });
+  await db.xp.put({ id: refId, ts: Date.now(), date, source, refId, xp, coins, label });
 }
 
 export async function revoke(refId: string) {
@@ -86,13 +87,14 @@ export async function spawnNext(task: Task, doneOn: string) {
   if (await db.tasks.get(n.id)) return n.id;
   if (n.month) {
     const area = await db.areas.get(task.areaId) ? task.areaId : (await taxArea())?.id;
-    if (area) await db.tasks.add(await taxMonthQuest(n.month, area));
+    if (area) { const q = await taxMonthQuest(n.month, area); await weakly(() => db.tasks.add(q)); }
     return n.id;
   }
-  await db.tasks.add({
+  // Weak: if the other device already created (and maybe edited) this instance, its version wins on sync.
+  await weakly(() => db.tasks.add({
     id: n.id, areaId: task.areaId, title: task.title, notes: task.notes, difficulty: task.difficulty, priority: task.priority,
     dueDate: n.due, status: 'todo', createdAt: Date.now(), recurrence: task.recurrence
-  });
+  }));
   return n.id;
 }
 
@@ -252,7 +254,7 @@ async function evaluateShieldEarn(date: string) {
   const run = await goodRun(date);
   const earns = run > 0 && run % SHIELD_EVERY === 0;
   if (earns && !has && (await shieldBank()) < SHIELD_MAX) {
-    await db.xp.add({ id: uid(), ts: Date.now(), date, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield earned (${run} good days in a row)` });
+    await db.xp.put({ id: ref, ts: Date.now(), date, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield earned (${run} good days in a row)` });
   } else if (!earns && has) await revoke(ref);
 }
 
@@ -272,7 +274,7 @@ export async function applyShields(today = dateKey()) {
     if (await db.xp.where('refId').equals(ref).count()) continue;
     if ((await habitStreak(h.id, dateKey(before))) < 1) continue;
     if ((await shieldBank()) < 1) break;
-    await db.xp.add({ id: uid(), ts: Date.now(), date: yesterday, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield used: ${h.name}` });
+    await db.xp.put({ id: ref, ts: Date.now(), date: yesterday, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield used: ${h.name}` });
     protectedHabits.push(h.name);
   }
   return protectedHabits;
@@ -471,19 +473,22 @@ export async function ensureTaxQuests(today = dateKey()) {
   if (!area) return;
   const t = parseKey(today);
   const prev = dateKey(new Date(t.getFullYear(), t.getMonth() - 1, 1)).slice(0, 7);
-  if (!(await db.tasks.get(`tax-m-${prev}`))) await db.tasks.add(await taxMonthQuest(prev, area.id));
+  // Weak writes: this runs on every device at startup, possibly before it has pulled. A quest the other device
+  // already created (or filed) must win over this fresh default, and a refreshed estimate must never carry a
+  // stale status back over a newer edit. Every device recomputes the estimate from the synced ledger anyway.
+  if (!(await db.tasks.get(`tax-m-${prev}`))) { const q = await taxMonthQuest(prev, area.id); await weakly(() => db.tasks.add(q)); }
   // The series can create a month's quest before the month ends: keep open estimates in step with the ledger.
   // Only `autoNotes` is rewritten; the user's own `notes` are never touched.
   for (const q of await db.tasks.where('status').notEqual('done').filter(x => x.id.startsWith('tax-m-')).toArray()) {
     const autoNotes = await taxNotes(q.id.slice(6));
-    if (q.autoNotes !== autoNotes) await db.tasks.update(q.id, { autoNotes });
+    if (q.autoNotes !== autoNotes) await weakly(() => db.tasks.update(q.id, { autoNotes }));
   }
   if (t.getMonth() === 3) {
     const year = t.getFullYear() - 1;
     const aid = `tax-a-${year}`;
     if (!(await db.tasks.get(aid))) {
-      await db.tasks.add({ id: aid, areaId: area.id, difficulty: 3, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: `${year + 1}-04-30`,
-        title: `Declaración anual ${year} (RESICO)`, autoNotes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' });
+      await weakly(() => db.tasks.add({ id: aid, areaId: area.id, difficulty: 3, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: `${year + 1}-04-30`,
+        title: `Declaración anual ${year} (RESICO)`, autoNotes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' }));
     }
   }
 }
@@ -636,7 +641,7 @@ export async function redeem(rewardId: string) {
   const { coins } = await totals();
   if (coins < r.cost) return null;
   const refId = `reward:${rewardId}:${Date.now()}`;
-  await db.xp.add({ id: uid(), ts: Date.now(), date: dateKey(), source: 'reward', refId, xp: 0, coins: -r.cost, label: `Redeemed: ${r.title}` });
+  await db.xp.put({ id: refId, ts: Date.now(), date: dateKey(), source: 'reward', refId, xp: 0, coins: -r.cost, label: `Redeemed: ${r.title}` });
   return refId;
 }
 

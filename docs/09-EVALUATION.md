@@ -60,8 +60,18 @@ Not done (still open): Option C (coins backed by the fun budget).
 | P1-9 Faster first load | Pages split with `React.lazy`, vendor chunk, idle preload; startup JS 854 → 347 kB (255 → 120 kB gzip). The build fails over budget (entry < 300 kB, startup < 350 kB). Works offline (all chunks precached) |
 | Floor from real numbers | The kill-rule floor = monthly spending (median of logged months, or the estimate) ÷ (1 − savings %) ÷ paid hours a month (logged over the last 90 days; area targets until 2 weeks of history). 250 MXN/h is only a placeholder until spending exists. A hand-set floor overrides it, with "Use my numbers" to go back |
 | Tax quest notes | The RESICO estimate moves to its own read-only field (`autoNotes`, Dexie v11), so the user's notes on a tax quest are never overwritten |
-| Teaching days (T-1 to T-5) | A teaching schedule in Control (device only, empty by default). On teaching days inside the semester: a generated Ideal Day and Now card (prep → pack → travel → class → travel → shutdown), deep-work targets 4 h done / 5 h full (focus XP stops at 5 h), and the hours away count as non-focus hours for the real MXN/h, the floor and the weekly review. A manual weekly entry that overlaps the semester gets a double-counting warning. Dexie v12. Simulation below |
+| Teaching days (T-1 to T-5) | A teaching schedule in Control (empty by default; since P2 it syncs, end-to-end encrypted, so both devices grade teaching days the same). On teaching days inside the semester: a generated Ideal Day and Now card (prep → pack → travel → class → travel → shutdown), deep-work targets 4 h done / 5 h full (focus XP stops at 5 h), and the hours away count as non-focus hours for the real MXN/h, the floor and the weekly review. A manual weekly entry that overlaps the semester gets a double-counting warning. Dexie v12. Simulation below |
 | P1-1 Repeating quests | Daily, weekly or monthly quests (Dexie v9 `recurrence`); completing one creates the next with a deterministic id; the RESICO declaration is a monthly series that never skips |
+
+### P2 Sync (2026-11-07)
+| Ticket | What changed |
+|---|---|
+| P2-1 Groundwork | Dexie v13: device-only `syncOutbox` and `syncState`; a DBCore middleware records every real change (no call site changed; no-op writes skipped; pulled rows not recorded and silent; weak create-if-missing writes); XP id = refId (the upgrade keeps every point); fixed seed ids |
+| P2-2 Engine | AES-GCM rows and HMAC row ids from a passphrase (PBKDF2, 600,000 iterations); hybrid logical clock; pull → apply in one transaction → re-check touched days → atomic push; two simulated devices: no doubled XP, deletes and undos propagate, derived XP converges, clock skew, offline, lost replies, schema guard |
+| P2-3 Supabase | SQL with RLS and serialized sequence numbers (run in PGlite by the tests); `fetch` client with an emailed sign-in link (or code) (no client library); Control → Sync; HUD cloud glyph; setup in `07-DEPLOY.md` |
+| P2-4 Import, reset, cloud copy | Import while syncing replaces the cloud copy (rows the device never pulled included; later rows from the other device survive); reset erases this device only and signs it out; "Delete cloud copy" with two confirmations, also the way back from a forgotten passphrase |
+
+No XP number changed. Tests 138 → 186. Startup JS 333 → 337 kB of 350 kB; the sync engine is a lazy chunk of about 11 kB that unlinked devices never load. Known limits: last-write-wins per row (the later edit of the same quest wins whole), daily caps can pay twice on a day both devices are used offline, the server sees when rows change but not what they are.
 
 ### Teaching days: simulation rerun (2026-11-07)
 `npx vite-node scripts/eval-sim.ts` now also runs "v2 + teaching days 4/5": the simulated teaching days (2 a week, unchanged behaviour: 4.5 h mean focus) use 4 h done / 5 h full and stop focus XP at 5 h. Averages over 20 seeds, 90 days:

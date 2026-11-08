@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { db } from '@/db/db';
 import { onAchievement } from '@/game/achievements';
+import { isQuiet } from '@/sync/track';
 
 interface Toast { id: number; text: string; tone: 'xp' | 'gold' | 'bad' | 'epic' }
 const Ctx = createContext<(text: string, tone?: Toast['tone']) => void>(() => {});
@@ -17,7 +18,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Every XP event anywhere in the app produces a floating reward toast.
-    const fn = (_pk: unknown, e: { xp: number; coins: number; source: string; label: string }) => {
+    const fn = (_pk: unknown, e: { xp: number; coins: number; source: string; label: string }, trans: { idbtrans?: unknown }) => {
+      if (isQuiet(trans)) return; // rows pulled from the other device (or re-derived after a pull) don't replay their toasts
       if (e.source === 'achievement' || e.source === 'milestone') return; // handled below with an epic toast
       if (e.source === 'reward') setTimeout(() => push(`${e.label} (${e.coins} dr)`, 'gold'));
       else if (e.source === 'shield') setTimeout(() => push(e.label, 'gold'));

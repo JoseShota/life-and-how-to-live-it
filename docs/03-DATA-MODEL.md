@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v12)
+## Tables (Dexie v13)
+
+v13 (P2 sync groundwork, 2026-11-07): two **device-only** tables, `syncOutbox` (key `id` = `<table>|<key>`: one entry per row changed here and not yet pushed, with its clock `hlc`; 0 = a weak change) and `syncState` (key/value: the clock, and later the cursor, device id and keys). Neither is in backups or synced. **XP ids become their `refId`** (`award()` writes `id = refId` with `put`), so the same reward earned on two devices is one row and an undo is a delete that can sync. The upgrade re-keys every ledger row; rows that already shared a refId all survive as `<refId>#2`, `#3`… so no XP or coin changes (`rekeyXpV13`, also applied when importing an older backup). Fresh installs seed fixed ids (`seed-area-0`, `seed-habit-sleep`, `seed-account-0`…). Backups are still `BACKUP_VERSION` 5 (same shape).
 
 v12 (no index changes): teaching days (2026-11-07). The `workTargets` setting gains `teaching` (`{ done: 4, full: 5 }`); the upgrade adds it when missing and keeps the user's weekday and weekend numbers (reads also fill missing pairs, so an older backup restores safely). A new setting `teachingSchedule` (`TeachingSchedule` in `src/game/rules.ts`: `days` as JS weekdays, `leave`, optional `arrive`, `classStart`, `classEnd`, `homeBy` as local `HH:MM`, `semesterStart`, `semesterEnd`, `areaId`) is absent by default and entered in Control; it changes nothing until every field is valid. Its hours are **not stored**: `scheduleAreaHours()` turns each teaching date in the semester into a virtual one-off `AreaHours` row (id `teaching:<date>`, `homeBy − leave` hours) wherever hours are summed. Settings are already in backups, so `BACKUP_VERSION` stays 5.
 
@@ -50,6 +52,8 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `reviews` | `id` (Monday) | — | v8: the weekly review of one Mon–Sun week |
 | `areaHours` | `id` | `areaId, date` | v10: non-focus hours per area (no XP), for the real MXN/h |
 | `unlocked` | `key` | — | Unlocked achievements |
+| `syncOutbox` | `id` (`<table>|<key>`) | — | v13, device-only: rows changed here and not yet pushed (`t`, `k`, `hlc`) |
+| `syncState` | `key` | — | v13, device-only: `clock` (`{ hlc, offset }`), `device` (id), `keys` (non-extractable CryptoKeys), `vaultId`, `cursor` (last pulled seq), `session` (Supabase tokens), `replaceBefore` (after a backup import, until the next full pull) |
 | `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`; `teaching` pair since v12), `teachingSchedule` (v12, absent until entered), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
 ## Entities (abridged)
@@ -79,13 +83,16 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ```
 
 ## Conventions
-- **IDs:** `crypto.randomUUID()` via `uid()`.
+- **IDs:** `crypto.randomUUID()` via `uid()` for things the user creates. Rows the app creates on its own on every device (seed rows, upgrade rows, the next instance of a repeating quest, tax quests, ledger rows) **must have deterministic ids**, or two synced devices would hold duplicates. Write "create it if it's missing" rows with `weakly(() => …)` (`src/db/db.ts`) so a real edit from the other device always wins over them.
+- **Device-only settings** (`LOCAL_SETTINGS` in `src/sync/track.ts`): `activeTimer`, `lastBackupAt`, `showMarquee`, `lastExpenseCategory`. Every other setting syncs, including `workTargets` and `teachingSchedule`, because both decide XP and the two devices must award the same.
 - **Dates:** `DateKey` = local `YYYY-MM-DD`. Timestamps = epoch ms.
 - **Money:** MXN as JS numbers, 2 decimals in the UI. (Phase 5 may move to integer centavos. If so, write a migration.)
 - **Credit cards:** `openingBalance` negative = debt when you start tracking. Purchases are negative amounts. Payments are transfers into the card (positive). A statement is "paid" when transfers into the card after its cut-off, dated on or before its due date, reach its pago para no generar intereses. A purchase at MSI is recorded at its full amount (accrual) and its plan bills total / months from the first cut-off on or after the purchase date.
-- **Soft delete:** MVP uses hard delete. Phase 2 adds `deletedAt` tombstones for sync.
+- **Deletes stay hard deletes.** Since v13 the change tracker records each delete in `syncOutbox`; the sync engine turns it into a tombstone in the cloud. Domain rows never carry `updatedAt` or `deletedAt`.
 
 ## Ledger `refId` scheme
+Since v13 each row's `id` equals its `refId` (one row per refId).
+
 | Source | refId | Reversible by |
 |---|---|---|
 | task | `task:<taskId>` (each instance of a repeating quest has its own id, so each pays once) | reopen / delete task |
@@ -105,7 +112,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 
 ## Migration recipe (Dexie)
 ```ts
-// db.ts — NEVER modify an existing version block. Schema is at v2, so append:
+// db.ts — NEVER modify an existing version block. Append the next version, e.g.:
 this.version(3).stores({
   tasks: 'id, areaId, status, dueDate, priority, completedAt, updatedAt, parentId' // only tables that change
 }).upgrade(async tx => {

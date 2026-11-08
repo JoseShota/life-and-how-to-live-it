@@ -11,6 +11,7 @@ import { useWorkTargets } from '@/lib/hooks';
 import { TeachingScheduleCard } from '@/components/TeachingBits';
 import { evaluateDay } from '@/game/engine';
 import { TaxSettings } from '@/components/TaxBits';
+import { SyncCard } from '@/components/SyncCard';
 import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
 
 export default function SettingsPage() {
@@ -30,6 +31,7 @@ export default function SettingsPage() {
   const place = areas.find(a => a.id === schedule?.areaId)?.short;
   const [iconFor, setIconFor] = useState<string | null>(null);
   const iconArea = areas.find(a => a.id === iconFor);
+  const syncing = !!useLiveQuery(() => db.syncState.get('vaultId'), [], undefined);
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
@@ -89,18 +91,22 @@ export default function SettingsPage() {
         <p className="mt-2 text-xs text-ink/50">This only grants permission. Scheduled reminders arrive in Phase 4; until then, use Download routine (.ics).</p>
       </Card>
 
-      <Card title="Backup · data & sync">
-        <p className="mb-3 text-sm text-ink/60">All data lives on this device (offline-first). Until cloud sync ships (Phase 2), move data between tablet and laptop with a backup file. Back up weekly.</p>
+      <SyncCard />
+
+      <Card title="Backup · data">
+        <p className="mb-3 text-sm text-ink/60">Your data lives on this device (offline-first) and, with sync on, as an encrypted copy only your devices can read. A backup file is the copy no server holds: export one weekly.</p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={async () => download(`life-backup-${dateKey()}.json`, JSON.stringify(await exportAll()))}><Glyph name="download" size={16}/>Export backup</Button>
           <Button variant="ghost" onClick={() => file.current?.click()}><Glyph name="upload" size={16}/>Import backup</Button>
           <input ref={file} type="file" accept="application/json" hidden onChange={async e => {
             const f = e.target.files?.[0]; if (!f) return;
-            if (!confirm('This REPLACES all data on this device with the backup. Continue?')) return;
+            if (!confirm(syncing
+              ? 'This REPLACES all data on this device with the backup, and through sync on your other device too (anything made there after this moment stays). Continue?'
+              : 'This REPLACES all data on this device with the backup. Continue?')) return;
             try { await importAll(JSON.parse(await f.text())); toast('Backup restored', 'gold'); } catch (err) { toast(String(err), 'bad'); }
             e.target.value = '';
           }} />
-          <Button variant="danger" onClick={async () => { if (confirm('Erase EVERYTHING on this device?') && confirm('Really? Export a backup first.')) { await db.delete(); location.reload(); } }}>Reset app</Button>
+          <Button variant="danger" onClick={async () => { if (confirm(syncing ? 'Erase EVERYTHING on this device and stop syncing here? The encrypted cloud copy and your other device are not touched.' : 'Erase EVERYTHING on this device?') && confirm('Really? Export a backup first.')) { await db.delete(); location.reload(); } }}>Reset app</Button>
         </div>
       </Card>
     </div>
