@@ -47,6 +47,8 @@ drop policy if exists "own vault" on public.sync_vaults;
 create policy "own vault" on public.sync_vaults for select to authenticated using (user_id = (select auth.uid()));
 drop policy if exists "own records" on public.sync_records;
 create policy "own records" on public.sync_records for select to authenticated using (user_id = (select auth.uid()));
+-- Explicit grants, so this works whether or not the project "automatically exposes new tables" (keep that off).
+grant usage on schema public to authenticated;
 revoke all on public.sync_vaults, public.sync_records from anon, authenticated;
 grant select on public.sync_vaults, public.sync_records to authenticated;
 

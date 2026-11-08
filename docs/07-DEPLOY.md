@@ -23,7 +23,7 @@ Open the app once while online. After that it works fully offline, including fon
 Sync runs through **your own** free Supabase project. Everything is encrypted on the device with a passphrase only you know; Supabase stores unreadable bytes under opaque ids (design in `02-ARCHITECTURE.md`, "Sync design"). A build without the two variables below simply has no sync.
 
 ### One-time setup (about 15 minutes)
-1. **Create the project.** supabase.com → New project (the free plan is enough). Pick the region closest to Mexico City. Keep the database password in your password manager; the app never needs it.
+1. **Create the project.** supabase.com → New project (the free plan is enough). No GitHub connection is needed. Region: Americas (or the closest specific one, e.g. East US). Keep the database password in your password manager; the app never needs it. Security: keep **Enable Data API** on (the app calls the sync functions through it), turn **Automatically expose new tables** off (the migration grants exactly what it needs), and **Enable automatic RLS** on (the migration enables RLS on its tables anyway).
 2. **Create the tables and functions.** Dashboard → **SQL Editor** → New query → paste all of `supabase/migrations/0001_sync.sql` → **Run**. Running it again is safe.
 3. **Email sign-in.** Dashboard → **Authentication → Sign In / Providers → Email**: enabled.
 4. **Send a code, not a link.** Dashboard → **Authentication → Emails → Templates**: in **Magic Link** and in **Confirm signup**, put the code in the message, for example `<p>Your code for Life and How to Live It: <b>{{ .Token }}</b></p>`. The app asks for that code (6 digits by default), so no redirect URL is needed and it works the same inside the installed Android app.
