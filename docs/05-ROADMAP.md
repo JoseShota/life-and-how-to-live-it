@@ -42,6 +42,13 @@ End-to-end encrypted sync through the user's own Supabase project: the server st
 | P2-3 🔴 | **Supabase + sign-in + linking + status** | `supabase/migrations/` (RLS, atomic push with serialized sequence numbers; tested in PGlite); plain `fetch` client (lazy, no runtime dependency); email-code sign-in in Control; first device uploads, a second device saves a backup file and takes the cloud copy; HUD cloud glyph; triggers (open, focus, online, 60 s, 3 s after a write); `.env.example`; setup in `07-DEPLOY.md` | Done |
 | P2-4 🔴 | **Import, reset and the cloud copy** | Import while synced replaces the cloud copy (said in its confirmation); reset erases this device only and signs it out; "Delete cloud copy" with a double confirmation; re-create after a forgotten passphrase | Done |
 
+Follow-ups after sync went live (`docs/handoffs/2026-11-08-next-phases.md`):
+
+| ID | Ticket | AC | Status |
+|---|---|---|---|
+| S-1 🟢 | **Show passphrase** | One Show/Hide button per sync form (both fields at once when creating); hidden by default; no auto-capitalize, autocorrect or spellcheck on passphrase fields, so a visible field isn't "fixed" by the keyboard; a note when it starts or ends with a space (never trimmed). Checked in `scripts/sync-e2e/` | Done |
+| S-2 🟢 | **Sign-ups off** | The user turns off "Allow new users to sign up" in Supabase → Authentication → Sign In / Providers (no code) | Waiting on the user |
+
 ## Phase V — v2 economy and money engine (approved and built 2026-11-06)
 From `09-EVALUATION.md` (decisions D-1 to D-7). All eight tickets are done, one commit each (`V-1` … `V-8`). One commit per ticket. Sizes: (S) ≤ 1 h, (M) 1–3 h, (L) split into several commits. Each follows the Definition of Done in `AGENTS.md`.
 

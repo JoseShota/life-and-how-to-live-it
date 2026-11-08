@@ -94,6 +94,19 @@ function SignIn({ rt, busy, run, linked }: StepProps & { linked: boolean }) {
   );
 }
 
+/** Passphrase fields: hidden by default. When shown, the keyboard must not capitalize or "fix" words, or what you
+ *  see is not what you typed (Android keyboards treat a visible field as ordinary text). */
+const passphraseField = (shown: boolean) => ({ type: shown ? 'text' : 'password', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false });
+
+function ShowPassphrase({ shown, toggle }: { shown: boolean; toggle: () => void }) {
+  return <Button type="button" variant="ghost" aria-pressed={shown} onClick={toggle}><Glyph name="eye" size={16} />{shown ? 'Hide passphrase' : 'Show passphrase'}</Button>;
+}
+
+/** Never trimmed (that could stop an existing passphrase from opening the cloud copy); only pointed out. */
+function EdgeSpaceNote({ value }: { value: string }) {
+  return /^\s|\s$/.test(value) ? <p className="text-xs text-hp">The passphrase starts or ends with a space. That counts as part of it, and it is easy to miss on the other device.</p> : null;
+}
+
 function PassphraseHelp() {
   return <p className="text-xs text-ink/60">Use at least {MIN_PASSPHRASE} characters; four or more unrelated words work well. It never leaves your devices. If you forget it, the cloud copy can't be read by anyone, you included; your devices and backup files still have everything, and you can create the cloud copy again.</p>;
 }
@@ -102,15 +115,18 @@ function CreateCloud({ rt, busy, run }: StepProps) {
   const toast = useToast();
   const [p1, setP1] = useState('');
   const [p2, setP2] = useState('');
+  const [shown, setShown] = useState(false);
   const ok = p1.length >= MIN_PASSPHRASE && p1 === p2;
   return (
     <div className="flex flex-col gap-3">
       <p className="font-display">No cloud copy yet. This device will be the first: choose a passphrase.</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Label text="Passphrase"><Input type="password" autoComplete="new-password" value={p1} onChange={e => setP1(e.target.value)} /></Label>
-        <Label text="Passphrase again"><Input type="password" autoComplete="new-password" value={p2} onChange={e => setP2(e.target.value)} /></Label>
+        <Label text="Passphrase"><Input {...passphraseField(shown)} autoComplete="new-password" value={p1} onChange={e => setP1(e.target.value)} /></Label>
+        <Label text="Passphrase again"><Input {...passphraseField(shown)} autoComplete="new-password" value={p2} onChange={e => setP2(e.target.value)} /></Label>
       </div>
+      <div><ShowPassphrase shown={shown} toggle={() => setShown(x => !x)} /></div>
       {p2 && p1 !== p2 && <p className="text-xs text-hp">The two passphrases differ.</p>}
+      <EdgeSpaceNote value={p1} />
       <PassphraseHelp />
       <div><Button disabled={!ok || !!busy} onClick={() => run('create', async () => {
         const r = await rt.engine.createCloud(p1);
@@ -132,11 +148,14 @@ async function deleteCloudCopy(rt: Runtime, linked: boolean) {
 function JoinCloud({ rt, busy, run, recheck }: StepProps & { recheck: () => void }) {
   const toast = useToast();
   const [p, setP] = useState('');
+  const [shown, setShown] = useState(false);
   return (
     <div className="flex flex-col gap-3">
       <p className="font-display">A cloud copy exists. Link this device with your passphrase.</p>
       <p className="text-ink/70">This device's data will be <b>replaced</b> by the cloud copy. A backup file of this device is downloaded first, so nothing is lost.</p>
-      <Label text="Passphrase"><Input type="password" autoComplete="current-password" value={p} onChange={e => setP(e.target.value)} /></Label>
+      <Label text="Passphrase"><Input {...passphraseField(shown)} autoComplete="current-password" value={p} onChange={e => setP(e.target.value)} /></Label>
+      <div><ShowPassphrase shown={shown} toggle={() => setShown(x => !x)} /></div>
+      <EdgeSpaceNote value={p} />
       <div><Button disabled={!p || !!busy} onClick={() => run('join', async () => {
         if (!confirm('Replace the data on this device with the cloud copy? A backup file of this device is saved first.')) return;
         const ok = await rt.engine.joinCloud(p, async () => {

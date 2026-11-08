@@ -75,7 +75,7 @@
 Status markers in `05-ROADMAP.md` are authoritative; this is the summary.
 
 ### 0. Small follow-ups from sync (do first; small)
-- **S-1 Show passphrase.** Add a Show/Hide toggle on the passphrase fields in `src/components/SyncCard.tsx`. Linking on the tablet failed once because 19 hidden characters were typed by hand. Keep the inputs `type="password"` by default.
+- **S-1 Show passphrase.** *Done 2026-11-08.* Add a Show/Hide toggle on the passphrase fields in `src/components/SyncCard.tsx`. Linking on the tablet failed once because 19 hidden characters were typed by hand. Keep the inputs `type="password"` by default.
 - **S-2 Sign-ups off.** Remind the user to turn off "Allow new users to sign up" in Supabase → Authentication → Sign In / Providers now that both devices are linked. They do this themselves; no code.
 
 ### Phase 1: polish and personal fit (one commit each)
