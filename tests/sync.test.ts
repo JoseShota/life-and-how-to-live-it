@@ -49,9 +49,10 @@ describe('sync between two devices', () => {
   it('edits on both devices: the later edit of a row wins everywhere; edits to different rows both survive', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     const [g1, g2] = await s.a.db.goals.toArray();
-    vi.setSystemTime(new Date(2026, 10, 7, 12, 0));
+    const base = Date.now() + 60_000; // fake times must be later than the real time the devices were set up at
+    vi.setSystemTime(base);
     await s.a.db.goals.update(g1.id, { current: 100 });
-    vi.setSystemTime(new Date(2026, 10, 7, 12, 1));
+    vi.setSystemTime(base + 60_000);
     await s.b.db.goals.update(g1.id, { current: 200 }); // a minute later
     await s.b.db.goals.update(g2.id, { current: 7 });
     await settle(s.a, s.b);
@@ -63,7 +64,7 @@ describe('sync between two devices', () => {
 
   it('a device whose clock runs 10 minutes slow still wins with an edit made after it saw the other one', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    const t0 = new Date(2026, 10, 7, 12).getTime();
+    const t0 = Date.now() + 60 * 60_000;
     const g = (await s.a.db.goals.toArray())[0];
     vi.setSystemTime(t0);
     await s.a.db.goals.update(g.id, { current: 1 });
@@ -213,7 +214,8 @@ describe('sync between two devices', () => {
 
   it('a backup imported while syncing replaces the cloud copy, even rows this device never pulled', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    const t = (min: number) => new Date(2026, 10, 7, 12, min);
+    const base = Date.now() + 60_000;
+    const t = (min: number) => base + min * 60_000;
     vi.setSystemTime(t(0));
     const saved = await s.a.backup.exportAll(); // the backup: before X, Z and W exist
     await s.a.db.goals.add({ id: 'X', name: 'X', icon: 'temple', target: 1, current: 0, order: 9 });

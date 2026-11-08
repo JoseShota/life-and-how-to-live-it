@@ -1,4 +1,4 @@
-// Control → Sync (P2): sign in with an emailed code, create or link the encrypted cloud copy, see the status.
+// Control → Sync (P2): sign in with an emailed link (or code), create or link the encrypted cloud copy, see the status.
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { db } from '@/db/db';
 import { exportAll, download } from '@/lib/backup';
 import { useToast } from '@/lib/toast';
 import { dateKey } from '@/lib/util';
-import { loadSync, syncConfigured, useSyncInfo, type SyncInfo } from '@/sync/status';
+import { loadSync, syncConfigured, useSignInLinkError, useSyncInfo, type SyncInfo } from '@/sync/status';
 import type { Session } from '@/sync/supabase';
 import { Glyph } from './Glyph';
 import { Button, Card, Input, Label } from './ui';
@@ -67,18 +67,21 @@ type StepProps = { rt: Runtime; busy: string | null; run: (label: string, fn: ()
 
 function SignIn({ rt, busy, run, linked }: StepProps & { linked: boolean }) {
   const toast = useToast();
+  const linkError = useSignInLinkError();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState('');
   return (
     <div className="flex flex-col gap-3">
       {linked && <p className="font-display text-hp">Signed out: sign in again to keep syncing. Your data is safe on this device.</p>}
+      {linkError && <p className="text-hp">That sign-in link didn't work ({linkError}). Links work once and expire after an hour: ask for a new one.</p>}
       <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
         <Label text="Email"><Input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></Label>
-        <Button variant="ghost" disabled={!email.includes('@') || !!busy} onClick={() => run('send', async () => { await rt.supabase.sendCode(email); setSent(true); toast('Code sent. Check your email.', 'gold'); })}>
-          <Glyph name="scroll" size={16} />{busy === 'send' ? 'Sending…' : sent ? 'Send again' : 'Email me a code'}
+        <Button variant="ghost" disabled={!email.includes('@') || !!busy} onClick={() => run('send', async () => { await rt.supabase.sendCode(email); setSent(true); toast('Sent. Check your email on this device.', 'gold'); })}>
+          <Glyph name="scroll" size={16} />{busy === 'send' ? 'Sending…' : sent ? 'Send again' : 'Email me a sign-in link'}
         </Button>
       </div>
+      {sent && <p className="text-ink/70">Open the email <b>on this device</b> and tap its link: the app opens signed in. If the email shows a code instead, type it here.</p>}
       {sent && (
         <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
           <Label text="Code from the email"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} /></Label>

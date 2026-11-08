@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../src/db/db';
-import { createSupabase, errorFromMessage } from '../src/sync/supabase';
+import { createSupabase, errorFromMessage, jwtEmail } from '../src/sync/supabase';
 
 type Call = { url: string; auth?: string; body: unknown };
 /** A scripted fetch: each response is [status, json] (or 'network' to throw like fetch does offline). */
@@ -26,10 +26,10 @@ describe('Supabase client', () => {
   it('signs in with an emailed code and calls functions with the user token', async () => {
     const f = fake([[200, {}], [200, tokens('1')], [200, { vault: null }]]);
     const sb = createSupabase(cfg, f.fn);
-    await sb.sendCode(' me@example.com ');
+    await sb.sendCode(' me@example.com ', 'https://life.example/settings');
     await sb.verifyCode('me@example.com', '123456');
     expect(await sb.server.getVault()).toBeNull();
-    expect(f.calls.map(c => c.url)).toEqual(['https://p.supabase.co/auth/v1/otp', 'https://p.supabase.co/auth/v1/verify', 'https://p.supabase.co/rest/v1/rpc/sync_vault']);
+    expect(f.calls.map(c => c.url)).toEqual(['https://p.supabase.co/auth/v1/otp?redirect_to=https%3A%2F%2Flife.example%2Fsettings', 'https://p.supabase.co/auth/v1/verify', 'https://p.supabase.co/rest/v1/rpc/sync_vault']);
     expect(f.calls[0].body).toEqual({ email: 'me@example.com', create_user: true });
     expect(f.calls[1].body).toEqual({ type: 'email', email: 'me@example.com', token: '123456' });
     expect(f.calls[2].auth).toBe('Bearer a1');
@@ -57,6 +57,21 @@ describe('Supabase client', () => {
     const expired = createSupabase(cfg, fake([[401, {}], [400, { error_description: 'Invalid Refresh Token' }]]).fn);
     await expect(expired.server.getVault()).rejects.toMatchObject({ code: 'auth' });
     expect(await expired.session()).toBeUndefined();
+  });
+
+  it('signs in from the link in the email (the session arrives in the URL fragment)', async () => {
+    const b64 = (o: object) => btoa(JSON.stringify(o)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const jwt = `${b64({ alg: 'HS256' })}.${b64({ sub: 'u1', email: 'me@example.com' })}.sig`;
+    expect(jwtEmail(jwt)).toBe('me@example.com');
+    expect(jwtEmail('nonsense')).toBe('');
+    const f = fake([[200, { vault: null }]]);
+    const sb = createSupabase(cfg, f.fn);
+    await sb.acceptRedirect(`#access_token=${jwt}&expires_in=3600&refresh_token=r9&token_type=bearer&type=magiclink`);
+    expect(await sb.session()).toMatchObject({ email: 'me@example.com', access_token: jwt, refresh_token: 'r9' });
+    await sb.server.getVault();
+    expect(f.calls[0].auth).toBe(`Bearer ${jwt}`);
+    await expect(sb.acceptRedirect('#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired'))
+      .rejects.toMatchObject({ code: 'auth', message: 'Email link is invalid or has expired' });
   });
 
   it('errors raised by the SQL keep their code', async () => {

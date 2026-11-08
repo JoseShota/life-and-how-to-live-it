@@ -1,6 +1,7 @@
 // P2 sync: the Supabase client, with plain fetch (no @supabase/supabase-js: about 3 kB instead of a large
-// library, and nothing loads at startup). Auth is an emailed 6-digit code (GoTrue /otp + /verify), which works
-// the same in the installed Android app and in a browser tab, with no redirect URL. Data goes through five
+// library, and nothing loads at startup). Auth is by email (GoTrue /otp): the default email's link returns to the
+// app with the session in the URL fragment (acceptRedirect); a typed code (/verify) works when the template
+// includes {{ .Token }}, which needs custom SMTP on Supabase. Data goes through five
 // Postgres functions (supabase/migrations/0001_sync.sql). The session lives in syncState, so "Reset app"
 // (which deletes the database) also signs the device out.
 import { db } from '@/db/db';
@@ -107,8 +108,23 @@ export function createSupabase(cfg: SupabaseConfig, fetchFn: typeof fetch = (...
 
   return {
     server: rpcServer(call),
-    /** Emails a one-time code (creates the account the first time). */
-    sendCode: async (email: string) => { await request('/auth/v1/otp', { email: email.trim(), create_user: true }); },
+    /**
+     * Emails a sign-in link, plus a code when the project's template includes one (creates the account the first
+     * time). The link comes back to `redirectTo` with the session in the URL fragment (see acceptRedirect).
+     */
+    sendCode: async (email: string, redirectTo = `${location.origin}/settings`) => {
+      await request(`/auth/v1/otp?redirect_to=${encodeURIComponent(redirectTo)}`, { email: email.trim(), create_user: true });
+    },
+    /** Signs in from the fragment a sign-in link returns with (`#access_token=…&refresh_token=…`). */
+    acceptRedirect: async (fragment: string) => {
+      const p = new URLSearchParams(fragment.replace(/^#/, ''));
+      const error = p.get('error_description') ?? p.get('error');
+      if (error) throw new SyncError('auth', error.replace(/\+/g, ' '));
+      const access = p.get('access_token'), refresh = p.get('refresh_token');
+      if (!access || !refresh) throw new SyncError('auth', 'The sign-in link was incomplete.');
+      const email = jwtEmail(access);
+      await saveSession(toSession({ access_token: access, refresh_token: refresh, expires_in: Number(p.get('expires_in') ?? 3600) }, email));
+    },
     /** Checks the code; on success the device is signed in. */
     verifyCode: async (email: string, token: string) => {
       const r = await request('/auth/v1/verify', { type: 'email', email: email.trim(), token: token.trim() }) as { access_token: string; refresh_token: string; expires_in: number };
@@ -124,3 +140,13 @@ export function createSupabase(cfg: SupabaseConfig, fetchFn: typeof fetch = (...
 }
 
 export type Supabase = ReturnType<typeof createSupabase>;
+
+/** The `email` claim of a Supabase access token (shown in Control; the token is verified by the server, not here). */
+export function jwtEmail(token: string) {
+  try {
+    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return String((JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, '='))) as { email?: string }).email ?? '');
+  } catch {
+    return '';
+  }
+}

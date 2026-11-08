@@ -26,21 +26,21 @@ Sync runs through **your own** free Supabase project. Everything is encrypted on
 1. **Create the project.** supabase.com → New project (the free plan is enough). No GitHub connection is needed. Region: Americas (or the closest specific one, e.g. East US). Keep the database password in your password manager; the app never needs it. Security: keep **Enable Data API** on (the app calls the sync functions through it), turn **Automatically expose new tables** off (the migration grants exactly what it needs), and **Enable automatic RLS** on (the migration enables RLS on its tables anyway).
 2. **Create the tables and functions.** Dashboard → **SQL Editor** → New query → paste all of `supabase/migrations/0001_sync.sql` → **Run**. Running it again is safe.
 3. **Email sign-in.** Dashboard → **Authentication → Sign In / Providers → Email**: enabled.
-4. **Send a code, not a link.** Dashboard → **Authentication → Emails → Templates**: in **Magic Link** and in **Confirm signup**, put the code in the message, for example `<p>Your code for Life and How to Live It: <b>{{ .Token }}</b></p>`. The app asks for that code (6 digits by default), so no redirect URL is needed and it works the same inside the installed Android app.
+4. **Where the sign-in link returns.** Dashboard → **Authentication → URL Configuration**: **Site URL** = `https://life-and-how-to-live-it.vercel.app`; under **Redirect URLs** add `https://life-and-how-to-live-it.vercel.app/**` (and `http://localhost:5173/**` for `npm run dev`). The default email (no template editing, no SMTP needed) carries a link: open it **on the device you are signing in** and the app opens signed in. If you ever set up custom SMTP, you can add `{{ .Token }}` to the "Magic link or OTP" and "Confirm sign up" templates, and the app also accepts the typed code.
 5. **Copy the keys.** Dashboard → **Project Settings → API Keys** (or **Data API**): the **Project URL** and the **anon** (or **publishable**) key. Both are public by design: the key only lets a signed-in user call the five sync functions on their own rows. **Never** copy the `service_role` / secret key anywhere.
 6. **Give them to Vercel.** Vercel → the project → Settings → **Environment Variables**: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Production and Preview) → redeploy. For `npm run dev`, put the same two lines in `.env.local` (git-ignored; see `.env.example`).
 7. **After both devices are signed in** (optional, recommended): Authentication → Sign In / Providers → turn off **Allow new users to sign up**, so nobody else can create accounts on your project (they could never read your data, but they would use your quota).
 
 ### Turning it on
-1. **First device** (whichever has the data you want to keep; on a fresh start, either): Control → **Sync** → your email → the code from the email → choose a passphrase (12+ characters; four unrelated words work well) → **Encrypt and upload**.
-2. **Second device:** Control → **Sync** → same email → the code → the same passphrase → **Link this device**. It downloads a backup file of itself first, then takes the cloud copy.
+1. **First device** (whichever has the data you want to keep; on a fresh start, either): Control → **Sync** → your email → **Email me a sign-in link** → open the email on that device and tap the link → choose a passphrase (12+ characters; four unrelated words work well) → **Encrypt and upload**.
+2. **Second device:** Control → **Sync** → same email → tap the new link on that device → the same passphrase → **Link this device**. It downloads a backup file of itself first, then takes the cloud copy.
 3. A cloud glyph appears next to your drachmae: a tick when synced, struck through when offline (changes wait and go out later), a mark when it needs you (sign in again, re-enter the passphrase, or reload to update). Tap it to open Control → Sync.
 
 Sync runs when the app opens or comes back into view, when the network returns, every minute while open, and 3 seconds after a change. The running timer, the last-backup date, the ticker switch and the last expense category stay on each device.
 
 **If you forget the passphrase:** nobody can read the cloud copy, you included. Your devices and backup files still have everything: on one device, Control → Sync → **Delete cloud copy**, create it again with a new passphrase, and link the other device again.
 
-Supabase's built-in email sender allows only a few emails an hour; that is plenty for two devices.
+Supabase's built-in email sender allows only a couple of emails an hour, and only to the email addresses of your Supabase organization's members: sign in with the email you use for Supabase. Each link works once and expires after an hour.
 
 ## Reminders on day 1
 Settings → **Download routine (.ics)** → open it on each device (or import into Google Calendar,
