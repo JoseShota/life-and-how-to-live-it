@@ -21,7 +21,7 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 |---|---|---|
 | P1-1 🟡 ✅ | **Recurring quests** (daily/weekly/monthly, e.g. "Grade weekly quizzes") | Field `recurrence` on Task. Completing a recurring quest creates the next instance. Dexie v3 migration (next free version). Tests |
 | P1-2 🟡 | **Sub-tasks / checklist** inside a quest | `checklist: {id,text,done}[]` on Task. Progress chip on TaskRow |
-| P1-3 🟡 | **Habit editor** in Settings (add/edit/archive/reorder habits, change XP, core flag) | Changes reflect on Today. Archived habits keep history |
+| P1-3 🟡 ✅ | **Habit editor** in Settings (add/edit/archive/reorder habits, change XP, core flag) | Changes reflect on Today. Archived habits keep history. *Decided 2026-11-09:* core is fixed on every habit; the 4 core habits keep their XP and can't be archived; rituals pay 5/10/15/20 XP; the sleep target is fixed |
 | P1-4 🟡 ✅ | **Weekly Review screen** (`/review`) | Shows last 7 days: perfect-day rate, hours per area vs target, money in/out, top 3 wins (free text), next week's top 3. Saves a `reviews` row. +50 XP once per week |
 | P1-5 🟢 | **Level-up celebration** | Full-screen modal with new title when level increases. Confetti (CSS only) |
 | P1-6 🟢 | **Sound + haptics** toggle | Tiny WebAudio blips on complete/level-up. `navigator.vibrate(20)` when available. Off by default on laptop |

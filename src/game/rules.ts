@@ -134,6 +134,13 @@ export const MAX_SESSION_MINUTES = 12 * 60;
 /** After this long the Focus screen asks "still working?". */
 export const STILL_WORKING_MINUTES = 3 * 60;
 
+/**
+ * P1-3: the XP a ritual (a habit that isn't core) may pay, chosen in the habit editor. The 4 core habits keep
+ * their XP. Capped at 20 so no ritual outweighs the core habits that grade the day; new rituals start at 10.
+ */
+export const RITUAL_XP_CHOICES = [5, 10, 15, 20];
+export const NEW_RITUAL_XP = 10;
+
 /** Minimum versions pay this share of the habit's XP (and keep the streak). */
 export const MIN_VERSION_SHARE = 0.5;
 /** Deep work counts as its minimum version from this many hours. */
