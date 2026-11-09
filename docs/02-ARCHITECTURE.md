@@ -37,7 +37,8 @@ src/
     util.ts             # ids, dates (local YYYY-MM-DD keys), MXN formatting, cx()
     hooks.ts            # usePlayer (derived from ledger), useNow, useToday
     toast.tsx           # reward toasts (hooks into db.xp 'creating')
-    routine.ts          # IDEAL_DAY template + .ics generator
+    routine.ts          # the Ideal Day built from the work start (and its teaching-day variant) + .ics generator
+    workStart.ts        # the work-start choices and default (tiny, so the startup bundle doesn't load routine.ts)
     backup.ts           # JSON export/import
   sync/
     track.ts            # startup: DBCore middleware recording changes in syncOutbox, the clock, device-only settings

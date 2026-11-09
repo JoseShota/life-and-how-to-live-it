@@ -6,8 +6,8 @@ import { db } from '@/db/db';
 import type { Area, Habit, HabitLog, Task } from '@/db/types';
 import { setHabit, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
 import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
-import { usePlayer, useToday, useNow, useWorkTargets } from '@/lib/hooks';
-import { idealDayFor, currentBlockIndex, type Block } from '@/lib/routine';
+import { usePlayer, useToday, useNow, useWorkStart, useWorkTargets } from '@/lib/hooks';
+import { idealDayFor, currentBlockIndex, toMin, type Block } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
 import { cardAlerts } from '@/finance/finance';
 import { cx, dateKey, hm, mxn, parseKey } from '@/lib/util';
@@ -114,7 +114,7 @@ function NowCard({ now, habits, logs, tasks, areas, today, blocks, teaching }: {
       : <Button onClick={() => startFocus(quest?.areaId ?? area?.id ?? areas[0]?.id, quest?.id)}><Glyph name="play" size={16} />Start focus{quest ? ` · ${quest.title}` : area ? ` · ${area.short}` : ''}</Button>;
   } else if (block.icon === 'discus') { what = 'Exercise'; action = <HabitButtons h={habit('exercise')} />; }
   else if (block.icon === 'sunrise') { what = block.title; action = <HabitButtons h={habit('wake')} />; }
-  else if (block.icon === 'scroll') { what = 'Intel: 45 minutes, then close it.'; action = <HabitButtons h={habit('intel')} />; }
+  else if (block.icon === 'scroll') { what = `Intel: ${toMin(block.end) - toMin(block.start)} minutes, then close it.`; action = <HabitButtons h={habit('intel')} />; }
   else if (block.icon === 'wave') {
     what = 'Clean 15 minutes, then the money check-in.';
     action = <div className="flex flex-wrap gap-2"><Link to="/money" className="mac-btn inline-flex min-h-[40px] items-center gap-2 bg-laurel px-4 font-display text-[15px]"><Glyph name="drachma" size={16} />Log money</Link><HabitButtons h={habit('money')} /></div>;
@@ -158,7 +158,8 @@ export default function Today() {
   const minutes = useLiveQuery(async () => (await db.sessions.where('date').equals(today).toArray()).reduce((s, x) => s + x.minutes, 0), [today], 0);
   const { today: targets, teaching, schedule } = useWorkTargets(today);
   const place = areas.find(a => a.id === schedule?.areaId)?.short;
-  const blocks = idealDayFor(today, schedule, place);
+  const workStart = useWorkStart();
+  const blocks = idealDayFor(today, schedule, place, workStart);
   const week = useLiveQuery(() => weekStats(weekStartKey(today)), [today, logs, minutes]);
   const alerts = useLiveQuery(async () => cardAlerts(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray(), await db.installments.toArray(), today), [today], []);
   const xpLog = useLiveQuery(() => db.xp.where('date').equals(today).reverse().sortBy('ts'), [today], []);

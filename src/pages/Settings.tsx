@@ -4,23 +4,24 @@ import { Glyph } from '@/components/Glyph';
 import { IconPicker } from '@/components/IconPicker';
 import { db, setSetting } from '@/db/db';
 import { exportAll, importAll, download } from '@/lib/backup';
-import { routineIcs } from '@/lib/routine';
+import { WORK_START_CHOICES, routineIcs } from '@/lib/routine';
 import { useToast } from '@/lib/toast';
 import { dateKey } from '@/lib/util';
-import { useWorkTargets } from '@/lib/hooks';
+import { useWorkStart, useWorkTargets } from '@/lib/hooks';
 import { TeachingScheduleCard } from '@/components/TeachingBits';
 import { evaluateDay } from '@/game/engine';
 import { TaxSettings } from '@/components/TaxBits';
 import { SyncCard } from '@/components/SyncCard';
 import { HabitsCard } from '@/components/HabitBits';
 import { SeasonCard } from '@/components/SeasonBits';
-import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
+import { Button, Card, Input, Label, Modal, PageTitle, Select } from '@/components/ui';
 
 export default function SettingsPage() {
   const toast = useToast();
   const file = useRef<HTMLInputElement>(null);
   const name = (useLiveQuery(() => db.settings.get('playerName'))?.value as string) ?? '';
   const { all: targets, schedule } = useWorkTargets();
+  const workStart = useWorkStart();
   const showMarquee = (useLiveQuery(() => db.settings.get('showMarquee'))?.value as boolean | undefined) ?? true;
   const setTarget = (kind: 'weekday' | 'weekend' | 'teaching', which: 'done' | 'full', v: string) => {
     const n = Number(v);
@@ -41,6 +42,12 @@ export default function SettingsPage() {
       <Card title="The Player">
         <div className="grid gap-3 sm:grid-cols-2">
           <Label text="Name"><Input value={name} onChange={e => setSetting('playerName', e.target.value)} /></Label>
+        </div>
+        <p className="mb-2 mt-4 text-xs text-ink/60">Deep work 1 starts here. Exercise, breakfast and intel share the morning until then; the work day moves with it and the evening's free time absorbs the change. Wake-up, the 20:00 shutdown and bedtime stay. After a change, download the routine again (Reminders) so the calendar follows.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Label text="Work starts at"><Select value={workStart} onChange={e => setSetting('workStart', e.target.value)}>
+            {WORK_START_CHOICES.map(t => <option key={t} value={t}>{t}</option>)}
+          </Select></Label>
         </div>
         <h3 className="mt-4 font-display text-sm text-lav">Deep-work targets (hours)</h3>
         <p className="mb-2 text-xs text-ink/60">"Done" checks the deep-work habit. "Full" earns the workday bonus, and focus stops paying XP after it.</p>
@@ -91,7 +98,7 @@ export default function SettingsPage() {
       <Card title="Reminders">
         <p className="mb-3 text-sm text-ink/60">Your device calendar is the most reliable reminder engine. Import the ideal-day routine as recurring events (teaching days get their own, until the semester ends) with a 5-minute alert (works with Google Calendar, Apple Calendar, Outlook).</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => download('life-routine.ics', routineIcs(schedule, place), 'text/calendar')}><Glyph name="calendar" size={16}/>Download routine (.ics)</Button>
+          <Button variant="ghost" onClick={() => download('life-routine.ics', routineIcs(schedule, place, dateKey(), workStart), 'text/calendar')}><Glyph name="calendar" size={16}/>Download routine (.ics)</Button>
           <Button variant="ghost" onClick={async () => { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Notifications enabled' : 'Notifications blocked', r === 'granted' ? 'xp' : 'bad'); }}><Glyph name="bell" size={16}/>Allow notifications</Button>
         </div>
         <p className="mt-2 text-xs text-ink/50">This only grants permission. Scheduled reminders arrive in Phase 4; until then, use Download routine (.ics).</p>

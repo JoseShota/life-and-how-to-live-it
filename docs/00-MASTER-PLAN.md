@@ -53,19 +53,21 @@ Treat your activities like an investment portfolio. Each one gets a **role**, a 
 
 ### The ideal day (built into the app, and exportable to your calendar as `.ics`)
 
+Work starts at **08:45** (changed 2026-11-09 from 08:00; set in Control → "Work starts at"). The extra 45 minutes go to a longer exercise, breakfast and intel; the whole work day moves 45 minutes later, and the evening's free time absorbs it. Wake-up, the shutdown and bedtime don't move.
+
 | Time | Block | Pillar |
 |---|---|---|
 | 05:45 | Wake · water · make bed (no phone) | 🛡️ |
-| 06:00 | **Exercise** (45 m: strength Mon/Wed/Fri, cardio Tue/Thu/Sat, walk Sun) | 🛡️ |
-| 06:45 | Shower + breakfast | |
-| 07:15 | **Intel:** newsletters + econ YouTube at 1.5–2× (45 m hard cap) | 🧠 |
-| 08:00 | **Deep work 1 — the money quest** (highest MXN/h task) | ⚔️ |
-| 10:15 | **Deep work 2 — clients** (Weaving / freelance) | ⚔️ |
-| 12:15 | Lunch, away from the screen | |
-| 13:15 | **Deep work 3 — CIDE** (class / prep / grading) | ⚔️ |
-| 15:30 | **Deep work 4 — AI automation** (learn by building real things) | ⚔️ |
-| 17:30 | **Clean 15 m** + **money check-in** (log expenses, check cards) + inbox | 🛡️💰 |
-| 18:00 | Free / hobbies (video, writing, website) | 🎨 |
+| 06:00 | **Exercise** (60 m: strength Mon/Wed/Fri, cardio Tue/Thu/Sat, walk Sun) | 🛡️ |
+| 07:00 | Shower + breakfast (45 m) | |
+| 07:45 | **Intel:** newsletters + econ YouTube at 1.5–2× (60 m hard cap: the block ends when work starts) | 🧠 |
+| 08:45 | **Deep work 1 — the money quest** (highest MXN/h task) | ⚔️ |
+| 11:00 | **Deep work 2 — clients** (Weaving / freelance) | ⚔️ |
+| 13:00 | Lunch, away from the screen | |
+| 14:00 | **Deep work 3 — CIDE** (class / prep / grading) | ⚔️ |
+| 16:15 | **Deep work 4 — AI automation** (learn by building real things) | ⚔️ |
+| 18:15 | **Clean 15 m** + **money check-in** (log expenses, check cards) + inbox | 🛡️💰 |
+| 18:45 | Free / hobbies (video, writing, website) | 🎨 |
 | 20:00 | **Shutdown ritual:** pick tomorrow's top 3 quests in the app | ⚔️ |
 | 21:45 | Bed. Lights out 22:00 | 🛡️ |
 
@@ -75,11 +77,11 @@ Treat your activities like an investment portfolio. Each one gets a **role**, a 
 
 | Time | Block |
 |---|---|
-| 05:45–08:00 | Same as every day (wake, exercise, breakfast, intel) |
-| 08:00 | **Deep work 1 — class prep** |
-| 10:15 | **Deep work 2 — prep and grading** |
-| 12:15 | Lunch |
-| 13:15 | **Deep work 3 — final prep**, until 15 min before leaving |
+| 05:45–08:45 | Same as every day (wake, exercise, breakfast, intel) |
+| 08:45 | **Deep work 1 — class prep** |
+| 11:00 | **Deep work 2 — prep and grading** |
+| 13:00 | Lunch |
+| 14:00 | **Deep work 3 — final prep**, until 15 min before leaving |
 | leave − 15 m | Money check-in, pack |
 | leave | Travel to class (and prepare the classroom, if you set an arrival time) |
 | class | **Teach.** Not focus time: it pays in MXN/h, not XP |
@@ -91,7 +93,7 @@ Targets on those days: **4 h done, 5 h full**. The weekly 30 h stays. The hours 
 ### Anti-fragility rules (this is why most routines fail, and how yours won't)
 1. **Never miss twice.** One missed day is noise. Two in a row is the start of a new habit. The app shows streaks, and in Phase 4 it adds a "streak shield".
 2. **Minimum viable version.** On bad days: 10 push-ups, 5-minute tidy, 1 newsletter, 1 hour of work. It still counts, so the chain stays alive.
-3. **Intel has a hard cap.** Information is not progress. 45 minutes, then close it. (Phase 3: the AI summarizes your newsletters so 45 minutes covers everything.)
+3. **Intel has a hard cap.** Information is not progress. The intel block (60 minutes with work at 08:45), then close it. (Phase 3: the AI summarizes your newsletters so the block covers everything.)
 4. **Sunday Review (30 m):** read this plan, check the Archive, adjust weekly hour targets, plan the week's quests, export a backup.
 
 ---
