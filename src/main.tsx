@@ -8,6 +8,7 @@ import { seedIfEmpty } from '@/db/seed';
 import { applyShields, ensureTaxQuests } from '@/game/engine';
 import { Today, Quests, Focus, Money, Rewards, Stats, SettingsPage, Review, preloadPages } from '@/pages';
 import { bootSync, captureAuthRedirect } from '@/sync/status';
+import { keepData } from '@/lib/storage';
 
 captureAuthRedirect(); // a sign-in link's tokens leave the address bar before anything renders
 
@@ -34,4 +35,5 @@ seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() 
   );
   preloadPages();
   void bootSync(); // linked devices start syncing; others load nothing
+  void keepData(); // S-3: ask the browser not to clear this app's data when space runs low
 });

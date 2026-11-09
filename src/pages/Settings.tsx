@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
 import { IconPicker } from '@/components/IconPicker';
@@ -7,6 +7,7 @@ import { exportAll, importAll, download } from '@/lib/backup';
 import { WORK_START_CHOICES, routineIcs } from '@/lib/routine';
 import { useToast } from '@/lib/toast';
 import { dateKey } from '@/lib/util';
+import { daysSince, dataKept, keepData } from '@/lib/storage';
 import { useWorkStart, useWorkTargets } from '@/lib/hooks';
 import { TeachingScheduleCard } from '@/components/TeachingBits';
 import { evaluateDay } from '@/game/engine';
@@ -35,6 +36,11 @@ export default function SettingsPage() {
   const [iconFor, setIconFor] = useState<string | null>(null);
   const iconArea = areas.find(a => a.id === iconFor);
   const syncing = !!useLiveQuery(() => db.syncState.get('vaultId'), [], undefined);
+  const lastBackupAt = useLiveQuery(() => db.settings.get('lastBackupAt'))?.value as number | undefined;
+  const [kept, setKept] = useState<boolean | null | undefined>(undefined);
+  useEffect(() => { void dataKept().then(setKept); }, []);
+  const exportBackup = async () => { download(`life-backup-${dateKey()}.json`, JSON.stringify(await exportAll())); await setSetting('lastBackupAt', Date.now()); };
+  const lastDays = daysSince(lastBackupAt);
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
@@ -109,7 +115,7 @@ export default function SettingsPage() {
       <Card title="Backup · data">
         <p className="mb-3 text-sm text-ink/60">Your data lives on this device (offline-first) and, with sync on, as an encrypted copy only your devices can read. A backup file is the copy no server holds: export one weekly.</p>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={async () => download(`life-backup-${dateKey()}.json`, JSON.stringify(await exportAll()))}><Glyph name="download" size={16}/>Export backup</Button>
+          <Button onClick={exportBackup}><Glyph name="download" size={16}/>Export backup</Button>
           <Button variant="ghost" onClick={() => file.current?.click()}><Glyph name="upload" size={16}/>Import backup</Button>
           <input ref={file} type="file" accept="application/json" hidden onChange={async e => {
             const f = e.target.files?.[0]; if (!f) return;
@@ -120,6 +126,13 @@ export default function SettingsPage() {
             e.target.value = '';
           }} />
           <Button variant="danger" onClick={async () => { if (confirm(syncing ? 'Erase EVERYTHING on this device and stop syncing here? The encrypted cloud copy and your other device are not touched.' : 'Erase EVERYTHING on this device?') && confirm('Really? Export a backup first.')) { await db.delete(); location.reload(); } }}>Reset app</Button>
+        </div>
+              <div className="mt-3 flex flex-col gap-1 text-sm">
+          <p>Last backup from this device: {lastDays === null ? 'none yet' : lastDays === 0 ? 'today' : `${lastDays} day${lastDays === 1 ? '' : 's'} ago`}.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={kept ? 'text-ok' : 'text-ink/70'}>{kept === undefined ? 'Checking storage…' : kept ? 'Storage: kept on this device (the browser won’t clear it to free space).' : kept === null ? 'Storage: this browser can’t say whether it keeps the data. Keep backups and sync on.' : 'Storage: the browser may clear it when space runs low. Install the app, or ask again.'}</span>
+            {kept === false && <Button variant="ghost" onClick={async () => setKept(await keepData())}>Ask to keep the data</Button>}
+          </div>
         </div>
       </Card>
     </div>

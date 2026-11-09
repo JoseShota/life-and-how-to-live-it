@@ -38,6 +38,7 @@ src/
     hooks.ts            # usePlayer (derived from ledger), useNow, useToday
     toast.tsx           # reward toasts (hooks into db.xp 'creating')
     routine.ts          # the Ideal Day built from the work start (and its teaching-day variant) + .ics generator
+    storage.ts          # S-3: ask the browser to keep the data (persistent storage), backup-reminder rule
     workStart.ts        # the work-start choices and default (tiny, so the startup bundle doesn't load routine.ts)
     backup.ts           # JSON export/import
   sync/
