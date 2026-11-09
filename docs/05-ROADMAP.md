@@ -83,7 +83,7 @@ All LLM calls go through a **Supabase Edge Function** (`supabase/functions/coach
 | P4-1 🔴 | **Web Push** (VAPID) via Supabase cron + edge function | Wake, wind-down (21:15), money check-in (17:30), card due (D-3, D-1). Works on the installed Android Chrome PWA (tablet) and laptop. Secondary: iPad only if installed to Home Screen, iPadOS ≥ 16.4 |
 | P4-2 🟡 | **Google Calendar sync** (optional) | Create/update routine and quest due dates as events |
 | P4-3 🟡 | HP/Energy + streak shields | As specified in `04-GAME-DESIGN.md` |
-| P4-4 🟡 | Seasons + boss fight | Live boss progress from real data (first retainer, 1-month shield, 30-day Good-or-Perfect rate); the season start and plan text already exist (E-9, `src/game/season.ts`). Boss HP damaged by focus hours touches the economy: ask first |
+| P4-4 🟡 ✅ (progress) | Seasons + boss fight | *Done 2026-11-09: live boss progress on the Season banner, display only (`bossProgress()` in `src/game/season.ts`, tests).* Live boss progress from real data (first retainer, 1-month shield, 30-day Good-or-Perfect rate); the season start and plan text already exist (E-9, `src/game/season.ts`). Boss HP damaged by focus hours touches the economy: ask first |
 | P4-5 🟢 | Loot drops | 10 % bonus coins on Hard/Epic completion |
 
 ## Phase 5 — Wealth pro (Month 3+)

@@ -7,14 +7,15 @@ import { db, setSetting } from '@/db/db';
 import type { Task } from '@/db/types';
 import { REVIEW_XP, reviewWeekFor } from '@/game/rules';
 import { getTaxProfile } from '@/game/engine';
+import { loadWealthSnapshot } from '@/game/achievements';
 import { monthTotals } from '@/finance/finance';
 import { monthTax, monthlyDueDate } from '@/finance/tax';
 import {
-  SEASON_1_ID, SEASON_BOSS, SEASON_DAYS, SEASON_NAME, SEASON_REVIEW_PHASE, SEASON_WEEKS, freshStartFor, seasonStatus, withDismissed,
+  SEASON_1_ID, SEASON_BOSS, bossProgress, SEASON_DAYS, SEASON_NAME, SEASON_REVIEW_PHASE, SEASON_WEEKS, freshStartFor, seasonStatus, withDismissed,
   type FreshStart, type SeasonSetting
 } from '@/game/season';
 import { cx, mxn, parseKey } from '@/lib/util';
-import { Card, Input, Label } from './ui';
+import { Bar, Card, Input, Label } from './ui';
 
 const longDate = (key: string) => parseKey(key).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 const shortDate = (key: string) => parseKey(key).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -53,9 +54,40 @@ export function SeasonBanner({ today }: { today: string }) {
         {st.state === 'before' && <p>From {longDate(st.start)} to {longDate(st.end)}: 90 days, 12 weeks.</p>}
         {phase && <p><span className="font-display text-lav">Focus</span> · {phase.focus}</p>}
         {phase && <p><span className="font-display text-lav">Done when</span> · {phase.doneWhen}</p>}
-        <p className="text-ink/70"><span className="font-display text-lav">Boss</span> · {SEASON_BOSS}</p>
+        {st.state === 'before' ? <p className="text-ink/70"><span className="font-display text-lav">Boss</span> · {SEASON_BOSS}</p> : <BossPanel today={today} start={st.start} />}
       </div>
     </Card>
+  );
+}
+
+/** P4-4: the boss, part by part, from real data. Display only: beating it pays nothing (yet). */
+function BossPanel({ today, start }: { today: string; start: string }) {
+  const parts = useLiveQuery(async () => {
+    const [opps, snap, good] = await Promise.all([
+      db.opportunities.toArray(),
+      loadWealthSnapshot(),
+      db.xp.where('date').between(start, today, true, true).filter(e => e.source === 'good-day' || e.source === 'perfect-day').toArray()
+    ]);
+    return bossProgress({
+      today, start, wonRetainers: opps.filter(o => o.kind === 'retainer' && o.status === 'won').length,
+      shieldMonths: snap.shieldMonths, spending: snap.spending, goodDates: good.map(e => e.date)
+    });
+  }, [today, start]);
+  if (!parts) return null;
+  const down = parts.every(p => p.met);
+  return (
+    <div className="mt-1 flex flex-col gap-1.5 border-t-2 border-line/40 pt-2">
+      <p className="font-display text-lav">{down ? 'Boss defeated' : 'Boss'}</p>
+      {parts.map(p => (
+        <div key={p.key} className="grid gap-x-3 gap-y-0.5 sm:grid-cols-[14rem_1fr]">
+          <span className={cx('flex items-center gap-1.5', p.met && 'text-ok')}><Glyph name={p.met ? 'check' : 'dot'} size={14} className="shrink-0" />{p.label}</span>
+          <div className="flex flex-col gap-0.5">
+            <Bar value={p.progress} height="h-2.5" color={p.met ? '#2f7a5f' : undefined} />
+            <span className="text-[12px] text-ink/60">{p.detail}</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
