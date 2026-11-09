@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { SEASON_1_ID, SEASON_PHASES, freshStartFor, mondayOf, previousMonth, seasonStatus, withDismissed, DISMISSED_KEPT } from '../src/game/season';
+import { dateKey, parseKey } from '../src/lib/util';
+import { SEASON_1_ID, SEASON_PHASES, bossProgress, freshStartFor, mondayOf, previousMonth, seasonStatus, withDismissed, DISMISSED_KEPT } from '../src/game/season';
 
 const s = { id: SEASON_1_ID, start: '2026-11-10' }; // a Tuesday
 
@@ -108,5 +109,42 @@ describe('sync', () => {
     const { LOCAL_SETTINGS } = await import('../src/sync/track');
     expect(LOCAL_SETTINGS).not.toContain('season');
     expect(LOCAL_SETTINGS).not.toContain('freshStartDismissed');
+  });
+});
+
+describe('bossProgress', () => {
+  const base = { start: '2026-11-10', wonRetainers: 0, shieldMonths: 0.4, spending: 20000, goodDates: [] as string[] };
+  const days = (from: string, n: number) => Array.from({ length: n }, (_, i) => { const d = parseKey(from); d.setDate(d.getDate() + i); return dateKey(d); });
+  const part = (p: ReturnType<typeof bossProgress>, k: string) => p.find(x => x.key === k)!;
+
+  it('the first day: nothing counted yet', () => {
+    const p = bossProgress({ ...base, today: '2026-11-10' });
+    expect(part(p, 'rate')).toMatchObject({ met: false, progress: 0, detail: 'Starts counting after the first full day' });
+    expect(part(p, 'retainer')).toMatchObject({ met: false, progress: 0 });
+    expect(part(p, 'shield')).toMatchObject({ met: false, progress: 0.4 });
+    expect(part(p, 'shield').detail).toContain('0.4 of 1 month');
+  });
+  it('counts complete days since the start, never before it, never today', () => {
+    const p = bossProgress({ ...base, today: '2026-11-15', goodDates: ['2026-11-08', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-15'] });
+    expect(part(p, 'rate').detail).toBe('3 of 5 days (60 %) · 5 of 30 days so far');
+    expect(part(p, 'rate').met).toBe(false); // not 30 days yet
+    expect(part(p, 'rate').progress).toBeCloseTo(1);
+  });
+  it('after 30 days, the last 30 complete days decide', () => {
+    const today = '2026-12-20';
+    const good = days('2026-11-20', 18); // Nov 20 .. Dec 7: 18 of the 30 days Nov 20 .. Dec 19
+    const p = bossProgress({ ...base, today, goodDates: [...good, '2026-11-12'] });
+    expect(part(p, 'rate')).toMatchObject({ met: true, detail: '18 of 30 days (60 %) · last 30 days' });
+    const q = bossProgress({ ...base, today, goodDates: good.slice(1) });
+    expect(part(q, 'rate').met).toBe(false);
+  });
+  it('retainer and shield from real data', () => {
+    const p = bossProgress({ ...base, today: '2026-12-01', wonRetainers: 1, shieldMonths: 1.2 });
+    expect(part(p, 'retainer')).toMatchObject({ met: true, progress: 1, detail: 'Won' });
+    expect(part(p, 'shield')).toMatchObject({ met: true, progress: 1 });
+    const unknown = bossProgress({ ...base, today: '2026-12-01', spending: null, shieldMonths: 0 });
+    expect(part(unknown, 'shield')).toMatchObject({ met: false, progress: 0, detail: 'Needs a month of logged spending, or a spending estimate' });
+    const negative = bossProgress({ ...base, today: '2026-12-01', shieldMonths: -0.2 });
+    expect(part(negative, 'shield').progress).toBe(0);
   });
 });

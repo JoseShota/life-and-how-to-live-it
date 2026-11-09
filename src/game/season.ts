@@ -100,3 +100,46 @@ export const DISMISSED_KEPT = 6;
 /** The dismissed list after closing `key`: newest first, without repeats, capped. */
 export const withDismissed = (list: readonly string[] | null | undefined, key: string) =>
   [key, ...(list ?? []).filter(k => k !== key)].slice(0, DISMISSED_KEPT);
+
+// ---------- The boss (P4-4): live progress from real data, display only (no XP) ----------
+
+export const BOSS_RATE_DAYS = 30;
+export const BOSS_RATE_TARGET = 0.6;
+export const BOSS_SHIELD_MONTHS = 1;
+
+export interface BossInput {
+  today: DateKey;
+  start: DateKey;
+  /** Opportunities of kind `retainer` marked won. */
+  wonRetainers: number;
+  /** The shield bucket against a month of spending (finance/wealth.ts), and that spending (null = unknown). */
+  shieldMonths: number;
+  spending: number | null;
+  /** Dates that earned a Good Day or a Perfect Day. */
+  goodDates: DateKey[];
+}
+
+export interface BossPart { key: 'retainer' | 'shield' | 'rate'; label: string; met: boolean; progress: number; detail: string }
+
+/**
+ * The Season 1 boss, part by part. The rate counts the last 30 complete days (today is still being played),
+ * never days before the season started: until 30 have passed it reads "N of 30 days so far" and can't be met yet.
+ */
+export function bossProgress(i: BossInput): BossPart[] {
+  const yesterday = dateKey(addDays(parseKey(i.today), -1));
+  const windowStart = [dateKey(addDays(parseKey(i.today), -BOSS_RATE_DAYS)), i.start].sort()[1];
+  const days = Math.max(0, differenceInCalendarDays(parseKey(yesterday), parseKey(windowStart)) + 1);
+  const good = new Set(i.goodDates.filter(d => d >= windowStart && d <= yesterday)).size;
+  const rate = days ? good / days : 0;
+  const pct = (n: number) => `${Math.round(n * 100)} %`;
+  return [
+    { key: 'retainer', label: 'First retainer client', met: i.wonRetainers >= 1, progress: Math.min(1, i.wonRetainers),
+      detail: i.wonRetainers >= 1 ? 'Won' : 'None won yet (a retainer opportunity marked won in Treasury)' },
+    { key: 'shield', label: `Emergency fund · ${BOSS_SHIELD_MONTHS} month`, met: !!i.spending && i.shieldMonths >= BOSS_SHIELD_MONTHS,
+      progress: i.spending ? Math.max(0, Math.min(1, i.shieldMonths / BOSS_SHIELD_MONTHS)) : 0,
+      detail: i.spending ? `${Math.max(0, i.shieldMonths).toFixed(1)} of ${BOSS_SHIELD_MONTHS} month (spending ≈ ${Math.round(i.spending)}/month)` : 'Needs a month of logged spending, or a spending estimate' },
+    { key: 'rate', label: `Good-or-Perfect days · ${pct(BOSS_RATE_TARGET)} of ${BOSS_RATE_DAYS}`, met: days >= BOSS_RATE_DAYS && rate >= BOSS_RATE_TARGET,
+      progress: Math.min(1, rate / BOSS_RATE_TARGET),
+      detail: days === 0 ? 'Starts counting after the first full day' : `${good} of ${days} day${days === 1 ? '' : 's'} (${pct(rate)})${days < BOSS_RATE_DAYS ? ` · ${days} of ${BOSS_RATE_DAYS} days so far` : ' · last 30 days'}` }
+  ];
+}
