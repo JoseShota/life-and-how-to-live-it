@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { db } from '@/db/db';
 import { levelFromXp, titleForLevel, targetsFor, isTeachingDay, withTargetDefaults, type WorkTargets, type TeachingSchedule } from '@/game/rules';
 import { dateKey } from './util';
+import { workStartOf } from './workStart';
 
 export function usePlayer() {
   return useLiveQuery(async () => {
@@ -31,6 +32,11 @@ export function useToday() {
 /** The teaching schedule from settings (undefined until entered, or while loading). */
 export function useTeachingSchedule() {
   return useLiveQuery(() => db.settings.get('teachingSchedule'))?.value as TeachingSchedule | undefined;
+}
+
+/** When deep work 1 starts (synced setting `workStart`; 08:00 until chosen in Control). */
+export function useWorkStart() {
+  return workStartOf(useLiveQuery(() => db.settings.get('workStart'))?.value);
 }
 
 /** Deep-work targets from settings, and the ones that apply to `day` (teaching day, weekday or weekend). */

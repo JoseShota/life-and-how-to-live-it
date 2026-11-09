@@ -78,6 +78,7 @@ No XP number changed. Tests 138 → 186. Startup JS 333 → 337 kB of 350 kB; th
 |---|---|
 | S-1 Show passphrase | One Show/Hide button per sync form; passphrase fields don't auto-capitalize or autocorrect; a note about a leading or trailing space |
 | P1-3 Habit editor | Control → Habits: order, add, archive and restore; rituals pay 5/10/15/20 XP; the 4 core habits keep their XP |
+| W-1 Work starts at | The user starts work at 08:45. Control → "Work starts at" moves deep work 1; exercise, breakfast and intel get the extra morning time (15 minutes each at 08:45), the work day shifts and the free time before the 20:00 shutdown shrinks. `00-MASTER-PLAN.md` §3 updated (approved) |
 | E-9 Fresh starts and the season | A Season banner on Today (week N of 12 in Mon–Sun weeks, the phase from `00-MASTER-PLAN.md` §6, its "done when" line, the boss); the start date is a synced setting in Control. One fresh-start banner at a time: the Sunday review, a Monday banner (last week's review if not saved, else the 3 quests it chose), or the first 3 days of a month (last month's in, out and savings rate, the split, the RESICO estimate). Closing one closes it on both devices. No XP or schema change. The coin wager stays a Season 2 experiment |
 
 The Season 1 boss now reads "30-day Good-or-Perfect rate ≥ 60 %" (decided 2026-11-09): a Perfect Day is a rare stretch under economy B, so the old Perfect-Day wording could not be won.

@@ -31,6 +31,7 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | T-1–T-5 🟡 ✅ | **Teaching days** (approved 2026-11-07, `docs/handoffs/2026-11-07-teaching-days.md`) | Schedule in Control, teaching-day Ideal Day and Now card, 4/5 h targets, the schedule's hours count for the real MXN/h, the floor and the weekly review. Dexie v12. Tests |
 | P1-9 🟢 ✅ | **Code-split routes** | `React.lazy` per page. Main chunk < 300 kB |
 | P1-10 🟢 | **More achievements** | Add the list in `04-GAME-DESIGN.md` → "To add" |
+| W-1 🟢 ✅ | **Work starts at** (asked 2026-11-09) | A synced `workStart` setting in Control (07:30 to 09:30, 15-minute steps; 08:00 by default). The Ideal Day, the teaching-day variant, the Now card and the `.ics` export follow it: exercise, breakfast and intel share the morning, the work day shifts, the evening's free time absorbs it. 8 h of deep work at every choice. Tests. No XP or schema change |
 | E-9 🟡 ✅ | **Fresh starts and the Season 1 banner** (from `09-EVALUATION.md`, done 2026-11-09) | Season start date as a synced setting in Control; Season banner on Today (week N of 12 in Mon–Sun weeks, phase, done when, boss); Monday and first-of-month banners, one at a time, closed on both devices. Pure rules in `src/game/season.ts`, tests. No XP or schema change; no coin wager (Season 2) |
 
 ## Phase 2 — Cloud sync between tablet and laptop (plan approved 2026-11-07)
