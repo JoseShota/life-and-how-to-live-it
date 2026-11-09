@@ -1,5 +1,7 @@
 # Handoff: the path after sync (Phases 1 to 5)
 
+*Newer: `docs/handoffs/2026-11-09-season-1.md` (S-1 and P1-3 done, Season 1 starts 2026-11-10, E-9 is next). Its prompt replaces the one below; the rules here still apply.*
+
 *Written 2026-11-08 by the agent that built P2 Sync (PR #4, merged as `e0325af`; deploy doc PR #5). For the next coding agent, who owns the roadmap from here until every phase is done.*
 
 ## The prompt (paste this to start each new session)

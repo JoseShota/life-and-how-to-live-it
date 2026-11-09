@@ -1,6 +1,6 @@
 # 05 · Roadmap & Tickets
 
-**Next agent: start with `docs/handoffs/2026-11-08-next-phases.md`** (the path after sync, the rules for real data, the recommended order).
+**Next agent: start with `docs/handoffs/2026-11-09-season-1.md`** (state, decisions, the next ticket), then `docs/handoffs/2026-11-08-next-phases.md` (the rules for real data, the whole path).
 
 Every ticket is sized so a Cursor agent can do it in **one chat**. Do them in order inside a phase. Each has acceptance criteria (AC). Copy-paste prompts are in `docs/prompts/`.
 
