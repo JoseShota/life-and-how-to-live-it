@@ -11,8 +11,9 @@ import { idealDayFor, currentBlockIndex, type Block } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
 import { cardAlerts } from '@/finance/finance';
 import { cx, dateKey, hm, mxn, parseKey } from '@/lib/util';
-import { Card, Ring, Button, Bar, Empty, PageTitle, Modal, Input, Label } from '@/components/ui';
+import { Card, Ring, Button, Bar, Empty, PageTitle } from '@/components/ui';
 import { TaskRow, TaskForm } from '@/components/TaskBits';
+import { HabitEditor } from '@/components/HabitBits';
 
 function greeting(h: number) {
   if (h < 6) return 'the world still dreams. you rise.';
@@ -38,7 +39,7 @@ function HabitRow({ habit, log, today, targets }: { habit: Habit; log?: HabitLog
         <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink/60">{streak > 0 ? <><Glyph name="flame" size={12} className="text-xp" />{streak}-day streak</> : 'Start a streak today'} · +{habit.xp} XP{habit.minLabel ? ` (min ${Math.round(habit.xp / 2)})` : ''}{habit.intrinsic ? ' · no dr (you already enjoy it)' : ''}</div>
         {habit.plan && <div className="truncate font-type text-[12px] text-ink/60" title={habit.plan}>{habit.plan}</div>}
       </div>
-      <button onClick={() => setEditing(true)} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/45 hover:text-xp" aria-label={`Edit plan for ${habit.name}`}><Glyph name="pencil" size={14} /></button>
+      <button onClick={() => setEditing(true)} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/45 hover:text-xp" aria-label={`Edit ${habit.name}`}><Glyph name="pencil" size={14} /></button>
       {habit.kind === 'check' && (<>
         {minBtn}
         <button onClick={() => setHabit(habit, today, done ? 0 : 1)} aria-label={habit.name} className={cx('flex h-10 w-10 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-mint/40')}>
@@ -56,25 +57,8 @@ function HabitRow({ habit, log, today, targets }: { habit: Habit; log?: HabitLog
       {habit.kind === 'auto' && (
         <Link to="/focus" className={cx('mac-inset flex min-h-[40px] items-center px-2 font-display text-lg', done ? 'bg-mint text-ink' : min ? 'bg-laurel text-ink' : 'bg-white text-cyan')}>{(log?.value ?? 0).toFixed(1)}/{targets.done}h</Link>
       )}
-      {editing && <HabitPlanForm habit={habit} onClose={() => setEditing(false)} />}
+      {editing && <HabitEditor habit={habit} onClose={() => setEditing(false)} />}
     </div>
-  );
-}
-
-/** Edit a habit's minimum version and its "When…, I will…" plan. */
-function HabitPlanForm({ habit, onClose }: { habit: Habit; onClose: () => void }) {
-  const [minLabel, setMin] = useState(habit.minLabel ?? '');
-  const [plan, setPlan] = useState(habit.plan ?? '');
-  return (
-    <Modal open onClose={onClose} title={habit.name}>
-      <div className="flex flex-col gap-3">
-        <Label text="Minimum version (still counts on a bad day)"><Input value={minLabel} onChange={e => setMin(e.target.value)} placeholder="e.g. 10 push-ups" disabled={habit.kind === 'auto'} /></Label>
-        {habit.kind === 'auto' && <p className="text-xs text-ink/60">Deep work counts as its minimum version from 2 h of focus.</p>}
-        <Label text="Plan: When…, I will…"><Input value={plan} onChange={e => setPlan(e.target.value)} placeholder="When I finish my coffee, I will…" /></Label>
-        <p className="text-xs text-ink/60">A specific when-then plan makes follow-through more likely (Gollwitzer). Anchor it to something you already do.</p>
-        <Button onClick={async () => { await db.habits.update(habit.id, { minLabel: habit.kind === 'auto' ? habit.minLabel : minLabel.trim() || undefined, plan: plan.trim() || undefined }); onClose(); }}>Save</Button>
-      </div>
-    </Modal>
   );
 }
 
@@ -242,6 +226,7 @@ export default function Today() {
             {habits.filter(h => h.core).map(h => <HabitRow key={h.id} habit={h} log={dayLogs.find(l => l.habitId === h.id)} today={habitDay} targets={dayTargets} />)}
             <h3 className="mt-2 font-display text-sm text-lav">Rituals</h3>
             {habits.filter(h => !h.core).map(h => <HabitRow key={h.id} habit={h} log={dayLogs.find(l => l.habitId === h.id)} today={habitDay} targets={dayTargets} />)}
+            <Link to="/settings#habits" className="flex min-h-[40px] w-fit items-center gap-2 font-display text-[13px] text-lav hover:text-xp"><Glyph name="pencil" size={14} />Add, reorder or archive habits</Link>
           </div>
           {week && (
             <div className="mt-3 border-t-2 border-line pt-3 text-sm">

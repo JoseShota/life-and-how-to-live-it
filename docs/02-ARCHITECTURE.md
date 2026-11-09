@@ -28,6 +28,8 @@ src/
     engine.ts           # side-effectful actions: completeTask, setHabit, logSession, evaluateDay, redeem…
     achievements.ts     # achievement defs + checker + listener
     review.ts           # PURE weekly-review aggregates (day grades, hours per area, leading indicators)
+    habitEdit.ts        # PURE habit-editor rules (P1-3): what may change on a habit, new rituals, reordering
+    habitStore.ts       # the habit editor's writes (add, save, move, archive, delete); enforces habitEdit.ts again
   finance/
     finance.ts          # PURE money math: balances, card status, period totals, real MXN/h, pipeline
   lib/
@@ -50,6 +52,7 @@ supabase/migrations/    # 0001_sync.sql: sync_vaults, sync_records, RLS, sync_* 
     Layout.tsx          # HUD + marquee ticker + vapor backdrop + Win95 taskbar/Start menu + archive footer
     TaskBits.tsx        # TaskRow, TaskForm (incl. repeats)
     SyncCard.tsx        # Control → Sync: email code, passphrase, create / link, status
+    HabitBits.tsx       # Control → Habits (order, add, archive) and the habit editor sheet (also opened from Today)
     RealRate.tsx        # Wealth Engine card (real MXN/h), useRealRates(), non-focus hours form
     ActiveTimerPill.tsx
   pages/index.ts        # React.lazy loaders for every page + idle preload (P1-9)

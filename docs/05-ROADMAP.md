@@ -1,6 +1,6 @@
 # 05 · Roadmap & Tickets
 
-**Next agent: start with `docs/handoffs/2026-11-08-next-phases.md`** (the path after sync, the rules for real data, the recommended order).
+**Next agent: start with `docs/handoffs/2026-11-09-season-1.md`** (state, decisions, the next ticket), then `docs/handoffs/2026-11-08-next-phases.md` (the rules for real data, the whole path).
 
 Every ticket is sized so a Cursor agent can do it in **one chat**. Do them in order inside a phase. Each has acceptance criteria (AC). Copy-paste prompts are in `docs/prompts/`.
 
@@ -21,7 +21,7 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 |---|---|---|
 | P1-1 🟡 ✅ | **Recurring quests** (daily/weekly/monthly, e.g. "Grade weekly quizzes") | Field `recurrence` on Task. Completing a recurring quest creates the next instance. Dexie v3 migration (next free version). Tests |
 | P1-2 🟡 | **Sub-tasks / checklist** inside a quest | `checklist: {id,text,done}[]` on Task. Progress chip on TaskRow |
-| P1-3 🟡 | **Habit editor** in Settings (add/edit/archive/reorder habits, change XP, core flag) | Changes reflect on Today. Archived habits keep history |
+| P1-3 🟡 ✅ | **Habit editor** in Settings (add/edit/archive/reorder habits, change XP, core flag) | Changes reflect on Today. Archived habits keep history. *Decided 2026-11-09:* core is fixed on every habit; the 4 core habits keep their XP and can't be archived; rituals pay 5/10/15/20 XP; the sleep target is fixed |
 | P1-4 🟡 ✅ | **Weekly Review screen** (`/review`) | Shows last 7 days: perfect-day rate, hours per area vs target, money in/out, top 3 wins (free text), next week's top 3. Saves a `reviews` row. +50 XP once per week |
 | P1-5 🟢 | **Level-up celebration** | Full-screen modal with new title when level increases. Confetti (CSS only) |
 | P1-6 🟢 | **Sound + haptics** toggle | Tiny WebAudio blips on complete/level-up. `navigator.vibrate(20)` when available. Off by default on laptop |
@@ -41,6 +41,13 @@ End-to-end encrypted sync through the user's own Supabase project: the server st
 | P2-2 🔴 | **Encryption + sync engine, fake server** | AES-GCM per row from a passphrase (PBKDF2); opaque HMAC row ids; hybrid logical clock; pull → apply in one transaction → re-check touched days → push; server-side last-write-wins; tests with two simulated devices | Done |
 | P2-3 🔴 | **Supabase + sign-in + linking + status** | `supabase/migrations/` (RLS, atomic push with serialized sequence numbers; tested in PGlite); plain `fetch` client (lazy, no runtime dependency); email-code sign-in in Control; first device uploads, a second device saves a backup file and takes the cloud copy; HUD cloud glyph; triggers (open, focus, online, 60 s, 3 s after a write); `.env.example`; setup in `07-DEPLOY.md` | Done |
 | P2-4 🔴 | **Import, reset and the cloud copy** | Import while synced replaces the cloud copy (said in its confirmation); reset erases this device only and signs it out; "Delete cloud copy" with a double confirmation; re-create after a forgotten passphrase | Done |
+
+Follow-ups after sync went live (`docs/handoffs/2026-11-08-next-phases.md`):
+
+| ID | Ticket | AC | Status |
+|---|---|---|---|
+| S-1 🟢 | **Show passphrase** | One Show/Hide button per sync form (both fields at once when creating); hidden by default; no auto-capitalize, autocorrect or spellcheck on passphrase fields, so a visible field isn't "fixed" by the keyboard; a note when it starts or ends with a space (never trimmed). Checked in `scripts/sync-e2e/` | Done |
+| S-2 🟢 | **Sign-ups off** | The user turns off "Allow new users to sign up" in Supabase → Authentication → Sign In / Providers (no code) | Waiting on the user |
 
 ## Phase V — v2 economy and money engine (approved and built 2026-11-06)
 From `09-EVALUATION.md` (decisions D-1 to D-7). All eight tickets are done, one commit each (`V-1` … `V-8`). One commit per ticket. Sizes: (S) ≤ 1 h, (M) 1–3 h, (L) split into several commits. Each follows the Definition of Done in `AGENTS.md`.

@@ -22,7 +22,7 @@
 | Action | XP | Coins |
 |---|---|---|
 | Quest: Trivial / Easy / Medium / Hard / Epic | 5 / 15 / 35 / 75 / 150 (only the first Epic each day pays Epic) | XP ÷ 5 |
-| Habit (check) | habit.xp (10–25) × streak multiplier | XP ÷ 5; **0 for intrinsic habits** (intel) |
+| Habit (check) | habit.xp (rituals 5–20, core 15–25) × streak multiplier | XP ÷ 5; **0 for intrinsic habits** (intel) |
 | Streak multiplier | +5 % per full 7-day streak, max +50 % | |
 | Focus | 20 XP/h, pro-rata per minute, **only up to the day's full target** | XP ÷ 5; **0 for hobby areas** |
 | Deep-work habit ("done" target) | 40 × streak multiplier | XP ÷ 5 |
@@ -51,6 +51,13 @@
 A **teaching day** is one of the teaching schedule's weekdays inside its semester (Control → Teaching days); it wins over weekday/weekend. 5 h is the focus window before leaving; done stays about 75 % of full. Prep and grading are focus (logged on the teaching area); **the class is not focus time**: it pays in the real MXN/h, not in XP. The weekly scorecard stays at 30 h. When the schedule changes, past days (up to today) whose teaching status changed and that have focus logged are re-graded, oldest first, so their habit, bonus and focus XP follow the schedule; a toast says how many.
 
 **Core habits:** sleep, exercise, deep work, money check-in. **Rituals** (XP, not core): up by 5:45, clean, intel, eat well.
+
+**Habit editor (P1-3, Control → Habits; the pencil on Today opens the same sheet):**
+- **Every habit:** name, icon, minimum version (not deep work: its minimum is 2 h of focus), plan, and its place in the order (up/down, inside Core or Rituals). The order is the order on Today.
+- **Core is fixed on every habit.** The 4 core habits decide Perfect and Good Days, so their XP and dr are fixed and they can't be archived; a ritual never becomes core. The sleep target and a habit's kind never change.
+- **Rituals:** XP of 5, 10, 15 or 20 (`RITUAL_XP_CHOICES` in `rules.ts`; capped at 20 so no ritual outweighs the core habits) and "I already enjoy it" (XP, no dr). Changes apply from the next check-off; XP already earned stays.
+- **Add a ritual:** a tick-box habit, 10 XP by default, placed last. **Archive** hides a ritual from Today and Stats and keeps its history; restore it from Archived. **Delete** only for a habit you added that was never checked.
+- The card shows the rituals' XP a day at base: a few kept daily beat many kept rarely.
 
 **Habit science (V-3):**
 - **Minimum version** per habit (Tiny Habits): keeps the streak, pays half XP, counts for a Good Day but never a Perfect Day. Deep work's minimum is 2 h of focus (automatic).

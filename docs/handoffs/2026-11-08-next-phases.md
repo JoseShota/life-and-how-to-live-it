@@ -1,5 +1,7 @@
 # Handoff: the path after sync (Phases 1 to 5)
 
+*Newer: `docs/handoffs/2026-11-09-season-1.md` (S-1 and P1-3 done, Season 1 starts 2026-11-10, E-9 is next). Its prompt replaces the one below; the rules here still apply.*
+
 *Written 2026-11-08 by the agent that built P2 Sync (PR #4, merged as `e0325af`; deploy doc PR #5). For the next coding agent, who owns the roadmap from here until every phase is done.*
 
 ## The prompt (paste this to start each new session)
@@ -75,11 +77,11 @@
 Status markers in `05-ROADMAP.md` are authoritative; this is the summary.
 
 ### 0. Small follow-ups from sync (do first; small)
-- **S-1 Show passphrase.** Add a Show/Hide toggle on the passphrase fields in `src/components/SyncCard.tsx`. Linking on the tablet failed once because 19 hidden characters were typed by hand. Keep the inputs `type="password"` by default.
+- **S-1 Show passphrase.** *Done 2026-11-08.* Add a Show/Hide toggle on the passphrase fields in `src/components/SyncCard.tsx`. Linking on the tablet failed once because 19 hidden characters were typed by hand. Keep the inputs `type="password"` by default.
 - **S-2 Sign-ups off.** Remind the user to turn off "Allow new users to sign up" in Supabase → Authentication → Sign In / Providers now that both devices are linked. They do this themselves; no code.
 
 ### Phase 1: polish and personal fit (one commit each)
-- **P1-3 Habit editor** (🟡): add, edit, archive and reorder habits, with the core flag and XP.
+- **P1-3 Habit editor** (🟡): *Done 2026-11-09* (rules in `04-GAME-DESIGN.md`). Add, edit, archive and reorder habits, with the core flag and XP.
   - Changing XP or the core flag changes the economy, so confirm with the user which fields are editable.
   - New habits need ids that can't collide across devices (`uid()` is fine for user-created habits).
   - `habits.key` is unique, and sync already resolves a key clash: it keeps the cloud row.
@@ -152,7 +154,7 @@ Tickets: P3-1 edge function; P3-2 natural-language quick add (send only the type
 ## Decisions to ask the user, when the ticket comes up
 | When | Question |
 |---|---|
-| P1-3 | Which habit fields may they edit (XP and core change the economy)? |
+| P1-3 | *Answered 2026-11-09:* everything except XP and core on the 4 core habits; core fixed on every habit; core habits can't be archived; rituals 5/10/15/20 XP; sleep target fixed |
 | P1-7 | Do they want a Spanish UI at all? |
 | P3 | Which data each AI action may send; the Anthropic key setup |
 | P4-1 | The push design and the exact text the server may hold |
