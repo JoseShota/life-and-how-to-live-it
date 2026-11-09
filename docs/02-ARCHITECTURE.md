@@ -30,6 +30,7 @@ src/
     review.ts           # PURE weekly-review aggregates (day grades, hours per area, leading indicators)
     habitEdit.ts        # PURE habit-editor rules (P1-3): what may change on a habit, new rituals, reordering
     habitStore.ts       # the habit editor's writes (add, save, move, archive, delete); enforces habitEdit.ts again
+    season.ts           # PURE season dates (day, Mon–Sun week, phase of §6) and which fresh-start banner Today shows (E-9)
   finance/
     finance.ts          # PURE money math: balances, card status, period totals, real MXN/h, pipeline
   lib/

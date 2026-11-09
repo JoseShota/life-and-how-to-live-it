@@ -73,6 +73,15 @@ Not done (still open): Option C (coins backed by the fun budget).
 
 No XP number changed. Tests 138 → 186. Startup JS 333 → 337 kB of 350 kB; the sync engine is a lazy chunk of about 11 kB that unlinked devices never load. Known limits: last-write-wins per row (the later edit of the same quest wins whole), daily caps can pay twice on a day both devices are used offline, the server sees when rows change but not what they are.
 
+### Season 1 starts (2026-11-09)
+| Ticket | What changed |
+|---|---|
+| S-1 Show passphrase | One Show/Hide button per sync form; passphrase fields don't auto-capitalize or autocorrect; a note about a leading or trailing space |
+| P1-3 Habit editor | Control → Habits: order, add, archive and restore; rituals pay 5/10/15/20 XP; the 4 core habits keep their XP |
+| E-9 Fresh starts and the season | A Season banner on Today (week N of 12 in Mon–Sun weeks, the phase from `00-MASTER-PLAN.md` §6, its "done when" line, the boss); the start date is a synced setting in Control. One fresh-start banner at a time: the Sunday review, a Monday banner (last week's review if not saved, else the 3 quests it chose), or the first 3 days of a month (last month's in, out and savings rate, the split, the RESICO estimate). Closing one closes it on both devices. No XP or schema change. The coin wager stays a Season 2 experiment |
+
+The Season 1 boss now reads "30-day Good-or-Perfect rate ≥ 60 %" (decided 2026-11-09): a Perfect Day is a rare stretch under economy B, so the old Perfect-Day wording could not be won.
+
 ### Teaching days: simulation rerun (2026-11-07)
 `npx vite-node scripts/eval-sim.ts` now also runs "v2 + teaching days 4/5": the simulated teaching days (2 a week, unchanged behaviour: 4.5 h mean focus) use 4 h done / 5 h full and stop focus XP at 5 h. Averages over 20 seeds, 90 days:
 
@@ -286,7 +295,7 @@ Scale: 0 = contradicts the evidence, 1 = partial, 2 = aligned.
 | Perfect Day | n/a | 0 (all or nothing) | 0 | 0 | n/a | 0/10 as designed | What-the-hell risk. Needs a Good Day tier and fewer core habits |
 | Streak multiplier | n/a | 1 | 1 | 0 | n/a | 2/6 | Barely felt (section A1). Streak shields matter more |
 | Agora (coin shop) | n/a | 2 (satisfying) | 1 | 1 (a commitment of sorts) | n/a | 4/6 | Good; tie it to the real fun budget (E-8) |
-| Fresh starts | n/a | n/a | n/a | 0 | n/a | 0 | No Monday, month or season reset, no weekly review yet (P1-4) |
+| Fresh starts | n/a | n/a | n/a | 0 | n/a | 0 | No Monday, month or season reset, no weekly review yet (P1-4). *Since E-9 (2026-11-09): a Season banner, Monday and first-of-month banners, and the Sunday review* |
 
 #### C2. What the evidence says, and what the app does
 

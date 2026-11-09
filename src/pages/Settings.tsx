@@ -13,6 +13,7 @@ import { evaluateDay } from '@/game/engine';
 import { TaxSettings } from '@/components/TaxBits';
 import { SyncCard } from '@/components/SyncCard';
 import { HabitsCard } from '@/components/HabitBits';
+import { SeasonCard } from '@/components/SeasonBits';
 import { Button, Card, Input, Label, Modal, PageTitle } from '@/components/ui';
 
 export default function SettingsPage() {
@@ -55,6 +56,8 @@ export default function SettingsPage() {
           <p className="text-xs text-ink/60">Teaching days are the ones in "Teaching days" below, inside the semester.</p>
         </div>
       </Card>
+
+      <SeasonCard today={dateKey()} />
 
       <HabitsCard />
 

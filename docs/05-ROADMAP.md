@@ -31,6 +31,7 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | T-1–T-5 🟡 ✅ | **Teaching days** (approved 2026-11-07, `docs/handoffs/2026-11-07-teaching-days.md`) | Schedule in Control, teaching-day Ideal Day and Now card, 4/5 h targets, the schedule's hours count for the real MXN/h, the floor and the weekly review. Dexie v12. Tests |
 | P1-9 🟢 ✅ | **Code-split routes** | `React.lazy` per page. Main chunk < 300 kB |
 | P1-10 🟢 | **More achievements** | Add the list in `04-GAME-DESIGN.md` → "To add" |
+| E-9 🟡 ✅ | **Fresh starts and the Season 1 banner** (from `09-EVALUATION.md`, done 2026-11-09) | Season start date as a synced setting in Control; Season banner on Today (week N of 12 in Mon–Sun weeks, phase, done when, boss); Monday and first-of-month banners, one at a time, closed on both devices. Pure rules in `src/game/season.ts`, tests. No XP or schema change; no coin wager (Season 2) |
 
 ## Phase 2 — Cloud sync between tablet and laptop (plan approved 2026-11-07)
 End-to-end encrypted sync through the user's own Supabase project: the server stores only ciphertext under opaque ids. Design in `02-ARCHITECTURE.md` ("Sync design"); handoff in `docs/handoffs/2026-11-07-sync.md`. One commit per ticket.
@@ -80,7 +81,7 @@ All LLM calls go through a **Supabase Edge Function** (`supabase/functions/coach
 | P4-1 🔴 | **Web Push** (VAPID) via Supabase cron + edge function | Wake, wind-down (21:15), money check-in (17:30), card due (D-3, D-1). Works on the installed Android Chrome PWA (tablet) and laptop. Secondary: iPad only if installed to Home Screen, iPadOS ≥ 16.4 |
 | P4-2 🟡 | **Google Calendar sync** (optional) | Create/update routine and quest due dates as events |
 | P4-3 🟡 | HP/Energy + streak shields | As specified in `04-GAME-DESIGN.md` |
-| P4-4 🟡 | Seasons + boss fight | Season entity, progress track, boss with HP damaged by focus hours |
+| P4-4 🟡 | Seasons + boss fight | Live boss progress from real data (first retainer, 1-month shield, 30-day Good-or-Perfect rate); the season start and plan text already exist (E-9, `src/game/season.ts`). Boss HP damaged by focus hours touches the economy: ask first |
 | P4-5 🟢 | Loot drops | 10 % bonus coins on Hard/Epic completion |
 
 ## Phase 5 — Wealth pro (Month 3+)

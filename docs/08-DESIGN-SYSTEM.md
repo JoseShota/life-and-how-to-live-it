@@ -59,6 +59,7 @@ Slow and ambient only: the pool caustics (14 s), the bust floating (11 s), spark
 ## Clarity rules (V-8)
 - **Every themed name has a plain one**: Treasury · money, Agora · rewards, Archive · stats, Control · settings, Quests · tasks, Focus · timer, Review · weekly review (回顧, menu only: the tab bar keeps 7 tabs). It shows next to the kanji in page titles, in nav tooltips and in the menu.
 - **Today starts with "Now"**: the current block of the ideal day and one primary action, above the rings. It must fit in the first viewport at 820 × 1180 and 1366 × 768. On teaching days the card title says so; travel, classroom and class blocks show what is happening and **no action** (nothing to tap on the road), prep blocks start focus on the teaching area's top quest.
+- **Under "Now": at most one fresh-start banner, then the Season banner** (E-9). Both are plain cards with text and at most one primary action; a banner the user can close has an X of 40 × 40 px in its first line, not an empty action row.
 - **Tap targets ≥ 40 px everywhere** (nav links are 40 px tall). The 15 px close box keeps its look but has a 43 px tap area.
 - The maxims ticker can be turned off in Control → Display, and stops under reduced motion.
 - **Sync status (P2)** is one 40 px square next to the drachmae, only on a device that syncs: `cloudCheck` (teal) when synced, `cloud` when changes wait or while syncing (a slow pulse, none under reduced motion), `cloudOff` when offline, `cloudAlert` (rose `hp`) when it needs the user. Its label says what to do; tapping it opens Control → Sync.

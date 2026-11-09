@@ -104,12 +104,26 @@ First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn 
 - Big (day off, gadget): 1,000+ → about 3 realistic weeks.
 - If you're hoarding coins, your rewards are too expensive or not fun. If you're always broke, they're too cheap.
 
+## Seasons and fresh starts (E-9)
+Fresh starts (Dai, Milkman and Riis 2014): goals get a lift after a landmark day, so Today marks them. None of this pays XP.
+- **The season.** Season 1 is the 90-day campaign of `00-MASTER-PLAN.md` §6. Its start date is a synced setting (`season`), set in Control, so both devices show the same week. Day 1 is the start date and day 90 the last.
+  - Weeks follow the Mon–Sun weeks of the weekly review and scorecard: week 1 is the week holding the start date (shorter when the season starts mid-week). After week 12, the days left until day 90 are the season review.
+  - Today's Season banner: "Season 1 · week N of 12 · day D of 90", the phase focus and its "done when" line, and the boss. Before the start it counts down; without a date it links to Control.
+  - Boss: first retainer client + 1-month emergency fund + 30-day Good-or-Perfect rate ≥ 60 %. Text only for now; live progress is P4-4.
+- **One fresh-start banner at a time**, in this order:
+  1. Sunday: the weekly review, until it pays.
+  2. Monday: if last week's review isn't saved, a link to it (it still pays until Saturday); otherwise the 3 quests it chose.
+  3. The first 3 days of a month: last month's income, spending and savings rate, a reminder to split income, and the RESICO estimate due on the 17th.
+  - The Monday and month banners close with an X, on both devices (the synced setting `freshStartDismissed` keeps the latest closed keys, such as `week:2026-11-16` or `month:2026-12`). The Sunday review card has no X: it goes when the review pays.
+- **Not in E-9:** a coin wager on the weekly scorecard (an economy change; a Season 2 experiment, next to Option C) and a separate monthly screen.
+- Rules: `src/game/season.ts` (pure, `tests/season.test.ts`). UI: `src/components/SeasonBits.tsx`.
+
 ## Planned mechanics
 | Mechanic | Phase | Description |
 |---|---|---|
 | **HP / Energy** | P4 | Starts at 100. Missing core habits drains HP, sleep and exercise restore it. At 0 HP: "recovery mode" (only the minimum-viable versions are required for 3 days). No XP loss |
 | **Streak shields** | done (V-3) | Earned every 7 Good-or-Perfect days in a row, max 2. Auto-consumed to protect a streak on a missed day |
-| **Seasons** | P4 | 90-day campaigns with a theme, a season pass track and a final **boss fight** (e.g. "First retainer + 1-month fund") |
+| **Seasons** | E-9 banner done; P4-4 for the boss | 90-day campaigns with a theme, a season pass track and a final **boss fight** (e.g. "First retainer + 1-month fund"). Since E-9 the banner and the plan text exist; live boss progress is P4-4 |
 | **Weekly bosses** | P4 | A big quest (Epic) that you damage with focus hours in its area |
 | **Daily quests** | P1 | 3 auto-generated quests from routine/wealth plan ("Contact 1 lead", "Log all expenses") |
 | **Loot drops** | P4 | 10 % chance of bonus coins on completing a Hard/Epic quest |

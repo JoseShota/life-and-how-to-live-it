@@ -5,7 +5,7 @@ import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
 import type { Area, Habit, HabitLog, Task } from '@/db/types';
 import { setHabit, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
-import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, REVIEW_XP, reviewWeekFor, type DayTargets } from '@/game/rules';
+import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
 import { usePlayer, useToday, useNow, useWorkTargets } from '@/lib/hooks';
 import { idealDayFor, currentBlockIndex, type Block } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
@@ -14,6 +14,7 @@ import { cx, dateKey, hm, mxn, parseKey } from '@/lib/util';
 import { Card, Ring, Button, Bar, Empty, PageTitle } from '@/components/ui';
 import { TaskRow, TaskForm } from '@/components/TaskBits';
 import { HabitEditor } from '@/components/HabitBits';
+import { FreshStartBanner, SeasonBanner } from '@/components/SeasonBits';
 
 function greeting(h: number) {
   if (h < 6) return 'the world still dreams. you rise.';
@@ -173,7 +174,9 @@ export default function Today() {
 
       <NowCard now={now} habits={habits} logs={logs} tasks={tasks} areas={areas} today={today} blocks={blocks} teaching={teaching} />
 
-      <ReviewPrompt today={today} />
+      <FreshStartBanner today={today} />
+
+      <SeasonBanner today={today} />
 
       <div className="grid grid-cols-3 gap-3">
         <Card className="flex flex-col items-center gap-1 !p-3">
@@ -270,21 +273,6 @@ export default function Today() {
         <CutUpCard lines={[...tasks.map(t => t.title), ...habits.map(h => h.name), ...blocks.slice(4, 9).map(b => b.title)]} />
       </div>
     </div>
-  );
-}
-
-/** Sundays: the weekly review (read the plan, look back, choose three, back up). Gone once it's saved. */
-function ReviewPrompt({ today }: { today: string }) {
-  const monday = reviewWeekFor(today);
-  const done = useLiveQuery(async () => (await db.xp.where('refId').equals(`review:${monday}`).count()) > 0, [monday]);
-  if (parseKey(today).getDay() !== 0 || done !== false) return null;
-  return (
-    <Card title="Sunday · the weekly review" className="bg-laurel/30">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-type text-[15px]">thirty minutes. look back at the week, write three wins, choose three quests, export a backup.</p>
-        <Link to="/review" className="mac-btn mac-default inline-flex min-h-[40px] items-center gap-2 bg-laurel px-4 font-display text-[15px]"><Glyph name="scroll" size={16} />Review the week · +{REVIEW_XP} XP</Link>
-      </div>
-    </Card>
   );
 }
 
