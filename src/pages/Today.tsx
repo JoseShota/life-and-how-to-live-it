@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
 import { Glyph } from '@/components/Glyph';
-import { db } from '@/db/db';
+import { db, setSetting } from '@/db/db';
 import type { Area, Habit, HabitLog, Task } from '@/db/types';
 import { setHabit, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
 import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
@@ -15,6 +15,8 @@ import { Card, Ring, Button, Bar, Empty, PageTitle } from '@/components/ui';
 import { TaskRow, TaskForm } from '@/components/TaskBits';
 import { HabitEditor } from '@/components/HabitBits';
 import { FreshStartBanner, SeasonBanner } from '@/components/SeasonBits';
+import { backupDue, daysSince } from '@/lib/storage';
+import { exportAll, download } from '@/lib/backup';
 
 function greeting(h: number) {
   if (h < 6) return 'the world still dreams. you rise.';
@@ -210,6 +212,8 @@ export default function Today() {
         </Card>
       )}
 
+      <BackupReminder now={now} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Quests of the Day" action={<Button variant="ghost" className="!px-3" onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>Add</Button>}>
           <div className="flex flex-col gap-2">
@@ -274,6 +278,23 @@ export default function Today() {
         <CutUpCard lines={[...tasks.map(t => t.title), ...habits.map(h => h.name), ...blocks.slice(4, 9).map(b => b.title)]} />
       </div>
     </div>
+  );
+}
+
+/** S-3: a backup from this device every 7 days (the weekly review has the same button). */
+function BackupReminder({ now }: { now: number }) {
+  const row = useLiveQuery(async () => (await db.settings.get('lastBackupAt')) ?? null);
+  if (row === undefined) return null;
+  const at = row?.value as number | undefined;
+  if (!backupDue(at, now)) return null;
+  const days = daysSince(at, now);
+  return (
+    <Card className="!py-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <span className="flex items-center gap-2"><Glyph name="download" size={16} className="text-lav" />{days === null ? 'No backup file from this device yet.' : `Last backup from this device: ${days} days ago.`} A file no server holds.</span>
+        <Button variant="ghost" onClick={async () => { download(`life-backup-${dateKey()}.json`, JSON.stringify(await exportAll())); await setSetting('lastBackupAt', Date.now()); }}><Glyph name="download" size={16} />Export backup</Button>
+      </div>
+    </Card>
   );
 }
 
