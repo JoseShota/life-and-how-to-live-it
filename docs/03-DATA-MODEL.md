@@ -56,7 +56,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `unlocked` | `key` | — | Unlocked achievements |
 | `syncOutbox` | `id` (`<table>|<key>`) | — | v13, device-only: rows changed here and not yet pushed (`t`, `k`, `hlc`) |
 | `syncState` | `key` | — | v13, device-only: `clock` (`{ hlc, offset }`), `device` (id), `keys` (non-extractable CryptoKeys), `vaultId`, `cursor` (last pulled seq), `session` (Supabase tokens), `replaceBefore` (after a backup import, until the next full pull) |
-| `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`; `teaching` pair since v12), `teachingSchedule` (v12, absent until entered), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
+| `settings` | `key` | — | Key/value: `playerName`, `workTargets` (v3; replaces `workTargetHours`; `teaching` pair since v12), `teachingSchedule` (v12, absent until entered), `season` (E-9, `{ id: 'season:2026-11', start }`, absent until set in Control), `freshStartDismissed` (E-9, the latest closed banner keys), `wakeTime`, `bedTime`, `activeTimer`, `createdAt` |
 
 ## Entities (abridged)
 
@@ -86,7 +86,7 @@ XpEvent     { id, ts, date, source, refId, xp, coins, label }
 
 ## Conventions
 - **IDs:** `crypto.randomUUID()` via `uid()` for things the user creates. Rows the app creates on its own on every device (seed rows, upgrade rows, the next instance of a repeating quest, tax quests, ledger rows) **must have deterministic ids**, or two synced devices would hold duplicates. Write "create it if it's missing" rows with `weakly(() => …)` (`src/db/db.ts`) so a real edit from the other device always wins over them.
-- **Device-only settings** (`LOCAL_SETTINGS` in `src/sync/track.ts`): `activeTimer`, `lastBackupAt`, `showMarquee`, `lastExpenseCategory`. Every other setting syncs, including `workTargets` and `teachingSchedule`, because both decide XP and the two devices must award the same.
+- **Device-only settings** (`LOCAL_SETTINGS` in `src/sync/track.ts`): `activeTimer`, `lastBackupAt`, `showMarquee`, `lastExpenseCategory`. Every other setting syncs, including `workTargets` and `teachingSchedule`, because both decide XP and the two devices must award the same, and `season` and `freshStartDismissed`, so both devices show the same week and a banner closed on one stays closed on the other.
 - **Dates:** `DateKey` = local `YYYY-MM-DD`. Timestamps = epoch ms.
 - **Money:** MXN as JS numbers, 2 decimals in the UI. (Phase 5 may move to integer centavos. If so, write a migration.)
 - **Credit cards:** `openingBalance` negative = debt when you start tracking. Purchases are negative amounts. Payments are transfers into the card (positive). A statement is "paid" when transfers into the card after its cut-off, dated on or before its due date, reach its pago para no generar intereses. A purchase at MSI is recorded at its full amount (accrual) and its plan bills total / months from the first cut-off on or after the purchase date.

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, setSetting } from '@/db/db';
 import type { Account, Transaction } from '@/db/types';
@@ -96,12 +97,18 @@ export function TaxCard() {
   const profile = useLiveQuery(() => getTaxProfile());
   const txs = useLiveQuery(() => db.transactions.toArray(), [], []);
   const accounts = useLiveQuery(() => db.accounts.toArray(), [], []);
-  if (!profile || profile.regime !== 'resico') return null;
+  // Today's first-of-month banner links here (/money#tax).
+  const location = useLocation();
+  const ref = useRef<HTMLDivElement>(null);
+  const shown = !!profile && profile.regime === 'resico';
+  useEffect(() => { if (shown && location.hash === '#tax') ref.current?.scrollIntoView({ block: 'start' }); }, [location.hash, shown]);
+  if (!shown) return null;
   const months = openMonths().map(m => monthTax(txs, m));
   const owed = months.reduce((s, m) => s + m.totalDue, 0);
   const reserve = accounts.filter(a => a.role === 'tax' && !a.archived).reduce((s, a) => s + balanceOf(a, txs), 0);
   const ytd = yearToDate(txs, new Date().getFullYear(), profile.capIncludesSalary);
   return (
+    <div ref={ref} id="tax" className="scroll-mt-24">
     <Card title="Taxes · RESICO (estimate)">
       <div className="flex flex-col gap-3 text-sm">
         {months.map(m => (
@@ -127,6 +134,7 @@ export function TaxCard() {
         <p className="text-[11px] text-ink/55">Estimates for planning cash, from the invoices you log. The monthly declaration is due on the 17th; the annual one in April. RESICO has no personal deductions.</p>
       </div>
     </Card>
+    </div>
   );
 }
 
