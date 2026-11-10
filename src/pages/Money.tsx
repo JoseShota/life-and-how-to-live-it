@@ -389,7 +389,19 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
 
 function AccountForm({ acc, onClose }: { acc: Account; onClose: () => void }) {
   const [f, setF] = useState(acc);
+  // Money fields are edited as text and parsed on save: parsing on every keystroke ate the "." in "1234." and a lone "-".
+  const [opening, setOpening] = useState(String(acc.openingBalance ?? 0));
+  const [limit, setLimit] = useState(acc.creditLimit == null ? '' : String(acc.creditLimit));
+  const [err, setErr] = useState('');
   const num = (s: string) => (s === '' ? undefined : Number(s));
+  const money = (s: string) => Number(s.replace(/[,$\s]/g, ''));
+  const save = async () => {
+    const ob = opening.trim() === '' ? 0 : money(opening);
+    const lim = limit.trim() === '' ? undefined : money(limit);
+    if (Number.isNaN(ob) || (lim !== undefined && Number.isNaN(lim))) { setErr('Type amounts as numbers, e.g. -2381.50'); return; }
+    const next = { ...f, openingBalance: ob, ...(f.type === 'credit' ? { creditLimit: lim } : {}) };
+    await db.accounts.put(next); await evaluateStatements(next.id); onClose();
+  };
   const bank: BankKey = f.bank ?? 'other';
   return (
     <Modal open onClose={onClose} title={`Edit ${acc.name}`}>
@@ -401,19 +413,20 @@ function AccountForm({ acc, onClose }: { acc: Account; onClose: () => void }) {
             {(Object.keys(ROLE_LABEL) as AccountRole[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </Select></Label>
         )}
-        <Label text={f.type === 'credit' ? 'Current balance when you start (debt as negative, e.g. -4500)' : 'Opening balance'}><Input inputMode="decimal" value={f.openingBalance} onChange={e => setF({ ...f, openingBalance: Number(e.target.value) || 0 })} /></Label>
+        <Label text={f.type === 'credit' ? 'Current balance when you start (debt as negative, e.g. -4500)' : 'Opening balance'}><Input inputMode="decimal" value={opening} onChange={e => setOpening(e.target.value)} /></Label>
         {f.type === 'credit' && (<>
           <Label text="Bank"><Select value={bank} onChange={e => { const b = e.target.value as BankKey; setF({ ...f, bank: b, institution: b === 'other' ? f.institution : BANKS[b].name, dueDaysAfterCutoff: BANKS[b].dueDaysAfterCutoff ?? f.dueDaysAfterCutoff }); }}>
             {(Object.keys(BANKS) as BankKey[]).map(k => <option key={k} value={k}>{BANKS[k].name}</option>)}
           </Select></Label>
           <p className="text-xs text-ink/60">{BANKS[bank].note}</p>
           <div className="grid grid-cols-3 gap-3">
-            <Label text="Limit"><Input inputMode="decimal" value={f.creditLimit ?? ''} onChange={e => setF({ ...f, creditLimit: num(e.target.value) })} /></Label>
+            <Label text="Limit"><Input inputMode="decimal" value={limit} onChange={e => setLimit(e.target.value)} /></Label>
             <Label text="Cut-off day"><Input inputMode="numeric" value={f.cutoffDay ?? ''} onChange={e => setF({ ...f, cutoffDay: num(e.target.value) })} /></Label>
             <Label text="Due (days after)"><Input inputMode="numeric" value={f.dueDaysAfterCutoff ?? dueDaysFor(f)} disabled={bank !== 'other'} onChange={e => setF({ ...f, dueDaysAfterCutoff: num(e.target.value) })} /></Label>
           </div>
         </>)}
-        <Button onClick={async () => { await db.accounts.put(f); await evaluateStatements(f.id); onClose(); }}>Save</Button>
+        {err && <p role="alert" className="text-sm text-hp">{err}</p>}
+        <Button onClick={save}>Save</Button>
       </div>
     </Modal>
   );
@@ -453,6 +466,7 @@ function PipelineCard({ opps, onEdit }: { opps: Opportunity[]; onEdit: (o: Oppor
 
 function OppForm({ opp, onClose }: { opp?: Opportunity; onClose: () => void }) {
   const [f, setF] = useState<Opportunity>(opp ?? { id: uid(), title: '', status: 'lead', monthlyValue: 0, probability: 0.3, createdAt: Date.now() });
+  const [monthly, setMonthly] = useState(String(opp?.monthlyValue ?? 0));
   return (
     <Modal open onClose={onClose} title={opp ? 'Edit opportunity' : 'New opportunity'}>
       <div className="flex flex-col gap-3">
@@ -460,7 +474,7 @@ function OppForm({ opp, onClose }: { opp?: Opportunity; onClose: () => void }) {
         <div className="grid grid-cols-2 gap-3">
           <Label text="Status"><Select value={f.status} onChange={e => setF({ ...f, status: e.target.value as OpportunityStatus })}>{['lead', 'applied', 'interview', 'won', 'lost'].map(s => <option key={s}>{s}</option>)}</Select></Label>
           <Label text="Kind"><Select value={f.kind ?? ''} onChange={e => setF({ ...f, kind: (e.target.value || undefined) as OpportunityKind | undefined })}><option value="">—</option><option value="job">Job</option><option value="project">Project</option><option value="retainer">Retainer (monthly)</option></Select></Label>
-          <Label text="Monthly value (MXN)"><Input inputMode="decimal" value={f.monthlyValue} onChange={e => setF({ ...f, monthlyValue: Number(e.target.value) || 0 })} /></Label>
+          <Label text="Monthly value (MXN)"><Input inputMode="decimal" value={monthly} onChange={e => setMonthly(e.target.value)} /></Label>
           <Label text={`Probability: ${Math.round(f.probability * 100)}%`}><input type="range" min={0} max={1} step={0.05} value={f.probability} onChange={e => setF({ ...f, probability: Number(e.target.value) })} className="mt-3 min-h-[40px] accent-pink-500" /></Label>
           <Label text="Expected date"><Input type="date" value={f.expectedDate ?? ''} onChange={e => setF({ ...f, expectedDate: e.target.value || undefined })} /></Label>
           <Label text="Next action by"><Input type="date" value={f.nextActionDate ?? ''} onChange={e => setF({ ...f, nextActionDate: e.target.value || undefined })} /></Label>
@@ -470,7 +484,7 @@ function OppForm({ opp, onClose }: { opp?: Opportunity; onClose: () => void }) {
         <p className="text-xs text-ink/60">Moving a lead to a new stage pays +{LEAD_XP.stage} XP once per stage. Winning a retainer unlocks Rainmaker.</p>
         <div className="flex gap-2">
           {opp && <Button variant="danger" aria-label="Delete opportunity" onClick={async () => { if (confirm('Delete this opportunity?')) { await deleteOpportunity(f); onClose(); } }}><Glyph name="trash" size={16}/></Button>}
-          <Button className="flex-1" onClick={async () => { if (!f.title.trim()) return; await saveOpportunity(f); onClose(); }}>Save</Button>
+          <Button className="flex-1" onClick={async () => { if (!f.title.trim()) return; await saveOpportunity({ ...f, monthlyValue: Number(monthly.replace(/[,$\s]/g, '')) || 0 }); onClose(); }}>Save</Button>
         </div>
       </div>
     </Modal>
