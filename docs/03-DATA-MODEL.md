@@ -2,7 +2,11 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v13)
+## Tables (Dexie v14)
+
+v14 (2026-11-10): two new synced tables, no rows to migrate. `notes` (`id, date`: `DayNote` = a free line about a day) and `invoices` (`id, issuedDate`: `Invoice` = money owed for work; open until `paidDate`, linked to its income by `txId`). New optional, unindexed fields: `Task.checklist` (`{id, text, done}[]`), `Task.unsorted` (in the inbox), `Reward.unlockKey` (a milestone reward). Synced setting `site` (the user's own site, a link in the menu). Income category `Investment returns` joins `Interest` as "money income". Backups are `BACKUP_VERSION` 6; older backups import with the new tables empty. A device still on v13 shows "reload to update" when it meets v14 rows (the existing schema check in `sync/engine.ts`).
+
+F-1 flexible logging (2026-11-10, no schema version: optional, unindexed fields only): `HabitLog.note` (a free line about that day, pays nothing, kept when the habit is re-logged); a ritual you add may be `kind: 'number'` with `unit` and an optional `target` (no target = any amount counts). Synced setting `inscriptions` (`string[]`, the user's ticker lines; empty or missing = the defaults in `Layout.tsx`). Rolled-up windows are a view preference in `localStorage` (`shade`), outside Dexie, sync and backups.
 
 P1-3 habit editor (2026-11-09, no schema change): habits you add get a random `id` and `key` = `custom-<id>`, so two devices adding habits never clash on the unique `key`; they are `kind: 'check'`, `core: false`. Reordering writes only the rows whose `order` changes (ties sort by name). A habit is deleted only if it was added by you and has no logs; otherwise it is archived (`archived: true`), and its logs and XP stay.
 

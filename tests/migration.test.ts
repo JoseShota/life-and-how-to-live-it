@@ -37,7 +37,7 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(13);
+    expect(db.verno).toBe(14);
     const habits = await db.habits.toArray();
     const by = (k: string) => habits.find(h => h.key === k)!;
     expect(by('wake').core).toBe(false);
@@ -93,7 +93,7 @@ describe('upgrade from v11 (teaching-day targets)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(13);
+    expect(db.verno).toBe(14);
     expect((await db.settings.get('workTargets'))!.value).toEqual({ weekday: { done: 5, full: 7 }, weekend: { done: 3, full: 5 }, teaching: { done: 4, full: 5 } });
     expect(await db.settings.get('playerName')).toMatchObject({ value: 'P' });
     expect(await db.sessions.get('s1')).toMatchObject({ minutes: 300 });
@@ -137,7 +137,7 @@ describe('upgrade from v12 (sync groundwork)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(13);
+    expect(db.verno).toBe(14);
     const after = await db.xp.toArray();
     expect(after).toHaveLength(5);
     expect(after.reduce((s, e) => s + e.xp, 0)).toBe(155);
@@ -159,5 +159,45 @@ describe('upgrade from v12 (sync groundwork)', () => {
     const once = rekeyXpV13(rows);
     expect(once.map(r => r.id)).toEqual(['x', 'x#2', 'y']);
     expect(rekeyXpV13(once).map(r => r.id)).toEqual(['x', 'x#2', 'y']);
+  });
+});
+
+/** v13 → v14: two new empty tables (notes, invoices). Every existing row, the ledger and the sync state are untouched. */
+describe('upgrade from v13 (notes and invoices)', () => {
+  it('keeps everything and queues nothing to sync', async () => {
+    const name = 'upgrade-v13-test';
+    const old = new Dexie(name);
+    old.version(13).stores({
+      areas: 'id, order', tasks: 'id, areaId, status, dueDate, priority, completedAt', habits: 'id, &key, order',
+      habitLogs: 'id, habitId, date, [habitId+date]', sessions: 'id, areaId, date, start', accounts: 'id, order',
+      transactions: 'id, accountId, date, kind, areaId, transferId', goals: 'id, order', opportunities: 'id, status',
+      rewards: 'id', xp: 'id, date, source, refId, ts', unlocked: 'key', settings: 'key',
+      statements: 'id, accountId, cutoffDate, dueDate', installments: 'id, accountId, txId',
+      pipelineEvents: 'id, date, kind, opportunityId', reviews: 'id', areaHours: 'id, areaId, date',
+      syncOutbox: 'id', syncState: 'key'
+    });
+    await old.open();
+    await old.table('tasks').add({ id: 'k1', areaId: 'a', title: 'Grade', difficulty: 3, priority: 1, status: 'todo', createdAt: 1 });
+    await old.table('rewards').add({ id: 'r1', title: 'Coffee', icon: 'cup', cost: 60, archived: false });
+    await old.table('habitLogs').add({ id: 'h1:2026-11-09', habitId: 'h1', date: '2026-11-09', value: 7.75, done: true, note: 'slept well' });
+    await old.table('xp').add({ id: 'task:k0', ts: 1, date: '2026-11-09', source: 'task', refId: 'task:k0', xp: 35, coins: 7, label: 'Quest' });
+    await old.table('unlocked').add({ key: 'first-quest', unlockedAt: 5 });
+    await old.table('syncState').put({ key: 'cursor', value: 42 });
+    await old.table('syncOutbox').put({ id: 'tasks|k1', t: 'tasks', k: 'k1', hlc: 7 });
+    old.close();
+
+    const db = new LifeDB(name);
+    await db.open();
+    expect(db.verno).toBe(14);
+    expect(await db.tasks.get('k1')).toMatchObject({ title: 'Grade', status: 'todo' });
+    expect(await db.rewards.get('r1')).toMatchObject({ cost: 60 });
+    expect(await db.habitLogs.get('h1:2026-11-09')).toMatchObject({ value: 7.75, note: 'slept well' });
+    expect(await db.xp.get('task:k0')).toMatchObject({ xp: 35, coins: 7 });
+    expect(await db.unlocked.get('first-quest')).toMatchObject({ unlockedAt: 5 });
+    expect(await db.notes.count()).toBe(0);
+    expect(await db.invoices.count()).toBe(0);
+    expect((await db.syncState.get('cursor'))?.value).toBe(42);
+    expect(await db.syncOutbox.count()).toBe(1); // only what was already waiting
+    db.close();
   });
 });

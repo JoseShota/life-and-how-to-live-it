@@ -6,13 +6,14 @@ import { HABIT_PLANS, EAT_HABIT } from './habitPlans';
 import { uid } from '@/lib/util';
 import type {
   Area, Task, Habit, HabitLog, Session, Account, Transaction, Goal,
-  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent, Review, AreaHours
+  Opportunity, Reward, XpEvent, Unlocked, Setting, Statement, Installment, PipelineEvent, Review, AreaHours, DayNote, Invoice
 } from './types';
 
 /** Every table with user data: what backups hold and what syncs (the two sync tables are device-only). */
 export const ALL_TABLES = [
   'areas', 'tasks', 'habits', 'habitLogs', 'sessions', 'accounts', 'transactions',
-  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews', 'areaHours'
+  'goals', 'opportunities', 'rewards', 'xp', 'unlocked', 'settings', 'statements', 'installments', 'pipelineEvents', 'reviews', 'areaHours',
+  'notes', 'invoices'
 ] as const;
 
 export class LifeDB extends Dexie {
@@ -34,6 +35,8 @@ export class LifeDB extends Dexie {
   pipelineEvents!: Table<PipelineEvent, string>;
   reviews!: Table<Review, string>;
   areaHours!: Table<AreaHours, string>;
+  notes!: Table<DayNote, string>;
+  invoices!: Table<Invoice, string>;
   /** v13 (device-only): rows changed here and not yet pushed. */
   syncOutbox!: Table<OutboxEntry, string>;
   /** v13 (device-only): sync bookkeeping (clock, cursor, device id, keys). */
@@ -117,6 +120,9 @@ export class LifeDB extends Dexie {
       await tx.table('xp').clear();
       await tx.table('xp').bulkAdd(rekeyXpV13(rows));
     });
+    // v14: the day's free lines (L-1) and invoices you are owed (P5-7). Two new synced tables: no rows to migrate.
+    // Quests may now carry `checklist` and `unsorted`, rewards `unlockKey`: optional fields, no index.
+    this.version(14).stores({ notes: 'id, date', invoices: 'id, issuedDate' });
     // Records every change to a synced table in the outbox (src/sync/track.ts).
     this.use(trackChanges(ALL_TABLES));
   }

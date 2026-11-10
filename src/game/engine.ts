@@ -13,6 +13,7 @@ import {
   REVIEW_XP, reviewComplete, reviewWeekFor, withTargetDefaults, teachingStatusChanged, type WorkTargets, type TeachingSchedule
 } from './rules';
 import { checkAchievements } from './achievements';
+import { HABIT_NOTE_MAX, habitDone } from './habitEdit';
 
 /** One ledger row per refId, and its id IS the refId (v13), so two devices awarding the same thing can't double it. */
 export async function award(source: XpSource, refId: string, xp: number, label: string, coins = coinsFor(xp), date = dateKey()) {
@@ -93,7 +94,9 @@ export async function spawnNext(task: Task, doneOn: string) {
   // Weak: if the other device already created (and maybe edited) this instance, its version wins on sync.
   await weakly(() => db.tasks.add({
     id: n.id, areaId: task.areaId, title: task.title, notes: task.notes, difficulty: task.difficulty, priority: task.priority,
-    dueDate: n.due, status: 'todo', createdAt: Date.now(), recurrence: task.recurrence
+    dueDate: n.due, status: 'todo', createdAt: Date.now(), recurrence: task.recurrence,
+    // The same steps, to do again.
+    ...(task.checklist?.length ? { checklist: task.checklist.map(c => ({ ...c, done: false })) } : {})
   }));
   return n.id;
 }
@@ -123,10 +126,21 @@ export async function habitStreak(habitId: string, upTo: string = dateKey()): Pr
 }
 
 /** Checks a habit for `date`. `min` = done in its minimum version: keeps the streak, half XP, counts for a Good Day only. */
-export async function setHabit(habit: Habit, date: string, value: number, min = false) {
-  const done = habit.kind === 'check' ? value >= 1 : value >= (habit.target ?? 1);
+/** A free line about a habit on a day ("ran 5 km", "woke twice"). No XP: it is a record, not a score. */
+export async function setHabitNote(habit: Habit, date: string, text: string) {
   const id = `${habit.id}:${date}`;
-  await db.habitLogs.put({ id, habitId: habit.id, date, value, done: done || min, min: min && !done ? true : undefined });
+  const note = text.trim().slice(0, HABIT_NOTE_MAX) || undefined;
+  const log = await db.habitLogs.get(id);
+  if (log) { if (log.note !== note) await db.habitLogs.put({ ...log, note }); }
+  else if (note) await db.habitLogs.put({ id, habitId: habit.id, date, value: 0, done: false, note });
+}
+
+export async function setHabit(habit: Habit, date: string, value: number, min = false) {
+  const done = habitDone(habit, value);
+  const id = `${habit.id}:${date}`;
+  // The day's note belongs to the day, not to the value: re-logging keeps it.
+  const note = (await db.habitLogs.get(id))?.note;
+  await db.habitLogs.put({ id, habitId: habit.id, date, value, done: done || min, min: min && !done ? true : undefined, ...(note ? { note } : {}) });
   const ref = `habit:${id}`;
   await revoke(ref);
   if (done || min) {
@@ -205,7 +219,8 @@ export async function evaluateDay(date: string = dateKey()) {
     const id = `${workHabit.id}:${date}`;
     const full = hours >= targets.done;
     const min = !full && hours >= WORK_MIN_HOURS; // the deep-work minimum version keeps the streak
-    await db.habitLogs.put({ id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done: full || min, min: min || undefined });
+    const note = (await db.habitLogs.get(id))?.note;
+    await db.habitLogs.put({ id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done: full || min, min: min || undefined, ...(note ? { note } : {}) });
     const streak = full || min ? await habitStreak(workHabit.id, date) : 0;
     const xp = Math.round(workHabit.xp * streakMultiplier(streak) * (full ? 1 : MIN_VERSION_SHARE));
     await syncAward('habit', `habit:${id}`, full || min ? xp : null, `Deep work ${hours.toFixed(1)} h${min ? ' (min)' : ''}`, coinsFor(xp), date);
@@ -336,6 +351,23 @@ export async function rewardTransactionLogged(txId: string) {
   const todays = await db.xp.where('date').equals(today).filter(e => e.source === 'finance' && e.refId.startsWith('tx:')).toArray();
   const earned = todays.reduce((s, e) => s + e.xp, 0);
   if (earned < FINANCE_XP.logTransactionDailyCap) await award('finance', `tx:${txId}`, FINANCE_XP.logTransaction, 'Logged a transaction', 1);
+}
+
+/**
+ * Saves rows chosen from an imported statement (P5-1). No XP: the +2 per transaction rewards the daily habit of
+ * logging, and a file of forty rows isn't that. Statements and achievements are re-checked from the new data.
+ */
+export async function importTransactions(accountId: string, rows: { date: string; amount: number; description: string; category: string }[]) {
+  const acc = await db.accounts.get(accountId);
+  if (!acc || !rows.length) return 0;
+  const now = Date.now();
+  await db.transactions.bulkAdd(rows.filter(r => r.amount).map((r, i) => ({
+    id: uid(), accountId, date: r.date, amount: r.amount, kind: r.amount < 0 ? 'expense' as const : 'income' as const,
+    category: r.category || 'Other', description: r.description || undefined, createdAt: now + i
+  })));
+  if (acc.type === 'credit') await evaluateStatements(accountId);
+  await checkAchievements();
+  return rows.length;
 }
 
 export interface TxEdit {
@@ -637,7 +669,7 @@ export async function deleteReview(monday: string) {
 /** Spends coins on a reward. Returns the ledger refId (for undo), or null if there aren't enough coins. */
 export async function redeem(rewardId: string) {
   const r = await db.rewards.get(rewardId);
-  if (!r) return null;
+  if (!r || r.unlockKey) return null; // a milestone reward is claimed, never bought
   const { coins } = await totals();
   if (coins < r.cost) return null;
   const refId = `reward:${rewardId}:${Date.now()}`;
@@ -646,6 +678,27 @@ export async function redeem(rewardId: string) {
 }
 
 /** Undoes a purchase made by mistake (the Agora offers it for a short while after buying). */
+/** The ledger id of a claimed milestone reward: one claim per reward, the same on both devices. */
+export const claimRef = (rewardId: string) => `reward:${rewardId}:claim`;
+
+/** Has the milestone a reward waits for been reached? An achievement key, or `wl:<n>` for a wealth level. */
+export async function milestoneReached(key: string) {
+  return key.startsWith('wl:') ? !!(await db.xp.get(key)) : !!(await db.unlocked.get(key));
+}
+
+/**
+ * Claims a milestone reward (A-2): a promise the user made to themselves for a real milestone. It costs no coins
+ * and can be claimed once, only after the milestone is reached. Returns the ledger refId (for undo), or null.
+ */
+export async function claimMilestoneReward(rewardId: string) {
+  const r = await db.rewards.get(rewardId);
+  if (!r?.unlockKey || !(await milestoneReached(r.unlockKey))) return null;
+  const refId = claimRef(rewardId);
+  if (await db.xp.get(refId)) return null;
+  await db.xp.put({ id: refId, ts: Date.now(), date: dateKey(), source: 'reward', refId, xp: 0, coins: 0, label: `Claimed: ${r.title}` });
+  return refId;
+}
+
 export async function undoRedeem(refId: string) {
   if (!refId.startsWith('reward:')) return;
   await revoke(refId);

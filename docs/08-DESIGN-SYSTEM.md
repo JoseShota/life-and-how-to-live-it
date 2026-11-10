@@ -6,9 +6,9 @@ Nostalgic · liminal · dreamcore · Greek. Quiet, never loud.
 
 | Ingredient | What we take | Where it lives |
 |---|---|---|
-| **Liminal space** | Tiled walls with grout lines, soft overhead light, vignette, haze, a still pool with slow caustics, an empty floor. Nobody is here. Faint wall text: *you have been here before* | `.thermae-wall`, `.thermae-floor`, `.thermae-pool`, `.thermae-haze`, `.wall-whisper` |
-| **Greek / classical** | A colonnade of arches with fluted columns, a real marble head (natural photo, no filter), Cinzel inscriptions, Greek-key bands, Delphic maxims, Roman-numeral levels, classical ranks, drachmae, the Agora, the Hall of Laurels | `Colonnade` in `Layout.tsx`, `.thermae-bust`, `.inscription`, `.marble-text`, `.meander` |
-| **Dreamcore** | Arches open to a pale dream sky with soft clouds, drifting sparkles, uncanny gentle copy ("this room is empty. it feels familiar.") | `#dreamsky` pattern, `.sparkle`, `Empty` |
+| **Liminal space** | Tiled walls with grout lines, soft overhead light, vignette, haze, a still pool with slow caustics, an empty floor. Nobody is here | `.thermae-wall`, `.thermae-floor`, `.thermae-pool`, `.thermae-haze` |
+| **Greek / classical** | A Doric colonnade in front of arches (see "The colonnade"), a real marble head (natural photo, no filter), Cinzel inscriptions, Greek-key bands, Delphic maxims, Roman-numeral levels, classical ranks, drachmae, the Agora, the Hall of Laurels | `Colonnade.tsx`, `.thermae-bust`, `.inscription`, `.marble-text`, `.meander` |
+| **Dreamcore** | Arches open to a pale dream sky with soft clouds, drifting sparkles. The room carries the mood; the words don't have to | `#dreamsky` pattern, `.sparkle` |
 | **Macintosh System 6** | Pinstriped title bars, close box, Chicago font, rounded-rect buttons with a hard shadow, menu bar | `.mac-*`, `MenuBar`, `Card`, `Modal` |
 | **Beat Generation** | Courier Prime / Special Elite type, The Scroll (continuous paper), the Cut-Up poem | `.scroll-paper`, `font-type`, `src/lib/cutup.ts` |
 
@@ -61,8 +61,27 @@ Slow and ambient only: the pool caustics (14 s), the bust floating (11 s), spark
 - **Today starts with "Now"**: the current block of the ideal day and one primary action, above the rings. It must fit in the first viewport at 820 × 1180 and 1366 × 768. On teaching days the card title says so; travel, classroom and class blocks show what is happening and **no action** (nothing to tap on the road), prep blocks start focus on the teaching area's top quest.
 - **Under "Now": at most one fresh-start banner, then the Season banner** (E-9). Both are plain cards with text and at most one primary action; a banner the user can close has an X of 40 × 40 px in its first line, not an empty action row.
 - **Tap targets ≥ 40 px everywhere** (nav links are 40 px tall). The 15 px close box keeps its look but has a 43 px tap area.
-- The maxims ticker can be turned off in Control → Display, and stops under reduced motion.
+- The ticker can be turned off in Control → Display, and stops under reduced motion.
 - **Sync status (P2)** is one 40 px square next to the drachmae, only on a device that syncs: `cloudCheck` (teal) when synced, `cloud` when changes wait or while syncing (a slow pulse, none under reduced motion), `cloudOff` when offline, `cloudAlert` (rose `hp`) when it needs the user. Its label says what to do; tapping it opens Control → Sync.
 
+## The colonnade
+`Colonnade.tsx` (its own chunk: the tiled wall paints first, the columns a moment later) draws the far wall the way Doric columns are built, so it reads as stone and not as a diagram:
+- **Shaft:** narrows upward with a slight swell (entasis); a left-lit marble gradient; twenty flutes, of which the facing ones are drawn, bunching toward the edges as they turn away, each dark on its left wall and lit on its right; drum joints; faint veining (`#vein`, on the shafts only).
+- **Capital:** necking rings, the cushion (echinus), the square slab (abacus). No base: Doric columns stand on the step.
+- **Above:** architrave, a frieze with a triglyph over each column and each bay, cornice.
+- **It stands on the floor on every screen.** The wall's height is measured from the viewport (`floorTop()` in `Colonnade.tsx` mirrors `.thermae-floor`; change them together). A taller screen gets larger columns, up to 1.4 times, then taller shafts.
+- Light comes from the upper left everywhere (the bust, the column shadows on the wall, the arch reveals). Keep it that way when adding to the room.
+
+## Room to breathe
+The background is part of the app, not wallpaper under it.
+- **Windows roll up.** Tapping a titled window's bar rolls it up to the bar (WindowShade); the close box fills in. The choice is kept per device (`localStorage` key `shade`, by window title or `id`; not synced, not in backups). A window whose title changes needs an `id`. On Today, The Ideal Day and the Cut-Up start rolled up: "Now" already says what the day's block is.
+- **Just the room.** The eye in the menu bar puts every window away; tap anywhere to bring them back.
+- **Pages end early.** `main` has a third of a screen of empty space after its last window, so the end of every page is the floor, the pool and the bust.
+- **One quiet line per row.** A habit row shows its name and one line (the day's note, else the streak, else the plan). XP, minimum version and the editor are one tap away, on the row's sheet. A window has no second header strip unless it holds a control you use daily.
+- Nothing is removed to get calm: sections are rolled up or moved one tap away.
+
 ## Voice
-Lowercase, calm, a little uncanny in subtitles and empty states. Plain Mac language for actions. **Numbers and money are always literal.** Coins are written `27 dr`.
+Plain and literal. Lowercase in subtitles. Plain Mac language for actions. **Numbers and money are always literal.** Coins are written `27 dr`.
+- **No slogans.** No greetings that change with the hour, no borrowed maxims, no lines about dreams, universes or journeys. A subtitle says what the page is; an empty state says what is missing; a toast says what happened ("Logged", "Done", "Notice", "Laurel won").
+- **The only maxims are the user's own.** The ticker shows the lines they wrote in Control → Display (synced setting `inscriptions`); until they write some, it shows rules from `00-MASTER-PLAN.md`, stated as rules.
+- What stays: the Mac jokes (the shutdown sheet, the footer's Macintosh Plus and visitor counter). They are the app's own, not stock.

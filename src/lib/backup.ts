@@ -1,7 +1,7 @@
 import { db, ALL_TABLES, rekeyXpV13 } from '@/db/db';
 import { legacyIcon, ICON_TABLES } from '@/db/legacy';
 
-export const BACKUP_VERSION = 5; // v2 adds statements and installments, v3 pipelineEvents, v4 reviews, v5 areaHours (older backups import with them empty)
+export const BACKUP_VERSION = 6; // v2 adds statements and installments, v3 pipelineEvents, v4 reviews, v5 areaHours, v6 notes and invoices (older backups import with them empty)
 
 export async function exportAll() {
   const data: Record<string, unknown[]> = {};

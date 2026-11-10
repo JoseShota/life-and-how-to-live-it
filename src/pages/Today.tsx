@@ -3,31 +3,76 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
 import { Glyph } from '@/components/Glyph';
 import { db, setSetting } from '@/db/db';
-import type { Area, Habit, HabitLog, Task } from '@/db/types';
-import { setHabit, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
-import { PERFECT_DAY_XP, GOOD_DAY_XP, GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
+import type { Area, DayNote, Habit, HabitLog, Task } from '@/db/types';
+import { setHabit, setHabitNote, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
+import { HABIT_NOTE_MAX, formatAmount, habitDone, parseAmount } from '@/game/habitEdit';
+import { GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
 import { usePlayer, useToday, useNow, useWorkStart, useWorkTargets } from '@/lib/hooks';
 import { idealDayFor, currentBlockIndex, toMin, type Block } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
 import { cardAlerts } from '@/finance/finance';
-import { cx, dateKey, hm, mxn, parseKey } from '@/lib/util';
-import { Card, Ring, Button, Bar, Empty, PageTitle } from '@/components/ui';
-import { TaskRow, TaskForm } from '@/components/TaskBits';
+import { cx, dateKey, hm, mxn, parseKey, uid } from '@/lib/util';
+import { Card, Ring, Button, Bar, Empty, PageTitle, Modal, Label, Input } from '@/components/ui';
+import { TaskRow, TaskForm, QuickAdd } from '@/components/TaskBits';
 import { HabitEditor } from '@/components/HabitBits';
 import { FreshStartBanner, SeasonBanner } from '@/components/SeasonBits';
 import { backupDue, daysSince } from '@/lib/storage';
 import { exportAll, download } from '@/lib/backup';
 
-function greeting(h: number) {
-  if (h < 6) return 'the world still dreams. you rise.';
-  if (h < 12) return 'morning light on marble. begin.';
-  if (h < 18) return 'the afternoon hums. stay in it.';
-  return 'evening. close the loops, then drift.';
+const short = (key: string) => parseKey(key).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+/** A measured habit: type any amount (7.5, 7:30, 7h30), or step it. Sleep steps by a quarter of an hour. */
+function AmountInput({ habit, log, day }: { habit: Habit; log?: HabitLog; day: string }) {
+  const logged = log && (log.value > 0 || log.done) && !log.min ? log.value : undefined;
+  const [text, setText] = useState<string | null>(null); // null = show what is logged
+  const step = habit.unit === 'h' ? 0.25 : 1;
+  const commit = (v: number | null) => { setText(null); if (v !== null && v !== logged) setHabit(habit, day, v); };
+  const bump = (dir: 1 | -1) => commit(Math.max(0, Math.round(((logged ?? (dir > 0 ? (habit.target ?? step) - step : 0)) + dir * step) * 100) / 100));
+  const done = logged !== undefined && habitDone(habit, logged);
+  const stepBtn = 'mac-btn flex h-10 w-9 shrink-0 items-center justify-center bg-white font-display text-lg';
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <button type="button" className={stepBtn} aria-label={`${habit.name}: less`} onClick={() => bump(-1)}>−</button>
+      <label className={cx('mac-inset flex h-10 items-center gap-1 px-2 font-display', done ? 'bg-mint' : logged !== undefined ? 'bg-pink/60' : 'bg-white')}>
+        <input inputMode="decimal" aria-label={`${habit.name}: amount${habit.unit ? ` in ${habit.unit}` : ''}`} className="h-full w-12 bg-transparent text-center text-lg outline-none placeholder:text-ink/30"
+          value={text ?? (logged !== undefined ? formatAmount(logged) : '')} placeholder="–"
+          onChange={e => setText(e.target.value)} onFocus={e => e.target.select()}
+          onBlur={() => text !== null && commit(text.trim() ? parseAmount(text) : logged === undefined ? null : 0)}
+          onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
+        {habit.unit && <span className="text-[13px] text-ink/60">{habit.unit}</span>}
+      </label>
+      <button type="button" className={stepBtn} aria-label={`${habit.name}: more`} onClick={() => bump(1)}>+</button>
+    </div>
+  );
+}
+
+/** One habit on one day: what it pays, its plan, and a free note about how it went. The pencil opens the editor. */
+function HabitSheet({ habit, log, day, streak, onClose }: { habit: Habit; log?: HabitLog; day: string; streak: number; onClose: () => void }) {
+  const [note, setNote] = useState(log?.note ?? '');
+  const [editing, setEditing] = useState(false);
+  if (editing) return <HabitEditor habit={habit} onClose={onClose} />;
+  const save = async () => { await setHabitNote(habit, day, note); onClose(); };
+  return (
+    <Modal open onClose={onClose} title={`${habit.name} · ${short(day)}`}>
+      <div className="flex flex-col gap-3">
+        <Label text="Note for this day (optional)"><Input autoFocus value={note} maxLength={HABIT_NOTE_MAX} onChange={e => setNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="what you did, how it went" /></Label>
+        <ul className="text-sm text-ink/70">
+          <li>+{habit.xp} XP{habit.minLabel ? ` · minimum version +${Math.round(habit.xp / 2)}: ${habit.minLabel}` : ''}{habit.intrinsic ? ' · no dr' : ''}</li>
+          <li>{streak > 0 ? `${streak}-day streak` : 'No streak yet'}{habit.kind === 'number' ? ` · ${habit.target ? `counts from ${formatAmount(habit.target)}${habit.unit ? ` ${habit.unit}` : ''}` : 'any amount counts'}` : ''}</li>
+          {habit.plan && <li className="font-type">{habit.plan}</li>}
+        </ul>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={save}>Save note</Button>
+          <Button variant="ghost" onClick={() => setEditing(true)}><Glyph name="pencil" size={14} />Edit habit</Button>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 function HabitRow({ habit, log, today, targets }: { habit: Habit; log?: HabitLog; today: string; targets: DayTargets }) {
   const streak = useLiveQuery(() => habitStreak(habit.id, today), [habit.id, today, log?.done, log?.min], 0);
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const done = !!log?.done && !log?.min;
   const min = !!log?.min;
   const minBtn = habit.minLabel && habit.kind !== 'auto' && (
@@ -35,32 +80,28 @@ function HabitRow({ habit, log, today, targets }: { habit: Habit; log?: HabitLog
       className={cx('h-10 min-w-[2.75rem] px-1.5 font-display text-[13px]', min ? 'mac-inset bg-laurel' : 'mac-btn bg-white')}>min</button>
   );
   return (
-    <div className={cx('flex items-center gap-3 border px-3 py-2 transition', done ? 'border-ok/50 bg-ok/10' : min ? 'border-gold/50 bg-laurel/20' : 'border-line/50 bg-panel2/60')}>
-      <Glyph name={habit.icon} size={24} stroke={1.5} className="shrink-0 text-cyan" />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium">{habit.name}{min && <span className="text-gold"> · min: {habit.minLabel}</span>}</div>
-        <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink/60">{streak > 0 ? <><Glyph name="flame" size={12} className="text-xp" />{streak}-day streak</> : 'Start a streak today'} · +{habit.xp} XP{habit.minLabel ? ` (min ${Math.round(habit.xp / 2)})` : ''}{habit.intrinsic ? ' · no dr (you already enjoy it)' : ''}</div>
-        {habit.plan && <div className="truncate font-type text-[12px] text-ink/60" title={habit.plan}>{habit.plan}</div>}
-      </div>
-      <button onClick={() => setEditing(true)} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/45 hover:text-xp" aria-label={`Edit ${habit.name}`}><Glyph name="pencil" size={14} /></button>
+    <div className={cx('flex items-center gap-2 border px-3 py-1.5 transition', done ? 'border-ok/50 bg-ok/10' : min ? 'border-gold/50 bg-laurel/20' : 'border-line/50 bg-panel2/60')}>
+      <Glyph name={habit.icon} size={22} stroke={1.5} className="shrink-0 text-cyan" />
+      {/* One quiet line under the name: the day's note, else the streak, else the plan. The rest is a tap away. */}
+      <button type="button" onClick={() => setOpen(true)} aria-label={`${habit.name}: note and details`} className="min-h-[40px] min-w-0 flex-1 text-left">
+        <div className="truncate text-sm font-medium">{habit.name}{min && <span className="text-gold"> · min</span>}</div>
+        <div className="flex items-center gap-1 truncate text-[11px] text-ink/60">
+          {log?.note ? <span className="truncate font-type text-[12px] text-ink/80">{log.note}</span>
+            : streak > 0 ? <><Glyph name="flame" size={12} className="shrink-0 text-xp" />{streak}-day streak</>
+            : habit.plan ? <span className="truncate font-type text-[12px]">{habit.plan}</span> : null}
+        </div>
+      </button>
       {habit.kind === 'check' && (<>
         {minBtn}
-        <button onClick={() => setHabit(habit, today, done ? 0 : 1)} aria-label={habit.name} className={cx('flex h-10 w-10 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-mint/40')}>
+        <button onClick={() => setHabit(habit, today, done ? 0 : 1)} aria-label={habit.name} className={cx('flex h-10 w-10 shrink-0 items-center justify-center transition', done ? 'mac-inset bg-mint text-ink' : 'mac-inset bg-white hover:bg-mint/40')}>
           {done && <Glyph name="check" size={18} stroke={2.6}/>}
         </button>
       </>)}
-      {habit.kind === 'number' && (
-        <div className="flex flex-wrap items-center justify-end gap-1">
-          {minBtn}
-          {[6, 7, 7.5, 8].map(v => (
-            <button key={v} onClick={() => setHabit(habit, today, v)} className={cx('h-10 min-w-[2.6rem] px-1.5 font-display text-lg', log?.value === v && !min ? (v >= (habit.target ?? 0) ? 'mac-inset bg-mint' : 'mac-inset bg-hp text-white') : 'mac-btn bg-white')}>{v}h</button>
-          ))}
-        </div>
-      )}
+      {habit.kind === 'number' && (<>{minBtn}<AmountInput habit={habit} log={log} day={today} /></>)}
       {habit.kind === 'auto' && (
-        <Link to="/focus" className={cx('mac-inset flex min-h-[40px] items-center px-2 font-display text-lg', done ? 'bg-mint text-ink' : min ? 'bg-laurel text-ink' : 'bg-white text-cyan')}>{(log?.value ?? 0).toFixed(1)}/{targets.done}h</Link>
+        <Link to="/focus" className={cx('mac-inset flex min-h-[40px] shrink-0 items-center px-2 font-display text-lg', done ? 'bg-mint text-ink' : min ? 'bg-laurel text-ink' : 'bg-white text-cyan')}>{(log?.value ?? 0).toFixed(1)}/{targets.done}h</Link>
       )}
-      {editing && <HabitEditor habit={habit} onClose={() => setEditing(false)} />}
+      {open && <HabitSheet habit={habit} log={log} day={today} streak={streak} onClose={() => setOpen(false)} />}
     </div>
   );
 }
@@ -126,7 +167,7 @@ function NowCard({ now, habits, logs, tasks, areas, today, blocks, teaching }: {
   } else { what = block.title; }
 
   return (
-    <Card title={`${block ? `Now · ${block.start}–${block.end}` : 'Now · night'}${teaching ? ' · teaching day' : ''}`} className="border-xp">
+    <Card id="Now" title={`${block ? `Now · ${block.start}–${block.end}` : 'Now · night'}${teaching ? ' · teaching day' : ''}`} className="border-xp">
       <div className="flex flex-col gap-2">
         <p className="font-display text-xl leading-6">{what}</p>
         {action}
@@ -165,6 +206,9 @@ export default function Today() {
   const week = useLiveQuery(() => weekStats(weekStartKey(today)), [today, logs, minutes]);
   const alerts = useLiveQuery(async () => cardAlerts(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray(), await db.installments.toArray(), today), [today], []);
   const xpLog = useLiveQuery(() => db.xp.where('date').equals(today).reverse().sortBy('ts'), [today], []);
+  const notes = useLiveQuery(() => db.notes.where('date').equals(today).toArray(), [today], []);
+  // The Scroll is the day in order: what the app recorded, and what you wrote yourself.
+  const scroll = [...xpLog.map(e => ({ ts: e.ts, e, n: undefined })), ...notes.map(n => ({ ts: n.ts, e: undefined, n }))].sort((a, b) => b.ts - a.ts);
 
   const coreDone = habits.filter(h => h.core && logs.find(l => l.habitId === h.id)?.done).length;
   const coreTotal = habits.filter(h => h.core).length;
@@ -172,8 +216,8 @@ export default function Today() {
   const areaOf = (id: string) => areas.find(a => a.id === id);
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageTitle jp="今日" plain="what to do now" sub={`${new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()} · ${greeting(new Date(now).getHours())}`}>Today</PageTitle>
+    <div className="flex flex-col gap-5">
+      <PageTitle jp="今日" plain="what to do now" sub={new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()}>Today</PageTitle>
 
       <NowCard now={now} habits={habits} logs={logs} tasks={tasks} areas={areas} today={today} blocks={blocks} teaching={teaching} />
 
@@ -214,15 +258,16 @@ export default function Today() {
 
       <BackupReminder now={now} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Quests of the Day" action={<Button variant="ghost" className="!px-3" onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>Add</Button>}>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Quests of the Day">
           <div className="flex flex-col gap-2">
-            {tasks.length === 0 ? <Empty>No quests marked for today. Add your top 3 — the ones that move money or mastery.</Empty> : tasks.map(t => <TaskRow key={t.id} task={t} area={areaOf(t.areaId)} />)}
+            <QuickAdd priority={1} onEmpty={() => setAdding(true)} />
+            {tasks.length === 0 ? <Empty>No quests marked for today.</Empty> : tasks.map(t => <TaskRow key={t.id} task={t} area={areaOf(t.areaId)} hideToday />)}
           </div>
           <TaskForm open={adding} onClose={() => setAdding(false)} defaultPriority={1} />
         </Card>
 
-        <Card title="The Routine" action={<span className="font-type text-sm">{GOOD_DAY_MIN_CORE} core = good day +{GOOD_DAY_XP} · all {coreTotal} = perfect +{PERFECT_DAY_XP}</span>}>
+        <Card title="The Routine">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
               <div className="mac-inset grid grid-cols-2 bg-white p-0.5" role="group" aria-label="Day">
@@ -249,7 +294,7 @@ export default function Today() {
           )}
         </Card>
 
-        <Card title={teaching ? 'The Ideal Day · teaching day' : 'The Ideal Day'}>
+        <Card id="The Ideal Day" defaultShut title={teaching ? 'The Ideal Day · teaching day' : 'The Ideal Day'}>
           <ol className="flex flex-col">
             {blocks.map((b, i) => (
               <li key={b.start} className={cx('flex gap-3 px-2 py-1.5 text-sm', i === cur ? 'bg-ink font-bold text-white' : i < cur ? 'text-ink/45 line-through' : 'text-ink/90')}>
@@ -261,17 +306,18 @@ export default function Today() {
 
         <Card title="The Scroll">
           <div className="scroll-paper mx-[18px] min-h-[180px] px-3 py-[6px] font-type text-[15px] leading-[28px]">
-            {xpLog.length === 0 ? <p className="text-ink/60">the scroll is blank. type your day into it, one action at a time…</p> : (
+            {scroll.length === 0 ? <p className="text-ink/60">nothing on the scroll yet today.</p> : (
               <ul>
-                {xpLog.slice(0, 14).map(e => (
-                  <li key={e.id} className="flex items-baseline justify-between gap-2">
-                    <span className="truncate">{new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {e.label.toLowerCase()}</span>
-                    <span className={cx('shrink-0', e.coins < 0 ? 'text-gold' : 'text-xp')}>{e.xp > 0 ? `+${e.xp}` : `${e.coins} dr`}</span>
+                {scroll.slice(0, 18).map(({ ts, e, n }) => (
+                  <li key={e?.id ?? n!.id} className="flex items-baseline justify-between gap-2">
+                    <span className={cx(e && 'truncate')}>{new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {e ? e.label.toLowerCase() : <span className="text-cyan">{n!.text}</span>}</span>
+                    {e && <span className={cx('shrink-0', e.coins < 0 ? 'text-gold' : 'text-xp')}>{e.xp > 0 ? `+${e.xp}` : e.coins ? `${e.coins} dr` : ''}</span>}
                   </li>
                 ))}
               </ul>
             )}
           </div>
+          <DayLine today={today} notes={notes} />
           <div className="mt-3"><Bar value={player.progress} /><p className="mt-1 text-xs text-ink/55">{player.needed - player.into} XP to level {player.level + 1}</p></div>
         </Card>
 
@@ -302,7 +348,7 @@ function CutUpCard({ lines }: { lines: string[] }) {
   const [seed, setSeed] = useState(() => Math.floor(Date.now() / 864e5));
   const poem = cutUp(lines, seed);
   return (
-    <Card title="Cut-Up · a poem from your day" className="lg:col-span-2">
+    <Card title="Cut-Up · a poem from your day" defaultShut className="lg:col-span-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <blockquote className="flex-1 border-l-4 border-xp bg-paper px-4 py-3 font-type text-lg leading-8">
           {poem.map((l, i) => <div key={i} style={{ paddingLeft: `${(i % 3) * 1.5}rem` }}>{l}</div>)}
@@ -313,5 +359,40 @@ function CutUpCard({ lines }: { lines: string[] }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+const DAY_NOTE_MAX = 280;
+
+/** L-1: write a line about the day. Anything: what happened, what you ate, an idea. It pays nothing; it is a record. */
+function DayLine({ today, notes }: { today: string; notes: DayNote[] }) {
+  const [text, setText] = useState('');
+  const [editing, setEditing] = useState(false);
+  const add = async () => {
+    const t = text.trim().slice(0, DAY_NOTE_MAX);
+    if (!t) return;
+    setText('');
+    await db.notes.add({ id: uid(), date: today, ts: Date.now(), text: t });
+  };
+  return (
+    <div className="mt-3 flex gap-2">
+      <Input value={text} aria-label="Write a line about today" placeholder="write a line about today, press Enter" maxLength={DAY_NOTE_MAX} enterKeyHint="done"
+        onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
+      {notes.length > 0 && <Button variant="ghost" className="!px-3" aria-label="Edit today's lines" onClick={() => setEditing(true)}><Glyph name="pencil" size={16} /></Button>}
+      {editing && (
+        <Modal open onClose={() => setEditing(false)} title="Today's lines">
+          <div className="flex flex-col gap-2">
+            {notes.length === 0 && <p className="text-sm text-ink/70">No lines left.</p>}
+            {[...notes].sort((a, b) => a.ts - b.ts).map(n => (
+              <div key={n.id} className="flex items-center gap-2">
+                <Input defaultValue={n.text} aria-label="Line" maxLength={DAY_NOTE_MAX} onBlur={e => { const t = e.target.value.trim(); if (t && t !== n.text) db.notes.update(n.id, { text: t }); }} />
+                <button onClick={() => { if (confirm('Delete this line?')) db.notes.delete(n.id); }} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/45 hover:text-hp" aria-label={`Delete line: ${n.text}`}><Glyph name="trash" size={16} /></button>
+              </div>
+            ))}
+            <Button onClick={() => setEditing(false)}>Done</Button>
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }

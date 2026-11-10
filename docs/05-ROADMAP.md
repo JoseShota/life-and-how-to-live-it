@@ -1,6 +1,6 @@
 # 05 · Roadmap & Tickets
 
-**Next agent: start with `docs/handoffs/2026-11-09-season-1.md`** (state, decisions, the next ticket), then `docs/handoffs/2026-11-08-next-phases.md` (the rules for real data, the whole path).
+**Next agent: start with `docs/handoffs/2026-11-10-critique.md`**, then `docs/handoffs/2026-11-09-season-1.md` (state, decisions, the next ticket), then `docs/handoffs/2026-11-08-next-phases.md` (the rules for real data, the whole path).
 
 Every ticket is sized so a Cursor agent can do it in **one chat**. Do them in order inside a phase. Each has acceptance criteria (AC). Copy-paste prompts are in `docs/prompts/`.
 
@@ -34,6 +34,25 @@ Legend: 🟢 small (≤ 1 h) · 🟡 medium (1–3 h) · 🔴 large (split it fu
 | S-3 🟢 ✅ | **Keep the data on the device** (2026-11-09) | At startup the app asks the browser to keep its data (`navigator.storage.persist()`, `src/lib/storage.ts`), so Chrome won't clear it when space runs low. Control → Backup shows the storage status and the last backup from this device; Today shows a reminder when this device has no backup in 7 days. Both export buttons record `lastBackupAt`. Tests |
 | W-1 🟢 ✅ | **Work starts at** (asked 2026-11-09) | A synced `workStart` setting in Control (07:30 to 09:30, 15-minute steps; 08:00 by default). The Ideal Day, the teaching-day variant, the Now card and the `.ics` export follow it: exercise, breakfast and intel share the morning, the work day shifts, the evening's free time absorbs it. 8 h of deep work at every choice. Tests. No XP or schema change |
 | E-9 🟡 ✅ | **Fresh starts and the Season 1 banner** (from `09-EVALUATION.md`, done 2026-11-09) | Season start date as a synced setting in Control; Season banner on Today (week N of 12 in Mon–Sun weeks, phase, done when, boss); Monday and first-of-month banners, one at a time, closed on both devices. Pure rules in `src/game/season.ts`, tests. No XP or schema change; no coin wager (Season 2) |
+
+## Phase C — The critique of 2026-11-10 (after two days of real use)
+The user's notes: too much on screen, logging too rigid, pendings slow to add, rewards that don't capture the goal, columns that look drawn, stock phrases. Handoff: `docs/handoffs/2026-11-10-critique.md`.
+
+| ID | Ticket | AC | Status |
+|---|---|---|---|
+| C-1 🟡 | **Room to breathe** | Windows roll up to their title bar (per device); "just the room" in the menu bar; pages end a third of a screen early; habit rows carry one quiet line; Ideal Day and Cut-Up start rolled up | Done |
+| C-2 🟡 | **A real colonnade** | Doric columns with entasis, fluting, drums, capital and a triglyph frieze, standing on the floor at every screen size | Done |
+| C-3 🟢 | **Voice** | No slogans (`08-DESIGN-SYSTEM.md` → Voice); the ticker shows the user's own lines (Control → Display) | Done |
+| Q-1 🟡 | **Quick capture** | One line + Enter adds a quest on Today, Quests and Focus; optional marks `#area !today >fri *hard`; a pasted list adds one quest per line; Focus lists what is open in the area being worked on. `src/lib/quickAdd.ts`, tests | Done |
+| F-1 🟡 | **Flexible logging** | Any amount on measured habits; measured rituals with a unit and optional bar; a free note per habit per day. Tests | Done |
+| A-1 🟢 | **Laurel progress** | Every achievement shows have/need from the numbers that unlock it | Done |
+| A-2 🔴 | **Laurels and rewards that mean something** (approved 2026-11-10) | 34 laurels in tiers along four roads (body, craft, treasury, engine); Money at Work; Steady Income = a job or a retainer (the boss too); promises: rewards for a milestone, claimed once, no coins. `04-GAME-DESIGN.md` → Laurels | Done |
+| Q-2 🟡 | **Steps inside a quest** (P1-2) and **an inbox** | `checklist` on Task, ticked from the row; captures with no area land in the Inbox on Quests, filed with one tap | Done |
+| L-1 🟡 | **The day's log** | Free lines about the day on The Scroll (table `notes`, Dexie v14, migration test) | Done |
+| P5-1 🔴 | **Statement import** (CSV) | Treasury → The Ledger → Import a statement: columns detected from the header (Spanish or English), every row shown, already-logged rows and card payments left out by default, category remembered by description, no XP. `src/finance/importCsv.ts`, tests. Not tested against a real Banorte file yet | Done (PDF not built) |
+| P5-7 🟢 | **Invoices** | Treasury → Invoices: what you are owed, due dates, "Paid" opens the income form and links the deposit (table `invoices`, Dexie v14) | Done |
+| P4-1 🔴 | **Reminders** (Web Push) | Needs VAPID keys and a scheduled function in the user's Supabase project, and a privacy decision (what a notification may say). Not started | Waiting on the user |
+| W-1b 🟢 | **joseshota.net** | A link in the menu (Control → Display → Your site). The pipeline says how long since the last case study against the plan's one every two weeks. The two stay separate in voice and look (the user, 2026-11-10) | Done |
 
 ## Phase 2 — Cloud sync between tablet and laptop (plan approved 2026-11-07)
 End-to-end encrypted sync through the user's own Supabase project: the server stores only ciphertext under opaque ids. Design in `02-ARCHITECTURE.md` ("Sync design"); handoff in `docs/handoffs/2026-11-07-sync.md`. One commit per ticket.

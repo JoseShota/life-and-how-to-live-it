@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
 import { db } from '@/db/db';
 import { Button, Card, Empty, Bar, PageTitle } from '@/components/ui';
-import { TaskRow, TaskForm } from '@/components/TaskBits';
+import { TaskRow, TaskForm, QuickAdd } from '@/components/TaskBits';
 import { cx, dateKey } from '@/lib/util';
 import { startOfWeek } from 'date-fns';
 
@@ -20,17 +20,18 @@ export default function Quests() {
     return m;
   }, [weekStart], new Map());
 
+  const inbox = tasks.filter(t => t.unsorted && t.status !== 'done');
   const visible = tasks
-    .filter(t => (areaId === 'all' || t.areaId === areaId) && (showDone ? true : t.status !== 'done'))
+    .filter(t => (areaId === 'all' || (t.areaId === areaId && !t.unsorted)) && (showDone ? true : t.status !== 'done'))
     .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || a.priority - b.priority || (a.dueDate ?? 'z').localeCompare(b.dueDate ?? 'z'));
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="冒険" plain="tasks" sub="every pending thing, by area. go, go, go." right={<Button onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>New quest</Button>}>Quest Log</PageTitle>
+      <PageTitle jp="冒険" plain="tasks" sub="every pending thing, by area." right={<Button onClick={() => setAdding(true)}><Glyph name="plus" size={16}/>New quest</Button>}>Quest Log</PageTitle>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {areas.map(a => {
-          const open = tasks.filter(t => t.areaId === a.id && t.status !== 'done').length;
+          const open = tasks.filter(t => t.areaId === a.id && t.status !== 'done' && !t.unsorted).length;
           const hrs = (weekMinutes.get(a.id) ?? 0) / 60;
           return (
             <button key={a.id} onClick={() => setAreaId(areaId === a.id ? 'all' : a.id)} className={cx('p-3 text-left transition', areaId === a.id ? 'mac-inset bg-white shadow-glow' : 'mac-window bg-white/90 hover:bg-panel2')}>
@@ -43,11 +44,30 @@ export default function Quests() {
         })}
       </div>
 
-      <Card title={areaId === 'all' ? 'All Quests' : `${areas.find(a => a.id === areaId)?.name}`} action={
+      {/* Captured without an area: one tap files each one. */}
+      {inbox.length > 0 && (
+        <Card id="Inbox" title={`Inbox · ${inbox.length} to sort`} className="bg-laurel/20">
+          <div className="flex flex-col gap-2">
+            {inbox.map(t => (
+              <div key={t.id} className="flex flex-wrap items-center gap-2 border border-line/50 bg-panel2/60 px-3 py-2">
+                <span className="min-w-0 flex-1 basis-56 truncate text-sm font-medium">{t.title}</span>
+                <div className="flex flex-wrap gap-1" role="group" aria-label={`File "${t.title}" under`}>
+                  {areas.map(a => (
+                    <button key={a.id} onClick={() => db.tasks.update(t.id, { areaId: a.id, unsorted: undefined })} title={a.name} className="mac-btn flex h-10 items-center gap-1 px-2 font-display text-[13px]" style={{ background: a.color + '66' }}><Glyph name={a.icon} size={14} stroke={2} />{a.short}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card id="Quests" title={areaId === 'all' ? 'All Quests' : `${areas.find(a => a.id === areaId)?.name}`} action={
         <label className="flex min-h-[40px] cursor-pointer items-center gap-2 px-1 text-xs text-ink/60"><input type="checkbox" className="h-5 w-5" checked={showDone} onChange={e => setShowDone(e.target.checked)} />Show completed</label>
       }>
         <div className="flex flex-col gap-2">
-          {visible.length === 0 ? <Empty>No quests here. Break the next big outcome into a quest you can finish in one sitting.</Empty> :
+          <QuickAdd areaId={areaId === 'all' ? undefined : areaId} placeholder={areaId === 'all' ? 'Add a quest, press Enter' : `Add a quest to ${areas.find(a => a.id === areaId)?.short ?? 'this area'}, press Enter`} />
+          {visible.length === 0 ? <Empty>No open quests here.</Empty> :
             visible.map(t => <TaskRow key={t.id} task={t} area={areas.find(a => a.id === t.areaId)} compact={areaId !== 'all'} />)}
         </div>
       </Card>

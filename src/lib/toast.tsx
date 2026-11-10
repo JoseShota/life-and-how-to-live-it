@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     return () => { db.xp.hook('creating').unsubscribe(fn as never); off(); };
   }, [push]);
 
-  const head = { xp: 'the universe noticed', gold: 'the agora thanks you', bad: 'something went quiet', epic: 'ACHIEVEMENT' };
+  const head = { xp: 'Logged', gold: 'Done', bad: 'Notice', epic: 'Laurel won' };
   const tint = { xp: 'bg-white', gold: 'bg-laurel/40', bad: 'bg-white text-hp', epic: 'fill-pool' };
   return (
     <Ctx.Provider value={push}>

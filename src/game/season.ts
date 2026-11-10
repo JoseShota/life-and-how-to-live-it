@@ -28,7 +28,7 @@ export const SEASON_PHASES: SeasonPhase[] = [
 export const SEASON_REVIEW_PHASE = { focus: 'Season review: look back at the 90 days, score the boss, set Season 2', doneWhen: 'Season 2 set' };
 
 /** §6 "boss fight" (the 60 % counts Good-or-Perfect days, decided 2026-11-09). Live progress is P4-4. */
-export const SEASON_BOSS = 'First retainer client + 1-month emergency fund + 30-day Good-or-Perfect rate ≥ 60 %';
+export const SEASON_BOSS = 'Steady income (a job or a retainer) + 1-month emergency fund + 30-day Good-or-Perfect rate ≥ 60 %';
 
 export type SeasonStatus =
   | { state: 'unset' }
@@ -110,7 +110,7 @@ export const BOSS_SHIELD_MONTHS = 1;
 export interface BossInput {
   today: DateKey;
   start: DateKey;
-  /** Opportunities of kind `retainer` marked won. */
+  /** Opportunities of kind `job` or `retainer` marked won: income that comes every month. */
   wonRetainers: number;
   /** The shield bucket against a month of spending (finance/wealth.ts), and that spending (null = unknown). */
   shieldMonths: number;
@@ -133,8 +133,8 @@ export function bossProgress(i: BossInput): BossPart[] {
   const rate = days ? good / days : 0;
   const pct = (n: number) => `${Math.round(n * 100)} %`;
   return [
-    { key: 'retainer', label: 'First retainer client', met: i.wonRetainers >= 1, progress: Math.min(1, i.wonRetainers),
-      detail: i.wonRetainers >= 1 ? 'Won' : 'None won yet (a retainer opportunity marked won in Treasury)' },
+    { key: 'retainer', label: 'Steady income · a job or a retainer', met: i.wonRetainers >= 1, progress: Math.min(1, i.wonRetainers),
+      detail: i.wonRetainers >= 1 ? 'Won' : 'None won yet (a job or retainer opportunity marked won in Treasury)' },
     { key: 'shield', label: `Emergency fund · ${BOSS_SHIELD_MONTHS} month`, met: !!i.spending && i.shieldMonths >= BOSS_SHIELD_MONTHS,
       progress: i.spending ? Math.max(0, Math.min(1, i.shieldMonths / BOSS_SHIELD_MONTHS)) : 0,
       detail: i.spending ? `${Math.max(0, i.shieldMonths).toFixed(1)} of ${BOSS_SHIELD_MONTHS} month (spending ≈ ${Math.round(i.spending)}/month)` : 'Needs a month of logged spending, or a spending estimate' },

@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Habit } from '@/db/types';
-import { blankDraft, byOrder, draftError, draftOf, editableFields, xpChoicesFor, type HabitDraft } from '@/game/habitEdit';
+import { blankDraft, byOrder, draftError, draftOf, editableFields, formatAmount, parseAmount, xpChoicesFor, type HabitDraft } from '@/game/habitEdit';
 import { NEW_HABIT_BASE, addHabit, deleteHabit, habitHasHistory, moveHabitStep, saveHabit, setHabitArchived } from '@/game/habitStore';
 import { useToast } from '@/lib/toast';
 import { cx } from '@/lib/util';
@@ -24,6 +24,7 @@ export function HabitEditor({ habit, onClose }: { habit?: Habit; onClose: () => 
   const toast = useToast();
   const [d, setD] = useState<HabitDraft>(() => (habit ? draftOf(habit) : blankDraft()));
   const [picking, setPicking] = useState(false);
+  const [target, setTarget] = useState(() => (habit?.target && habit.kind === 'number' ? formatAmount(habit.target) : ''));
   const base = habit ?? NEW_HABIT_BASE;
   const can = editableFields(base);
   const err = draftError(base, d);
@@ -43,6 +44,25 @@ export function HabitEditor({ habit, onClose }: { habit?: Habit; onClose: () => 
           <Label text="Name"><Input value={d.name} maxLength={80} onChange={e => set({ name: e.target.value })} placeholder="e.g. Read 10 pages" /></Label>
         </div>
         {picking && <IconPicker value={d.icon} onChange={icon => { set({ icon }); setPicking(false); }} />}
+
+        {!habit && (
+          <div className="flex flex-col gap-1">
+            <span className="font-display text-[13px] text-lav">How you log it</span>
+            <div className="mac-inset grid w-fit grid-cols-2 bg-white p-0.5" role="radiogroup" aria-label="How you log it">
+              {[false, true].map(m => (
+                <button key={String(m)} type="button" role="radio" aria-checked={!!d.measured === m} onClick={() => set({ measured: m })}
+                  className={cx('min-h-[40px] px-3 font-display text-sm', !!d.measured === m ? 'mac-btn bg-xp/20' : 'text-ink/60')}>{m ? 'An amount' : 'A tick'}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {(habit ? can.measure : d.measured) && (
+          <div className="grid grid-cols-2 gap-3">
+            <Label text="Unit"><Input value={d.unit ?? ''} maxLength={12} onChange={e => set({ unit: e.target.value })} placeholder="pages, min, km, L" /></Label>
+            <Label text="Counts from (optional)"><Input inputMode="decimal" value={target} onChange={e => { setTarget(e.target.value); set({ target: e.target.value.trim() ? parseAmount(e.target.value) ?? NaN : undefined }); }} placeholder="any amount" /></Label>
+            <p className="col-span-2 text-xs text-ink/60">Leave the bar empty to just record the amount: any amount counts. With a bar, the habit is done when you reach it.</p>
+          </div>
+        )}
 
         {can.minLabel
           ? <Label text="Minimum version (still counts on a bad day)"><Input value={d.minLabel} onChange={e => set({ minLabel: e.target.value })} placeholder="e.g. 1 page" /></Label>
@@ -94,7 +114,7 @@ function HabitLine({ h, children }: { h: Habit; children: ReactNode }) {
       <Glyph name={h.icon} size={22} stroke={1.5} className="shrink-0 text-cyan" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{h.name}</div>
-        <div className="text-[11px] text-ink/60">+{h.xp} XP{h.intrinsic ? ' · no dr' : ''}{h.kind === 'auto' ? ' · from focus' : ''}{h.minLabel ? ` · min: ${h.minLabel}` : ''}</div>
+        <div className="text-[11px] text-ink/60">+{h.xp} XP{h.intrinsic ? ' · no dr' : ''}{h.kind === 'auto' ? ' · from focus' : ''}{h.kind === 'number' ? ` · ${h.target ? `${formatAmount(h.target)} ` : 'any amount'}${h.target ? h.unit ?? '' : h.unit ? ` of ${h.unit}` : ''}` : ''}{h.minLabel ? ` · min: ${h.minLabel}` : ''}</div>
       </div>
       {children}
     </div>
