@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { usePlayer, useNow } from '@/lib/hooks';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -27,50 +27,142 @@ export const MENU_ONLY = [
   { to: '/review', label: 'Review', jp: '回顧', plain: 'weekly review' }
 ];
 
-const INSCRIPTIONS = [
-  'ΓΝΩΘΙ ΣΑΥΤΟΝ · know thyself',
-  'ΜΗΔΕΝ ΑΓΑΝ · nothing in excess',
-  'first thought, best thought',
-  'wealth = (income − spending) × time × return',
+/**
+ * The ticker's lines when the user hasn't written their own (Control → Display): rules from their plan
+ * (00-MASTER-PLAN.md), stated as rules. No borrowed maxims.
+ */
+export const DEFAULT_INSCRIPTIONS = [
   'never miss twice',
   'the money quest comes first',
   'pay every card in full',
   'lights out 22:00 · rise 05:45',
-    'retainers > one-off gigs',
-  'the road is life'
+  'retainers > one-off gigs',
+  'information is not progress',
+  'the pipeline leads · income lags',
+  'wealth = (income − spending) × time × return'
 ];
 
 const SPARKLES = [['8%', '20%', 0, 14], ['86%', '16%', 1.4, 18], ['70%', '44%', 2.2, 12], ['18%', '52%', .7, 16], ['92%', '58%', 1.9, 10], ['44%', '12%', 2.8, 12]] as const;
 
-/** A colonnade of arches opening onto a pale dream sky: the liminal far wall of the bathhouse. */
-function Colonnade() {
+// The colonnade, drawn the way Doric columns are built: a shaft that narrows upward with a slight swell (entasis),
+// twenty flutes of which ten face you, bunching toward the edges as they turn away, drums stacked with visible
+// joints, a necking, the cushion (echinus) and the square slab (abacus), under an architrave and a triglyph frieze.
+// Light comes from the upper left, so every flute is dark on its left wall and lit on its right.
+const BAY = 300, COL_X = 44, R_LOW = 27, R_TOP = 21.5, SHAFT_TOP = 118, WALL_TOP = 118;
+/** The ten visible flute edges (arrises), by angle around the shaft. */
+const ARRISES = Array.from({ length: 9 }, (_, k) => {
+  const t = ((-72 + k * 18) * Math.PI) / 180;
+  return { top: COL_X + R_TOP * Math.sin(t), low: COL_X + R_LOW * Math.sin(t), facing: Math.cos(t) };
+});
+
+function Column({ end }: { end: number }) {
+  const SHAFT_END = end;
+  const drums = Array.from({ length: Math.max(0, Math.floor((end - 150) / 76)) }, (_, i) => 190 + i * 76);
   return (
-    <svg className="thermae-arches" width="100%" height="420" aria-hidden>
+    <g>
+      {/* its shadow on the wall behind, falling right */}
+      <path d={`M${COL_X + 10} ${SHAFT_TOP - 30}h30v${SHAFT_END - SHAFT_TOP + 30}h-30z`} fill="#2b3437" opacity=".13" filter="url(#soft)" />
+      <path d={`M${COL_X - R_LOW} ${SHAFT_END}C${COL_X - R_LOW} ${end * 0.74} ${COL_X - R_TOP - 1.5} ${end * 0.45} ${COL_X - R_TOP} ${SHAFT_TOP}h${R_TOP * 2}C${COL_X + R_TOP + 1.5} ${end * 0.45} ${COL_X + R_LOW} ${end * 0.74} ${COL_X + R_LOW} ${SHAFT_END}z`} fill="url(#shaft)" />
+      {ARRISES.map((a, i) => (
+        <g key={i} strokeLinecap="butt">
+          <path d={`M${a.top + 1.1} ${SHAFT_TOP}L${a.low + 1.4} ${SHAFT_END}`} stroke="#4a4436" strokeOpacity={0.3 * a.facing + 0.06} strokeWidth={2.4 * a.facing + 0.5} />
+          <path d={`M${a.top - 0.8} ${SHAFT_TOP}L${a.low - 1} ${SHAFT_END}`} stroke="#fffdf6" strokeOpacity={0.75 * a.facing} strokeWidth={1.3 * a.facing + 0.2} />
+        </g>
+      ))}
+      {drums.map(y => <path key={y} d={`M${COL_X - R_LOW} ${y}q${R_LOW} 3.5 ${R_LOW * 2} 0`} fill="none" stroke="#3d382c" strokeOpacity=".2" strokeWidth=".9" />)}
+      {/* necking rings, echinus, abacus */}
+      <path d={`M${COL_X - R_TOP} ${SHAFT_TOP + 5}q${R_TOP} 3 ${R_TOP * 2} 0M${COL_X - R_TOP} ${SHAFT_TOP + 1.5}q${R_TOP} 3 ${R_TOP * 2} 0`} fill="none" stroke="#3d382c" strokeOpacity=".4" strokeWidth="1" />
+      <path d={`M${COL_X - R_TOP} ${SHAFT_TOP}c0-7-10.5-9-11-15h${R_TOP * 2 + 22}c-.5 6-11 8-11 15z`} fill="url(#shaft)" />
+      <path d={`M${COL_X - R_TOP} ${SHAFT_TOP}q${R_TOP} 3.5 ${R_TOP * 2} 0`} fill="none" stroke="#3d382c" strokeOpacity=".3" />
+      <rect x={COL_X - R_TOP - 13} y={SHAFT_TOP - 28} width={R_TOP * 2 + 26} height="13" fill="url(#slab)" />
+      <rect x={COL_X - R_TOP - 13} y={SHAFT_TOP - 16.5} width={R_TOP * 2 + 26} height="2.5" fill="#3d382c" opacity=".22" />
+    </g>
+  );
+}
+
+/** One triglyph of the frieze: three uprights between two grooves and two half-grooves. */
+const Triglyph = ({ x }: { x: number }) => (
+  <g>
+    <rect x={x - 13} y="40" width="26" height="26" fill="#e6e0d2" />
+    <path d={`M${x - 8.5} 43v23M${x} 43v23M${x + 8.5} 43v23`} stroke="#3d382c" strokeOpacity=".32" strokeWidth="2.6" />
+    <path d={`M${x - 7} 43v23M${x + 1.5} 43v23M${x + 10} 43v23`} stroke="#fffdf6" strokeOpacity=".7" strokeWidth="1" />
+  </g>
+);
+
+/**
+ * Where the tiled floor's far edge sits on screen, in px from the top. The floor is `.thermae-floor` in index.css:
+ * 18vh deep, tipped back 55 degrees under a 300 px perspective, its near edge 9vh above the bottom. Keep in step.
+ */
+function floorTop(vh: number) {
+  const depth = 0.18 * vh;
+  return vh - 0.09 * vh - (depth * 0.574 * 300) / (300 + depth * 0.819);
+}
+
+function useViewport() {
+  const [v, setV] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const on = () => setV({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return v;
+}
+
+/**
+ * A colonnade in front of arches that open onto a pale sky: the far wall of the bathhouse. The columns stand on
+ * the floor on every screen: a taller screen gets larger columns (up to 1.4 times) and then taller shafts.
+ */
+function Colonnade() {
+  const { w, h } = useViewport();
+  const tall = Math.max(320, floorTop(h) - WALL_TOP + 2);
+  const scale = Math.min(1.4, Math.max(1, tall / 500));
+  const H = tall / scale; // the wall's height in the drawing's own units
+  return (
+    <svg className="thermae-arches" width="100%" height={tall} aria-hidden>
       <defs>
         <linearGradient id="dreamsky" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#b9d8e4" /><stop offset=".55" stopColor="#e3eee9" /><stop offset="1" stopColor="#f6f1e4" />
         </linearGradient>
+        {/* a cylinder of warm marble lit from the left */}
+        <linearGradient id="shaft" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#b9b19e" /><stop offset=".1" stopColor="#ddd6c6" /><stop offset=".34" stopColor="#fbf8f0" /><stop offset=".6" stopColor="#ece6d8" /><stop offset=".88" stopColor="#c0b8a5" /><stop offset="1" stopColor="#9d9583" />
+        </linearGradient>
+        <linearGradient id="slab" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fbf8f0" /><stop offset=".7" stopColor="#e6dfd0" /><stop offset="1" stopColor="#c9c1af" />
+        </linearGradient>
+        <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f7f3ea" /><stop offset=".8" stopColor="#e9e3d5" /><stop offset="1" stopColor="#d3ccbb" />
+        </linearGradient>
         <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
-        <pattern id="arcade" width="260" height="420" patternUnits="userSpaceOnUse">
-          <path d="M45 420V170a85 85 0 0 1 170 0v250z" fill="url(#dreamsky)" />
+        {/* faint veins and weathering, kept inside whatever it is applied to */}
+        <filter id="vein" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".035 .009" numOctaves="3" seed="7" />
+          <feColorMatrix values="0 0 0 0 .3  0 0 0 0 .27  0 0 0 0 .2  0 0 0 -1.1 .62" />
+          <feComposite in2="SourceGraphic" operator="in" />
+          <feMerge><feMergeNode in="SourceGraphic" /><feMergeNode /></feMerge>
+        </filter>
+        <pattern id="arcade" width={BAY} height={H} patternUnits="userSpaceOnUse">
+          {/* the opening: the wall's thickness shows on the left, in shade */}
+          <path d={`M104 ${H}V214a80 80 0 0 1 160 0V${H}z`} fill="#c3ccc6" />
+          <path d={`M113 ${H}V214a75.5 80 0 0 1 151 0V${H}z`} fill="url(#dreamsky)" />
           <g filter="url(#soft)" fill="#fff" opacity=".9">
-            <ellipse cx="105" cy="150" rx="38" ry="10" /><ellipse cx="170" cy="215" rx="30" ry="8" /><ellipse cx="90" cy="285" rx="26" ry="7" />
+            <ellipse cx="168" cy="200" rx="38" ry="10" /><ellipse cx="223" cy="262" rx="30" ry="8" /><ellipse cx="158" cy="330" rx="26" ry="7" />
           </g>
-          <path d="M45 420V170a85 85 0 0 1 170 0v250" fill="none" stroke="#2b3437" strokeOpacity=".28" strokeWidth="2" />
-          <path d="M55 420V172a75 75 0 0 1 150 0v248" fill="none" stroke="#2b3437" strokeOpacity=".1" strokeWidth="1.5" />
-          {[-16, 244].map(x => (
-            <g key={x} stroke="#2b3437" strokeOpacity=".22" strokeWidth="1.5">
-              <rect x={x} y="70" width="32" height="350" fill="#ece6da" />
-              <rect x={x - 6} y="58" width="44" height="12" fill="#f3efe6" />
-              <path d={`M${x + 8} 74v346M${x + 16} 74v346M${x + 24} 74v346`} />
-            </g>
-          ))}
+          <path d={`M104 ${H}V214a80 80 0 0 1 160 0V${H}`} fill="none" stroke="#2b3437" strokeOpacity=".22" strokeWidth="1.5" />
+          {/* cornice, frieze, architrave */}
+          <rect y="24" width={BAY} height="10" fill="url(#beam)" />
+          <rect y="34" width={BAY} height="5" fill="#3d382c" opacity=".2" />
+          <rect y="39" width={BAY} height="28" fill="#f1ecdf" />
+          <Triglyph x={COL_X} /><Triglyph x={COL_X + BAY / 2} />
+          <rect y="66" width={BAY} height="3.5" fill="#f9f6ee" />
+          <rect y="69.5" width={BAY} height="20.5" fill="url(#beam)" />
+          <g filter="url(#vein)"><Column end={H - 7} /></g>
+          {/* the step the columns stand on, where the wall meets the floor */}
+          <rect y={H - 7} width={BAY} height="7" fill="url(#beam)" />
+          <rect y={H - 7} width={BAY} height="1" fill="#3d382c" opacity=".25" />
         </pattern>
-        <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stopColor="#fff" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
-        <mask id="fadeMask"><rect width="100%" height="420" fill="url(#fade)" /></mask>
       </defs>
-      <rect y="40" width="100%" height="18" fill="#ece6da" stroke="#2b3437" strokeOpacity=".2" />
-      <rect width="100%" height="420" fill="url(#arcade)" mask="url(#fadeMask)" />
+      <rect width={w / scale + 1} height={H} fill="url(#arcade)" transform={`scale(${scale})`} />
     </svg>
   );
 }
@@ -83,7 +175,6 @@ function Backdrop() {
       <div className="thermae-floor" aria-hidden />
       <div className="thermae-pool" aria-hidden />
       <div className="thermae-haze" aria-hidden />
-      <div className="wall-whisper" aria-hidden>you have been here before</div>
       {SPARKLES.map(([l, t, d, sz], i) => <span key={i} className="sparkle" style={{ left: l, top: t, animationDelay: `${d}s` }} aria-hidden><Glyph name="sparkle" size={sz} stroke={0} className="fill-white" /></span>)}
       <img src="/art/bust.webp" alt="" className="thermae-bust" aria-hidden />
     </>
@@ -100,7 +191,7 @@ function Clock() {
   return <span className="tabular-nums">{new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>;
 }
 
-function MenuBar({ onShutdown }: { onShutdown: () => void }) {
+function MenuBar({ onShutdown, room, onRoom }: { onShutdown: () => void; room: boolean; onRoom: () => void }) {
   const [open, setOpen] = useState(false);
   const nav = useNavigate();
   return (
@@ -112,7 +203,12 @@ function MenuBar({ onShutdown }: { onShutdown: () => void }) {
           <NavLink key={n.to} to={n.to} end={n.to === '/'} title={n.plain} className={({ isActive }) => `flex h-10 items-center px-2.5 ${isActive ? 'bg-ink text-white' : 'hover:bg-ink hover:text-white'}`}>{n.label}</NavLink>
         ))}
       </nav>
-      <span className="ml-auto flex items-center gap-3 pr-1"><span className="hidden font-jp text-sm text-lav sm:inline">{APP_NAME_JP}</span><Clock /></span>
+      <span className="ml-auto flex items-center gap-2 pr-1">
+        <span className="hidden font-jp text-sm text-lav xl:inline">{APP_NAME_JP}</span>
+        {/* Put the windows away and look at the room; tap again (or anywhere) to bring them back. */}
+        <button onClick={onRoom} aria-pressed={room} aria-label={room ? 'Bring the windows back' : 'Hide the windows: just the room'} title={room ? 'Bring the windows back' : 'Just the room'} className={`flex h-10 w-10 items-center justify-center ${room ? 'bg-ink text-white' : 'text-ink/70 hover:text-cyan'}`}><Glyph name="eye" size={20} /></button>
+        <Clock />
+      </span>
       {open && (
         <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
           <ul className="mac-window absolute left-2 top-11 w-64 py-1" onClick={e => e.stopPropagation()}>
@@ -169,24 +265,32 @@ function Hud() {
 
 export function Layout() {
   const [shutdown, setShutdown] = useState(false);
+  const [room, setRoom] = useState(false);
   const p = usePlayer();
   const showMarquee = (useLiveQuery(() => db.settings.get('showMarquee'))?.value as boolean | undefined) ?? true;
+  const own = useLiveQuery(() => db.settings.get('inscriptions'))?.value as string[] | undefined;
+  const lines = own?.length ? own : DEFAULT_INSCRIPTIONS;
   return (
     <div className="min-h-screen">
       <Backdrop />
       <header className="sticky top-0 z-30" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <MenuBar onShutdown={() => setShutdown(true)} />
-        <div className="border-b-2 border-ink bg-white/85 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-3 py-2 sm:px-6"><Hud /></div>
-          {showMarquee && (
-            <div className="marquee overflow-hidden border-t-2 border-ink bg-laurel/70 py-0.5 text-[13px]" aria-hidden>
-              <div>{[...INSCRIPTIONS, ...INSCRIPTIONS].map((t, i) => <span key={i} className="inscription inline-flex items-center gap-3 px-4 font-bold"><Glyph name="sparkle" size={10} stroke={0} className="fill-current" />{t}</span>)}</div>
-            </div>
-          )}
-        </div>
+        <MenuBar onShutdown={() => setShutdown(true)} room={room} onRoom={() => setRoom(r => !r)} />
+        {!room && (
+          <div className="border-b-2 border-ink bg-white/85 backdrop-blur">
+            <div className="mx-auto max-w-6xl px-3 py-2 sm:px-6"><Hud /></div>
+            {showMarquee && (
+              <div className="marquee overflow-hidden border-t-2 border-ink bg-laurel/70 py-0.5 text-[13px]" aria-hidden>
+                <div>{[...lines, ...lines].map((t, i) => <span key={i} className="inscription inline-flex items-center gap-3 px-4 font-bold"><Glyph name="sparkle" size={10} stroke={0} className="fill-current" />{t}</span>)}</div>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-3 pb-24 pt-5 sm:px-6 md:pb-10">
+      {room && <button className="fixed inset-0 z-20 cursor-pointer" aria-label="Bring the windows back" onClick={() => setRoom(false)} />}
+
+      {/* The page ends a third of a screen early, so its last window sits above the pool and the room is there to look at. */}
+      <main className={`mx-auto w-full max-w-6xl px-3 pb-[34vh] pt-5 sm:px-6 ${room ? 'invisible' : ''}`}>
         <Suspense fallback={<PageLoading />}>
           <Outlet />
         </Suspense>
@@ -203,7 +307,7 @@ export function Layout() {
 
       <ActiveTimerPill />
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t-2 border-ink bg-white md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className={`fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t-2 border-ink bg-white md:hidden ${room ? 'invisible' : ''}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {NAV.map(n => (
           <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => `flex min-h-[52px] flex-col items-center justify-center font-display text-[11px] ${isActive ? 'bg-ink text-white' : ''}`}>
             <span className="font-jp text-base leading-none">{n.jp}</span>{n.label}

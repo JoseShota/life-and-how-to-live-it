@@ -59,6 +59,12 @@ A **teaching day** is one of the teaching schedule's weekdays inside its semeste
 - **Add a ritual:** a tick-box habit, 10 XP by default, placed last. **Archive** hides a ritual from Today and Stats and keeps its history; restore it from Archived. **Delete** only for a habit you added that was never checked.
 - The card shows the rituals' XP a day at base: a few kept daily beat many kept rarely.
 
+**Flexible logging (F-1, 2026-11-10; no XP numbers changed):**
+- **Any amount.** A measured habit takes whatever you type: `7.5`, `7,5`, `7:30`, `7h30`. The − and + buttons step it (a quarter of an hour for hours, 1 otherwise). Sleep is still done at 7.5 h; 6 h 40 is recorded as 6.67 and simply isn't done.
+- **Measured rituals.** A ritual you add can be "an amount" with a unit (pages, km, L) and an optional bar. With a bar it is done when you reach it; without one, any amount counts, so you can record something before deciding a target. A habit's kind still never changes. Unit and bar can be edited on rituals you added. It pays what a ritual pays (5 to 20 XP).
+- **A note for the day.** Tapping a habit's name opens its sheet: a free line about that day ("ran 5 km"), what the habit pays, its plan, and the editor. The note shows on the row. It pays nothing and survives re-logging or unchecking.
+- Rules: `habitDone()`, `parseAmount()` in `src/game/habitEdit.ts`; `setHabitNote()` in the engine; `tests/habitFlex.test.ts`.
+
 **Habit science (V-3):**
 - **Minimum version** per habit (Tiny Habits): keeps the streak, pays half XP, counts for a Good Day but never a Perfect Day. Deep work's minimum is 2 h of focus (automatic).
 - **Plan** per habit: a "When…, I will…" line (implementation intention), editable with the pencil.
@@ -95,6 +101,8 @@ Level 50 ≈ 100 perfect days, about a year of real consistency. That's on purpo
 
 ## Achievements (MVP)
 First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn Patrol (7-day wake streak), Centurion (100 h focus), Grinder (5 full workdays), Steady Hand (30 Good or Perfect days), Scorecard (first weekly scorecard), Totalero (3 statements in a row paid in full on time), Rainmaker (first retainer won), Agora Regular (20 conversations), Bookkeeper (30 transactions), Paid (income linked to an activity).
+
+**Progress (A-1, 2026-11-10).** Every unearned laurel shows how far along it is ("12 of 50 quests"), from `achievementProgress()`: the same numbers that unlock it. Won laurels come first, then the rest by how close they are. Display only: no XP changed.
 
 **To add (P1/P4):** Iron Body (30-day exercise streak), Debt Slayer (all cards at 0 for 3 statements), Shieldbearer (1-month fund), Fortress (6-month fund), Rainmaker (first retainer), Polymath (hours in all 8 areas in one week), Night Owl Reformed (21 nights in bed by 21:45), Season Champion.
 

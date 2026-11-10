@@ -7,6 +7,31 @@ import { RITUAL_XP_CHOICES, NEW_RITUAL_XP } from './rules';
 
 export const HABIT_NAME_MAX = 60;
 export const HABIT_TEXT_MAX = 160;
+export const HABIT_NOTE_MAX = 280;
+export const HABIT_UNIT_MAX = 12;
+
+/**
+ * Is this amount "done"? A tick-box needs 1. A measured habit needs its target; one without a target counts from
+ * any amount above zero, so you can record what happened without first deciding a bar.
+ */
+export const habitDone = (h: Pick<Habit, 'kind' | 'target'>, value: number) =>
+  h.kind === 'check' ? value >= 1 : h.target ? value >= h.target : value > 0;
+
+/**
+ * An amount as typed: "7.5", "7,5", or hours and minutes as "7:30" / "7h30" / "7h". Null when it isn't a number.
+ * Negative amounts are refused; two decimals are kept.
+ */
+export function parseAmount(text: string): number | null {
+  const t = text.trim().toLowerCase().replace(',', '.');
+  if (!t) return null;
+  const hm = /^(\d{1,3})\s*(?::|h)\s*(\d{1,2})?\s*m?$/.exec(t);
+  const n = hm ? Number(hm[1]) + (hm[2] ? Number(hm[2]) / 60 : 0) : /^\d*\.?\d+$|^\d+\.$/.test(t) ? Number(t) : NaN;
+  if (hm && hm[2] && Number(hm[2]) >= 60) return null;
+  return Number.isFinite(n) && n >= 0 && n < 100000 ? Math.round(n * 100) / 100 : null;
+}
+
+/** An amount for display: 7.5 stays 7.5, 7 stays 7, 0.333 becomes 0.33. */
+export const formatAmount = (n: number) => String(Math.round(n * 100) / 100);
 
 /** Habits the user adds get keys like `custom-<id>`; seeded ones keep their stable keys (`sleep`, `wake`…). */
 export const customKey = (id: string) => `custom-${id}`;
@@ -21,6 +46,8 @@ export function editableFields(h: Pick<Habit, 'core' | 'kind' | 'key'>) {
     xp: !h.core,
     intrinsic: !h.core,
     archive: !h.core,
+    /** Unit and target of a measured ritual you added. Sleep's bar is fixed: it grades the day. */
+    measure: h.kind === 'number' && isCustomHabit(h),
     /** Only a habit you added, and only while it has no history (the caller checks the logs). */
     delete: !h.core && isCustomHabit(h)
   };
@@ -31,10 +58,17 @@ export function xpChoicesFor(h: Pick<Habit, 'xp'>) {
   return RITUAL_XP_CHOICES.includes(h.xp) ? RITUAL_XP_CHOICES : [...RITUAL_XP_CHOICES, h.xp].sort((a, b) => a - b);
 }
 
-export interface HabitDraft { name: string; icon: string; minLabel: string; plan: string; xp: number; intrinsic: boolean }
+export interface HabitDraft {
+  name: string; icon: string; minLabel: string; plan: string; xp: number; intrinsic: boolean;
+  /** New habits only: measured (an amount with a unit) instead of a tick-box. A habit's kind never changes later. */
+  measured?: boolean;
+  unit?: string;
+  /** Measured: the amount that counts as done. Empty = any amount counts. */
+  target?: number;
+}
 
 export const draftOf = (h: Habit): HabitDraft =>
-  ({ name: h.name, icon: h.icon, minLabel: h.minLabel ?? '', plan: h.plan ?? '', xp: h.xp, intrinsic: !!h.intrinsic });
+  ({ name: h.name, icon: h.icon, minLabel: h.minLabel ?? '', plan: h.plan ?? '', xp: h.xp, intrinsic: !!h.intrinsic, measured: h.kind === 'number', unit: h.unit ?? '', target: h.target });
 
 export const blankDraft = (): HabitDraft => ({ name: '', icon: 'star', minLabel: '', plan: '', xp: NEW_RITUAL_XP, intrinsic: false });
 
@@ -45,6 +79,8 @@ export function draftError(h: Pick<Habit, 'core' | 'kind' | 'key' | 'xp'>, d: Ha
   if (name.length > HABIT_NAME_MAX) return `Keep the name under ${HABIT_NAME_MAX} characters.`;
   if (d.minLabel.trim().length > HABIT_TEXT_MAX || d.plan.trim().length > HABIT_TEXT_MAX) return `Keep each line under ${HABIT_TEXT_MAX} characters.`;
   if (editableFields(h).xp && d.xp !== h.xp && !RITUAL_XP_CHOICES.includes(d.xp)) return 'Choose one of the XP values.';
+  if ((d.unit ?? '').trim().length > HABIT_UNIT_MAX) return `Keep the unit under ${HABIT_UNIT_MAX} characters.`;
+  if (d.target !== undefined && !(Number.isFinite(d.target) && d.target > 0)) return 'The target is a number above zero, or empty.';
   return null;
 }
 
@@ -63,13 +99,19 @@ export function habitChanges(h: Habit, d: HabitDraft): Partial<Habit> {
   if (can.minLabel) { const m = d.minLabel.trim() || undefined; if (m !== h.minLabel) next.minLabel = m; }
   if (can.xp && d.xp !== h.xp) next.xp = d.xp;
   if (can.intrinsic && d.intrinsic !== !!h.intrinsic) next.intrinsic = d.intrinsic || undefined;
+  if (can.measure) {
+    const unit = (d.unit ?? '').trim() || undefined;
+    if (unit !== h.unit) next.unit = unit;
+    if (d.target !== h.target) next.target = d.target;
+  }
   return next;
 }
 
-/** A new ritual from a draft: a tick-box habit, never core, placed after every existing habit. */
+/** A new ritual from a draft: a tick-box or a measured habit, never core, placed after every existing habit. */
 export function newHabit(id: string, d: HabitDraft, all: Pick<Habit, 'order'>[]): Habit {
   return {
-    id, key: customKey(id), name: d.name.trim(), icon: d.icon, kind: 'check',
+    id, key: customKey(id), name: d.name.trim(), icon: d.icon, kind: d.measured ? 'number' : 'check',
+    ...(d.measured ? { unit: (d.unit ?? '').trim() || undefined, target: d.target } : {}),
     xp: RITUAL_XP_CHOICES.includes(d.xp) ? d.xp : NEW_RITUAL_XP, core: false,
     intrinsic: d.intrinsic || undefined, minLabel: d.minLabel.trim() || undefined, plan: d.plan.trim() || undefined,
     order: all.reduce((m, h) => Math.max(m, h.order), -1) + 1, archived: false

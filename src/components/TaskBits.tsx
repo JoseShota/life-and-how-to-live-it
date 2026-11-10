@@ -9,9 +9,11 @@ import { completeTask, reopenTask, revoke } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
 import { DIFFICULTY_LABEL, TASK_XP } from '@/game/rules';
 import { cx, dateKey, uid } from '@/lib/util';
+import { QUICK_HINT, parseQuick, parseQuickLines, type QuickQuest } from '@/lib/quickAdd';
+import { useToast } from '@/lib/toast';
 import { Button, Chip, Input, Label, Modal, Select } from './ui';
 
-export function TaskRow({ task, area, compact }: { task: Task; area?: Area; compact?: boolean }) {
+export function TaskRow({ task, area, compact, hideToday }: { task: Task; area?: Area; compact?: boolean; hideToday?: boolean }) {
   const [edit, setEdit] = useState(false);
   const [popping, setPopping] = useState(false);
   const nav = useNavigate();
@@ -35,7 +37,7 @@ export function TaskRow({ task, area, compact }: { task: Task; area?: Area; comp
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           {area && !compact && <Chip color={area.color}><Glyph name={area.icon} size={13} stroke={2} />{area.short}</Chip>}
           <Chip color="#c7c2e3">+{TASK_XP[task.difficulty]} XP</Chip>
-          {task.priority === 1 && !done && <Chip color="#e3b9b2">Today</Chip>}
+          {task.priority === 1 && !done && !hideToday && <Chip color="#e3b9b2">Today</Chip>}
           {task.recurrence && <Chip color="#a6d9d1"><Glyph name="path" size={12} stroke={2} />{RECURRENCE_LABEL[task.recurrence.every]}</Chip>}
           {task.dueDate && <Chip color={overdue ? '#a8383a' : '#d4d9d6'}>{overdue ? 'Overdue ' : ''}{task.dueDate.slice(5)}</Chip>}
         </div>
@@ -120,5 +122,53 @@ export function TaskForm({ open, onClose, task, defaultAreaId, defaultPriority =
         </div>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Quick capture: type a pending thing, press Enter, keep typing. Marks are optional (src/lib/quickAdd.ts);
+ * pasting several lines adds one quest per line. What a mark leaves unsaid comes from where the line sits:
+ * the area being viewed or focused on, and that list's priority.
+ */
+export function QuickAdd({ areaId, priority = 2, placeholder = 'Add a quest, press Enter', onEmpty }: { areaId?: string; priority?: 1 | 2 | 3; placeholder?: string; /** The + button with nothing typed: open the full form. */ onEmpty?: () => void }) {
+  const toast = useToast();
+  const areas = useLiveQuery(() => db.areas.orderBy('order').filter(a => !a.archived).toArray(), [], []);
+  const [text, setText] = useState('');
+  const fallback = areaId ?? areas[0]?.id;
+  const add = async (quests: QuickQuest[]) => {
+    if (!quests.length || !fallback) return;
+    const now = Date.now();
+    await db.tasks.bulkAdd(quests.map((q, i) => ({
+      id: uid(), title: q.title, areaId: q.areaId ?? fallback, difficulty: q.difficulty ?? (2 as Difficulty), priority: q.priority ?? priority,
+      dueDate: q.dueDate, status: 'todo' as const, createdAt: now + i
+    })));
+    setText('');
+    if (quests.length > 1) toast(`${quests.length} quests added`, 'gold');
+  };
+  const preview = text.trim() ? parseQuick(text, areas, dateKey()) : null;
+  const area = areas.find(a => a.id === (preview?.areaId ?? fallback));
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex gap-2">
+        <Input value={text} aria-label="Quick add a quest" placeholder={placeholder} enterKeyHint="done" autoCapitalize="sentences"
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && preview) add([preview]); }}
+          onPaste={e => {
+            const pasted = e.clipboardData.getData('text');
+            if (!/\n/.test(pasted.trim())) return;
+            e.preventDefault();
+            add(parseQuickLines(pasted, areas, dateKey()));
+          }} />
+        <Button variant="ghost" className="!px-3" aria-label={preview || !onEmpty ? 'Add quest' : 'New quest: all the fields'} disabled={!preview && !onEmpty} onClick={() => (preview ? add([preview]) : onEmpty?.())}><Glyph name="plus" size={16} /></Button>
+      </div>
+      <div className="flex min-h-[20px] flex-wrap items-center gap-1.5 text-[11px] text-ink/55">
+        {preview ? (<>
+          {area && <Chip color={area.color}><Glyph name={area.icon} size={13} stroke={2} />{area.short}</Chip>}
+          {(preview.priority ?? priority) === 1 && <Chip color="#e3b9b2">Today</Chip>}
+          {preview.dueDate && <Chip>{preview.dueDate.slice(5)}</Chip>}
+          {preview.difficulty && <Chip color="#c7c2e3">{DIFFICULTY_LABEL[preview.difficulty]}</Chip>}
+        </>) : <span className="font-type">optional: {QUICK_HINT} · paste a list to add many</span>}
+      </div>
+    </div>
   );
 }

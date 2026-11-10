@@ -33,7 +33,7 @@ body { font-family: 'Courier Prime', ui-monospace, monospace; font-size: 15px; m
     linear-gradient(#d6dfdb 1px, transparent 1px) 0 0 / 46px 46px,
     linear-gradient(90deg, #d6dfdb 1px, transparent 1px) 0 0 / 46px 46px,
     linear-gradient(180deg, #eef2ee 0%, #e7ede9 55%, #dfe7e3 100%); }
-.thermae-arches { position: fixed; left: 0; right: 0; top: 150px; height: 420px; z-index: -3; pointer-events: none; opacity: .95; }
+.thermae-arches { position: fixed; left: 0; right: 0; top: 118px; z-index: -3; pointer-events: none; opacity: .95; }
 .thermae-floor { position: fixed; left: -40%; right: -40%; bottom: 9vh; height: 18vh; z-index: -3; pointer-events: none;
   background:
     linear-gradient(#cdd8d4 2px, transparent 2px) 0 0 / 70px 70px,
@@ -55,8 +55,6 @@ body { font-family: 'Courier Prime', ui-monospace, monospace; font-size: 15px; m
 .thermae-bust { position: fixed; right: max(1.5vw, calc(50% - 780px)); bottom: calc(10vh - 4px); width: clamp(120px, 15vw, 230px); z-index: -2; pointer-events: none;
   filter: drop-shadow(0 18px 18px rgba(43,52,55,.25)) saturate(.9); animation: float 11s ease-in-out infinite; }
 .thermae-plinth { position: fixed; right: max(1.5vw, calc(50% - 780px)); bottom: 10vh; width: clamp(120px, 15vw, 230px); height: 0; z-index: -2; pointer-events: none; }
-.wall-whisper { position: fixed; left: 50%; bottom: 23vh; transform: translateX(-50%); z-index: -2; pointer-events: none;
-  font-family: Cinzel, serif; letter-spacing: .5em; font-size: 13px; color: rgba(43,52,55,.18); white-space: nowrap; }
 @keyframes float { 50% { transform: translateY(-10px); } }
 .sparkle { position: fixed; z-index: -2; pointer-events: none; color: #fff; filter: drop-shadow(0 0 6px #fff); animation: twinkle 4s ease-in-out infinite; }
 @keyframes twinkle { 50% { opacity: .15; transform: scale(.7); } }
@@ -71,6 +69,7 @@ body { font-family: 'Courier Prime', ui-monospace, monospace; font-size: 15px; m
 .mac-close { position: absolute; left: 10px; width: 15px; height: 15px; background: #fbfaf6; border: 2px solid #2b3437; box-shadow: 0 0 0 2px #fbfaf6; }
 /* The close box stays 15 px to look right, but its tap area is 43 px (AGENTS.md: targets ≥ 40 px). */
 button.mac-close::after { content: ''; position: absolute; inset: -14px; }
+.mac-close-shut { background: #2b3437; }
 .mac-btn { border: 2px solid #2b3437; border-radius: 9px; background: #fbfaf6; box-shadow: 2px 2px 0 #2b3437; }
 .mac-btn:active:not(:disabled) { background: #2b3437 !important; color: #fbfaf6 !important; box-shadow: none; transform: translate(2px, 2px); }
 .mac-inset { border: 2px solid #2b3437; background: #fff; }

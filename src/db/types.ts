@@ -63,7 +63,7 @@ export interface Habit {
   /** Glyph name from src/components/glyphs.ts (was `emoji` before schema v2) */
   icon: string;
   kind: HabitKind;
-  /** For 'number' habits (e.g. sleep hours) or 'auto' (work hours) */
+  /** For 'number' habits (e.g. sleep hours) or 'auto' (work hours). A measured ritual without one counts from any amount. */
   target?: number;
   unit?: string;
   xp: number;
@@ -87,6 +87,8 @@ export interface HabitLog {
   done: boolean;
   /** Done in its minimum version: keeps the streak and counts for a Good Day, never a Perfect Day. */
   min?: boolean;
+  /** A free line about that day ("ran 5 km"). Optional, pays nothing. */
+  note?: string;
 }
 
 export interface Session {

@@ -29,7 +29,26 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'first-income', icon: 'drachma', name: 'Paid', description: 'Register income linked to an activity', xp: 50 }
 ];
 
-async function conditions(): Promise<Record<string, boolean>> {
+/** How far along one achievement is: `have` of `need`, in `unit` (shown in the Hall of Laurels). */
+export interface Progress { have: number; need: number; unit: string }
+
+/** The longest run of consecutive days in a set of date keys. */
+export function longestRun(days: Iterable<string>) {
+  let best = 0, run = 0, prev: Date | null = null;
+  for (const k of [...new Set(days)].sort()) {
+    const d = new Date(k + 'T12:00:00');
+    run = prev && Math.round((d.getTime() - prev.getTime()) / 864e5) === 1 ? run + 1 : 1;
+    prev = d;
+    best = Math.max(best, run);
+  }
+  return best;
+}
+
+/**
+ * Where every achievement stands, from the real data. An achievement is earned when `have >= need`; the same
+ * numbers feed the Hall of Laurels, so what it shows and what unlocks can never disagree.
+ */
+export async function achievementProgress(): Promise<Record<string, Progress>> {
   const doneTasks = await db.tasks.where('status').equals('done').count();
   const perfect = await db.xp.where('source').equals('perfect-day').count();
   const workdays = await db.xp.where('source').equals('workday').count();
@@ -43,34 +62,28 @@ async function conditions(): Promise<Record<string, boolean>> {
   const conversations = await db.pipelineEvents.where('kind').equals('conversation').count();
   const totalero = totaleroStreak(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray());
   const wake = await db.habits.where('key').equals('wake').first();
-  let early7 = false;
-  if (wake) {
-    const done = new Set((await db.habitLogs.where('habitId').equals(wake.id).toArray()).filter(l => l.done).map(l => l.date));
-    const days = [...done].sort();
-    let run = 0, prev: Date | null = null;
-    for (const k of days) {
-      const d = new Date(k + 'T12:00:00');
-      run = prev && Math.round((d.getTime() - prev.getTime()) / 864e5) === 1 ? run + 1 : 1;
-      prev = d;
-      if (run >= 7) { early7 = true; break; }
-    }
-  }
+  const wakeRun = wake ? longestRun((await db.habitLogs.where('habitId').equals(wake.id).toArray()).filter(l => l.done).map(l => l.date)) : 0;
   return {
-    'first-quest': doneTasks >= 1,
-    'quests-50': doneTasks >= 50,
-    'perfect-1': perfect >= 1,
-    'perfect-7': perfect >= 7,
-    'early-7': early7,
-    'deep-100': minutes >= 6000,
-    'workday-5': workdays >= 5,
-    'good-30': goodDays >= 30,
-    'week-1': weeks >= 1,
-    'ledger-30': txs >= 30,
-    'totalero-3': totalero >= 3,
-    'first-income': income >= 1,
-    rainmaker: retainerWon >= 1,
-    'conversations-20': conversations >= 20
+    'first-quest': { have: doneTasks, need: 1, unit: 'quest' },
+    'quests-50': { have: doneTasks, need: 50, unit: 'quests' },
+    'perfect-1': { have: perfect, need: 1, unit: 'perfect day' },
+    'perfect-7': { have: perfect, need: 7, unit: 'perfect days' },
+    'early-7': { have: wakeRun, need: 7, unit: 'days in a row (best run)' },
+    'deep-100': { have: Math.floor(minutes / 60), need: 100, unit: 'hours' },
+    'workday-5': { have: workdays, need: 5, unit: 'full workdays' },
+    'good-30': { have: goodDays, need: 30, unit: 'good or perfect days' },
+    'week-1': { have: weeks, need: 1, unit: 'scorecard' },
+    'ledger-30': { have: txs, need: 30, unit: 'transactions' },
+    'totalero-3': { have: totalero, need: 3, unit: 'statements in a row' },
+    'first-income': { have: income, need: 1, unit: 'income' },
+    rainmaker: { have: retainerWon, need: 1, unit: 'retainer' },
+    'conversations-20': { have: conversations, need: 20, unit: 'conversations' }
   };
+}
+
+async function conditions(): Promise<Record<string, boolean>> {
+  const p = await achievementProgress();
+  return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, v.have >= v.need]));
 }
 
 /** Highest wealth level reached (milestones live in the ledger as `wl:<n>` and are never taken back). */

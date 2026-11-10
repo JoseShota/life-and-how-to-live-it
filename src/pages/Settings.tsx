@@ -15,6 +15,7 @@ import { TaxSettings } from '@/components/TaxBits';
 import { SyncCard } from '@/components/SyncCard';
 import { HabitsCard } from '@/components/HabitBits';
 import { SeasonCard } from '@/components/SeasonBits';
+import { DEFAULT_INSCRIPTIONS } from '@/components/Layout';
 import { Button, Card, Input, Label, Modal, PageTitle, Select } from '@/components/ui';
 
 export default function SettingsPage() {
@@ -44,7 +45,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <PageTitle jp="設定" plain="settings" sub="the machinery behind the dream">Control Panel</PageTitle>
+      <PageTitle jp="設定" plain="settings" sub="settings, data, sync">Control Panel</PageTitle>
       <Card title="The Player">
         <div className="grid gap-3 sm:grid-cols-2">
           <Label text="Name"><Input value={name} onChange={e => setSetting('playerName', e.target.value)} /></Label>
@@ -81,8 +82,9 @@ export default function SettingsPage() {
       <Card title="Display">
         <label className="flex min-h-[40px] cursor-pointer items-center gap-3 text-sm">
           <input type="checkbox" className="h-5 w-5" checked={showMarquee} onChange={e => setSetting('showMarquee', e.target.checked)} />
-          Show the maxims ticker under the header (it also stops when the device asks for reduced motion)
+          Show the ticker under the header (it also stops when the device asks for reduced motion)
         </label>
+        <Inscriptions />
       </Card>
 
       <Card title="Areas · weekly hour targets">
@@ -136,5 +138,27 @@ export default function SettingsPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/** The ticker's lines are the user's own: one per line. Empty brings back the rules from the plan. */
+function Inscriptions() {
+  const row = useLiveQuery(async () => (await db.settings.get('inscriptions')) ?? null);
+  const [text, setText] = useState<string | null>(null);
+  if (row === undefined) return null;
+  const saved = ((row?.value as string[] | undefined) ?? []).join('\n');
+  const save = () => {
+    if (text === null) return;
+    const lines = text.split('\n').map(l => l.trim().slice(0, 80)).filter(Boolean).slice(0, 24);
+    if (lines.join('\n') !== saved) setSetting('inscriptions', lines);
+    setText(null);
+  };
+  return (
+    <label className="mt-2 flex flex-col gap-1 font-display text-[13px] text-lav">
+      Your lines on the ticker, one per line
+      <textarea rows={5} value={text ?? saved} onChange={e => setText(e.target.value)} onBlur={save} placeholder={DEFAULT_INSCRIPTIONS.join('\n')}
+        className="mac-inset w-full bg-white p-3 font-sans text-sm text-ink outline-none placeholder:text-ink/35" />
+      <span className="font-sans text-xs text-ink/60">Rules, lyrics, a sentence you wrote. Saved when you leave the box, on both devices. Empty shows the rules from your plan.</span>
+    </label>
   );
 }

@@ -8,6 +8,7 @@ import { useToast } from '@/lib/toast';
 import { useNow, useToday, useWorkTargets } from '@/lib/hooks';
 import { hm } from '@/lib/util';
 import { Button, Card, Ring, Select, Label, Input, Modal, Empty, PageTitle } from '@/components/ui';
+import { QuickAdd, TaskRow } from '@/components/TaskBits';
 
 export interface ActiveTimer { areaId: string; taskId?: string; start: number }
 
@@ -19,7 +20,7 @@ export default function Focus() {
   const [areaId, setAreaId] = useState<string>('');
   const [taskId, setTaskId] = useState<string>('');
   const [manual, setManual] = useState(false);
-  const selArea = active?.areaId ?? areaId ?? areas[0]?.id;
+  const selArea = active?.areaId ?? (areaId || areas[0]?.id);
   const tasks = useLiveQuery(() => (selArea ? db.tasks.where('areaId').equals(selArea).filter(t => t.status !== 'done').toArray() : []), [selArea], []);
   const sessions = useLiveQuery(() => db.sessions.where('date').equals(today).reverse().sortBy('start'), [today], []);
   const { today: targets } = useWorkTargets(today);
@@ -60,7 +61,7 @@ export default function Focus() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle jp="集中" plain="timer" sub="fifty-minute sprints. the mind like a jazz solo, held.">Focus</PageTitle>
+      <PageTitle jp="集中" plain="timer" sub="fifty-minute sprints.">Focus</PageTitle>
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <Card title="Focus Timer" className="[&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child]:items-center [&>div:last-child]:gap-5 [&>div:last-child]:py-8">
           <Ring value={active ? (elapsed % block) / block : 0} size={250} stroke={14} color={area?.color ?? '#e3b9b2'}>
@@ -95,9 +96,9 @@ export default function Focus() {
           )}
         </Card>
 
-        <Card title={`Sessions · ${hm(total)} · ${targets.done}h done · ${targets.full}h full`} action={<Button variant="ghost" className="!px-3" onClick={() => setManual(true)}><Glyph name="plus" size={16}/>Log time</Button>}>
+        <Card id="Sessions" title={`Sessions · ${hm(total)} · ${targets.done}h done · ${targets.full}h full`} action={<Button variant="ghost" className="!px-3" onClick={() => setManual(true)}><Glyph name="plus" size={16}/>Log time</Button>}>
           <div className="flex flex-col gap-2">
-            {sessions.length === 0 ? <Empty>No focus logged yet. The first sprint is the hardest — start a 50-minute one.</Empty> :
+            {sessions.length === 0 ? <Empty>No focus logged today.</Empty> :
               sessions.map(s => {
                 const a = areas.find(x => x.id === s.areaId);
                 return (
@@ -112,6 +113,16 @@ export default function Focus() {
           </div>
         </Card>
       </div>
+
+      {/* What is still open in the area you're working on: capture the next thing without leaving the timer. */}
+      {area && (
+        <Card id="Open here" title={`Open in ${area.short}`}>
+          <div className="flex flex-col gap-2">
+            <QuickAdd areaId={area.id} placeholder={`Something pending in ${area.short}, press Enter`} />
+            {[...tasks].sort((a, b) => a.priority - b.priority || (a.dueDate ?? 'z').localeCompare(b.dueDate ?? 'z')).map(t => <TaskRow key={t.id} task={t} compact />)}
+          </div>
+        </Card>
+      )}
       <ManualSession open={manual} onClose={() => setManual(false)} />
     </div>
   );

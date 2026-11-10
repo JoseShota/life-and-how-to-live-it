@@ -1,21 +1,42 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { cx } from '@/lib/util';
-import { Glyph } from './Glyph';
 
-/** Macintosh System 6 window. With `title`: pinstriped title bar + close box. Without: plain 1-bit panel. */
-export function Card({ children, className, title, action }: { children: ReactNode; className?: string; title?: ReactNode; action?: ReactNode }) {
+/** Which windows are rolled up, per device (a view preference: not synced, not in backups). */
+const SHADE_KEY = 'shade';
+function readShades(): Record<string, boolean> {
+  try { return JSON.parse(localStorage.getItem(SHADE_KEY) ?? '{}') as Record<string, boolean>; } catch { return {}; }
+}
+function useShade(id: string | undefined, defaultShut: boolean) {
+  const [shut, setShut] = useState(() => (id ? readShades()[id] ?? defaultShut : false));
+  const toggle = () => setShut(v => {
+    if (id) { try { localStorage.setItem(SHADE_KEY, JSON.stringify({ ...readShades(), [id]: !v })); } catch { /* private mode: the choice lasts until reload */ } }
+    return !v;
+  });
+  return [shut, toggle] as const;
+}
+
+/**
+ * Macintosh System 6 window. With `title`: pinstriped title bar + close box. Without: plain 1-bit panel.
+ * A titled window rolls up to its title bar when the bar is tapped (WindowShade), so the room shows through;
+ * the choice is kept on this device under `id` (the title, when it is plain text).
+ */
+export function Card({ children, className, title, action, id, defaultShut = false }: { children: ReactNode; className?: string; title?: ReactNode; action?: ReactNode; id?: string; defaultShut?: boolean }) {
   const padded = !className?.includes('!p-');
+  const shadeId = id ?? (typeof title === 'string' ? title : undefined);
+  const [shut, toggle] = useShade(title ? shadeId : undefined, defaultShut);
   return (
-    <section className={cx('mac-window min-w-0', className)}>
+    <section className={cx('mac-window min-w-0', shut && 'self-start', className)}>
       {title && (
-        <header className="mac-titlebar">
-          <span className="mac-close" aria-hidden />
+        <header className={cx('mac-titlebar', shut && '!border-b-0')}>
+          <span className={cx('mac-close', shut && 'mac-close-shut')} aria-hidden />
           <h2 className="mac-title">{title}</h2>
+          {/* The whole bar is the control: 26 px tall to look right, 40 px to tap. */}
+          {shadeId && <button type="button" onClick={toggle} aria-expanded={!shut} aria-label={`${shadeId}: ${shut ? 'open' : 'roll up'}`} title={shut ? 'Open' : 'Roll up'} className="absolute inset-x-0 -inset-y-[7px] cursor-pointer" />}
         </header>
       )}
-      {action && <div className="flex justify-end border-b-2 border-line bg-panel2 px-3 py-1.5">{action}</div>}
-      <div className={cx(padded && 'p-3 sm:p-4')}>{children}</div>
+      {!shut && action && <div className="flex justify-end border-b-2 border-line bg-panel2 px-3 py-1.5">{action}</div>}
+      {!shut && <div className={cx(padded && 'p-3 sm:p-4')}>{children}</div>}
     </section>
   );
 }
@@ -87,10 +108,9 @@ export const Chip = ({ children, color }: { children: ReactNode; color?: string 
   <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink px-2 text-[12px] font-bold leading-[18px]" style={{ background: (color ?? '#d4d9d6') + '66' }}>{children}</span>
 );
 
-/** Dreamcore empty state: a familiar, empty room. */
+/** Empty state: one plain line saying what is missing. */
 export const Empty = ({ children }: { children: ReactNode }) => (
   <div className="mac-inset border-dashed bg-panel2/60 p-4 text-center">
-    <div className="mb-1 flex items-center justify-center gap-2 font-type text-[15px] text-lav"><Glyph name="sparkle" size={12} />this room is empty. it feels familiar.<Glyph name="sparkle" size={12} /></div>
     <p className="text-sm text-ink/70">{children}</p>
   </div>
 );

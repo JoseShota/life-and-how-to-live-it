@@ -103,7 +103,7 @@ export default function Money() {
       </div>
 
       <Card title="The Ledger">
-        {txs.length === 0 ? <Empty>Log every peso for 30 days — it unlocks “Bookkeeper” and gives the wealth engine real data.</Empty> : (
+        {txs.length === 0 ? <Empty>Nothing logged yet. The wealth engine needs every peso to rank your hours.</Empty> : (
           <ul className="divide-y divide-line">
             {txs.slice(0, 30).map(t => {
               const acc = accounts.find(a => a.id === t.accountId);

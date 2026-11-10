@@ -13,6 +13,7 @@ import {
   REVIEW_XP, reviewComplete, reviewWeekFor, withTargetDefaults, teachingStatusChanged, type WorkTargets, type TeachingSchedule
 } from './rules';
 import { checkAchievements } from './achievements';
+import { HABIT_NOTE_MAX, habitDone } from './habitEdit';
 
 /** One ledger row per refId, and its id IS the refId (v13), so two devices awarding the same thing can't double it. */
 export async function award(source: XpSource, refId: string, xp: number, label: string, coins = coinsFor(xp), date = dateKey()) {
@@ -123,10 +124,21 @@ export async function habitStreak(habitId: string, upTo: string = dateKey()): Pr
 }
 
 /** Checks a habit for `date`. `min` = done in its minimum version: keeps the streak, half XP, counts for a Good Day only. */
-export async function setHabit(habit: Habit, date: string, value: number, min = false) {
-  const done = habit.kind === 'check' ? value >= 1 : value >= (habit.target ?? 1);
+/** A free line about a habit on a day ("ran 5 km", "woke twice"). No XP: it is a record, not a score. */
+export async function setHabitNote(habit: Habit, date: string, text: string) {
   const id = `${habit.id}:${date}`;
-  await db.habitLogs.put({ id, habitId: habit.id, date, value, done: done || min, min: min && !done ? true : undefined });
+  const note = text.trim().slice(0, HABIT_NOTE_MAX) || undefined;
+  const log = await db.habitLogs.get(id);
+  if (log) { if (log.note !== note) await db.habitLogs.put({ ...log, note }); }
+  else if (note) await db.habitLogs.put({ id, habitId: habit.id, date, value: 0, done: false, note });
+}
+
+export async function setHabit(habit: Habit, date: string, value: number, min = false) {
+  const done = habitDone(habit, value);
+  const id = `${habit.id}:${date}`;
+  // The day's note belongs to the day, not to the value: re-logging keeps it.
+  const note = (await db.habitLogs.get(id))?.note;
+  await db.habitLogs.put({ id, habitId: habit.id, date, value, done: done || min, min: min && !done ? true : undefined, ...(note ? { note } : {}) });
   const ref = `habit:${id}`;
   await revoke(ref);
   if (done || min) {
@@ -205,7 +217,8 @@ export async function evaluateDay(date: string = dateKey()) {
     const id = `${workHabit.id}:${date}`;
     const full = hours >= targets.done;
     const min = !full && hours >= WORK_MIN_HOURS; // the deep-work minimum version keeps the streak
-    await db.habitLogs.put({ id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done: full || min, min: min || undefined });
+    const note = (await db.habitLogs.get(id))?.note;
+    await db.habitLogs.put({ id, habitId: workHabit.id, date, value: Math.round(hours * 100) / 100, done: full || min, min: min || undefined, ...(note ? { note } : {}) });
     const streak = full || min ? await habitStreak(workHabit.id, date) : 0;
     const xp = Math.round(workHabit.xp * streakMultiplier(streak) * (full ? 1 : MIN_VERSION_SHARE));
     await syncAward('habit', `habit:${id}`, full || min ? xp : null, `Deep work ${hours.toFixed(1)} h${min ? ' (min)' : ''}`, coinsFor(xp), date);
