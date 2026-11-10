@@ -46,10 +46,13 @@ The user's notes: too much on screen, logging too rigid, pendings slow to add, r
 | Q-1 🟡 | **Quick capture** | One line + Enter adds a quest on Today, Quests and Focus; optional marks `#area !today >fri *hard`; a pasted list adds one quest per line; Focus lists what is open in the area being worked on. `src/lib/quickAdd.ts`, tests | Done |
 | F-1 🟡 | **Flexible logging** | Any amount on measured habits; measured rituals with a unit and optional bar; a free note per habit per day. Tests | Done |
 | A-1 🟢 | **Laurel progress** | Every achievement shows have/need from the numbers that unlock it | Done |
-| A-2 🔴 | **Laurels and rewards that mean something** (economy: needs the user's answers and an approved plan) | Laurels in tiers along the plan's four roads (body, craft, treasury, engine); rewards the user names for real milestones (first retainer, 1-month shield), unlocked by the milestone and not only by coins | Proposed |
-| Q-2 🟡 | **Steps inside a quest** (P1-2) and **an inbox** | `checklist` on Task; uncategorised captures land in an inbox to sort at shutdown | Proposed |
-| L-1 🟡 | **The day's log** | Free lines about the day, not tied to a habit, shown on The Scroll (a new synced table: Dexie v14) | Proposed |
-| W-1b 🟢 | **joseshota.net** | A link in the menu; the Website area shows the site's last update against the plan's "1 case study / 2 weeks" | Proposed |
+| A-2 🔴 | **Laurels and rewards that mean something** (approved 2026-11-10) | 34 laurels in tiers along four roads (body, craft, treasury, engine); Money at Work; Steady Income = a job or a retainer (the boss too); promises: rewards for a milestone, claimed once, no coins. `04-GAME-DESIGN.md` → Laurels | Done |
+| Q-2 🟡 | **Steps inside a quest** (P1-2) and **an inbox** | `checklist` on Task, ticked from the row; captures with no area land in the Inbox on Quests, filed with one tap | Done |
+| L-1 🟡 | **The day's log** | Free lines about the day on The Scroll (table `notes`, Dexie v14, migration test) | Done |
+| P5-1 🔴 | **Statement import** (CSV) | Treasury → The Ledger → Import a statement: columns detected from the header (Spanish or English), every row shown, already-logged rows and card payments left out by default, category remembered by description, no XP. `src/finance/importCsv.ts`, tests. Not tested against a real Banorte file yet | Done (PDF not built) |
+| P5-7 🟢 | **Invoices** | Treasury → Invoices: what you are owed, due dates, "Paid" opens the income form and links the deposit (table `invoices`, Dexie v14) | Done |
+| P4-1 🔴 | **Reminders** (Web Push) | Needs VAPID keys and a scheduled function in the user's Supabase project, and a privacy decision (what a notification may say). Not started | Waiting on the user |
+| W-1b 🟢 | **joseshota.net** | A link in the menu (Control → Display → Your site). The pipeline says how long since the last case study against the plan's one every two weeks. The two stay separate in voice and look (the user, 2026-11-10) | Done |
 
 ## Phase 2 — Cloud sync between tablet and laptop (plan approved 2026-11-07)
 End-to-end encrypted sync through the user's own Supabase project: the server stores only ciphertext under opaque ids. Design in `02-ARCHITECTURE.md` ("Sync design"); handoff in `docs/handoffs/2026-11-07-sync.md`. One commit per ticket.

@@ -7,7 +7,7 @@ import { db, setSetting } from '@/db/db';
 import type { Task } from '@/db/types';
 import { REVIEW_XP, reviewWeekFor } from '@/game/rules';
 import { getTaxProfile } from '@/game/engine';
-import { loadWealthSnapshot } from '@/game/achievements';
+import { isSteady, loadWealthSnapshot } from '@/game/achievements';
 import { monthTotals } from '@/finance/finance';
 import { monthTax, monthlyDueDate } from '@/finance/tax';
 import {
@@ -69,7 +69,7 @@ function BossPanel({ today, start }: { today: string; start: string }) {
       db.xp.where('date').between(start, today, true, true).filter(e => e.source === 'good-day' || e.source === 'perfect-day').toArray()
     ]);
     return bossProgress({
-      today, start, wonRetainers: opps.filter(o => o.kind === 'retainer' && o.status === 'won').length,
+      today, start, wonRetainers: opps.filter(o => isSteady(o) && o.status === 'won').length,
       shieldMonths: snap.shieldMonths, spending: snap.spending, goodDates: good.map(e => e.date)
     });
   }, [today, start]);

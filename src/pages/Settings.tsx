@@ -85,6 +85,7 @@ export default function SettingsPage() {
           Show the ticker under the header (it also stops when the device asks for reduced motion)
         </label>
         <Inscriptions />
+        <SiteLink />
       </Card>
 
       <Card title="Areas · weekly hour targets">
@@ -159,6 +160,23 @@ function Inscriptions() {
       <textarea rows={5} value={text ?? saved} onChange={e => setText(e.target.value)} onBlur={save} placeholder={DEFAULT_INSCRIPTIONS.join('\n')}
         className="mac-inset w-full bg-white p-3 font-sans text-sm text-ink outline-none placeholder:text-ink/35" />
       <span className="font-sans text-xs text-ink/60">Rules, lyrics, a sentence you wrote. Saved when you leave the box, on both devices. Empty shows the rules from your plan.</span>
+    </label>
+  );
+}
+
+/** The user's own site: a link in the menu. The two stay separate in voice and look; this is only a door. */
+function SiteLink() {
+  const row = useLiveQuery(async () => (await db.settings.get('site')) ?? null);
+  if (row === undefined) return null;
+  const save = (v: string) => {
+    const t = v.trim();
+    const url = t && !/^https?:\/\//i.test(t) ? `https://${t}` : t;
+    if (url !== ((row?.value as string | undefined) ?? '')) setSetting('site', url);
+  };
+  return (
+    <label className="mt-3 flex flex-col gap-1 font-display text-[13px] text-lav">
+      Your site (a link in the menu)
+      <Input type="url" inputMode="url" autoCapitalize="none" defaultValue={(row?.value as string | undefined) ?? ''} placeholder="www.joseshota.net" onBlur={e => save(e.target.value)} />
     </label>
   );
 }

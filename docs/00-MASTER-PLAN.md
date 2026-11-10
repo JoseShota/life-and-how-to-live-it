@@ -208,7 +208,7 @@ A steady job **doesn't kill the plan, it funds it**. The stable salary fills the
 | 5–8 | **Pipeline**: 5 conversations/week, 1 automation case study/2 weeks; December decisions | ≥ 1 paid automation project |
 | 9–12 | **Retainers + review**: convert 1–2 clients to monthly; Season review; set Season 2 | ≥ 1 retainer; 1-month shield full |
 
-**Season 1 "boss fight":** *First retainer client + 1-month emergency fund + 30-day Good-or-Perfect rate ≥ 60 % (a Good Day or a Perfect Day; changed 2026-11-09, because a Perfect Day is a rare stretch by design).*
+**Season 1 "boss fight":** *Steady income (a job, or a first retainer client; changed 2026-11-10: the user wants steady income first, from a job or from freelance in any of their fields) + 1-month emergency fund + 30-day Good-or-Perfect rate ≥ 60 % (a Good Day or a Perfect Day; changed 2026-11-09, because a Perfect Day is a rare stretch by design).*
 
 ---
 

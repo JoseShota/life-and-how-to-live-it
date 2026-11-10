@@ -41,7 +41,13 @@ export interface Task {
   recurrence?: Recurrence;
   /** v11: written and kept current by the app (the tax estimate). Read-only in the UI, so `notes` stay yours. */
   autoNotes?: string;
+  /** Q-2: steps inside the quest. They pay nothing: the quest pays when it is completed. */
+  checklist?: ChecklistItem[];
+  /** Q-2: captured without saying where it belongs. It sits in the inbox until it is given an area. */
+  unsorted?: boolean;
 }
+
+export interface ChecklistItem { id: ID; text: string; done: boolean }
 
 /** v9 (P1-1): how a quest repeats. Every instance of a series carries the same `series` id. */
 export interface Recurrence {
@@ -256,6 +262,37 @@ export interface Reward {
   icon: string;
   cost: number;
   archived: boolean;
+  /**
+   * A-2: a promise to yourself for a real milestone. Holds an achievement key (or `wl:<n>` for a wealth level):
+   * the reward opens when that is reached, costs no coins and is claimed once.
+   */
+  unlockKey?: string;
+}
+
+/** v14 (L-1): a free line about a day, not tied to any habit. Shown on The Scroll. Pays nothing. */
+export interface DayNote {
+  id: ID;
+  date: DateKey;
+  ts: number;
+  text: string;
+}
+
+/**
+ * v14 (P5-7): money you are owed for work. Open until `paidDate`; the income itself is logged in the ledger
+ * (with its tax fields) and linked by `txId`.
+ */
+export interface Invoice {
+  id: ID;
+  client: string;
+  concept?: string;
+  areaId?: ID;
+  /** What should land in the account, MXN */
+  amount: number;
+  issuedDate: DateKey;
+  dueDate?: DateKey;
+  paidDate?: DateKey;
+  txId?: ID;
+  createdAt: number;
 }
 
 export type XpSource =

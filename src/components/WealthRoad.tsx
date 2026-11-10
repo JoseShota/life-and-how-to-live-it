@@ -4,19 +4,20 @@ import { db, setSetting } from '@/db/db';
 import { BUCKET_ACCOUNTS } from '@/db/seed';
 import { loadWealthSnapshot, wealthLevelReached, checkAchievements } from '@/game/achievements';
 import { WEALTH_LEVELS, investShare } from '@/finance/wealth';
-import { cx, mxn, uid } from '@/lib/util';
+import { cx, dateKey, mxn, uid } from '@/lib/util';
+import { moneyIncome } from '@/finance/finance';
 import { Bar, Button, Card, Input, Label } from './ui';
 import { Glyph } from './Glyph';
 
 /** The plan's phases as levels: what you've reached, what the next one needs, and what it unlocks. */
 export function WealthRoad() {
   const accounts = useLiveQuery(() => db.accounts.toArray(), [], []);
-  const data = useLiveQuery(async () => ({ snap: await loadWealthSnapshot(), reached: await wealthLevelReached() }),
+  const data = useLiveQuery(async () => ({ snap: await loadWealthSnapshot(), reached: await wealthLevelReached(), money: moneyIncome(await db.transactions.toArray(), dateKey()) }),
     [accounts], undefined);
   const estimate = useLiveQuery(() => db.settings.get('spendingEstimate'))?.value as number | undefined;
   const [est, setEst] = useState('');
   if (!data) return null;
-  const { snap, reached } = data;
+  const { snap, reached, money } = data;
   const next = WEALTH_LEVELS[reached];
   const share = investShare(reached, snap.shieldMonths);
   const missing = BUCKET_ACCOUNTS.filter(b => !accounts.some(a => a.role === b.role && !a.archived));
@@ -53,6 +54,15 @@ export function WealthRoad() {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="mac-inset bg-white p-2"><div className="text-[11px] text-lav">Shield (emergency fund)</div><div className="font-display text-xl">{mxn(snap.shield)}</div></div>
           <div className="mac-inset bg-white p-2"><div className="text-[11px] text-lav">Invested</div><div className="font-display text-xl">{mxn(snap.invested)}</div></div>
+        </div>
+        {/* The far end of the road, in the user's words: income made by money, not by work. */}
+        <div className="mac-inset bg-white p-2 text-sm">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11px] text-lav">Money at work · what your money earns a month (last 90 days)</span>
+            <span className="font-display text-xl">{mxn(money.monthly)}</span>
+          </div>
+          <Bar value={snap.spending ? money.monthly / snap.spending : 0} height="h-2" className="mt-1" />
+          <div className="mt-0.5 text-[11px] text-ink/60">{snap.spending ? `${((money.monthly / snap.spending) * 100).toFixed(1)} % of a month of your spending (${mxn(snap.spending)}). At 100 % your money pays for your life.` : 'Needs a month of logged spending, or a spending estimate.'} Log it as income, category Interest or Investment returns.</div>
         </div>
         {snap.spendingMonths === 0 && (
           <div className="flex items-end gap-2">

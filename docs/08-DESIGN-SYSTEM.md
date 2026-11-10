@@ -7,7 +7,7 @@ Nostalgic · liminal · dreamcore · Greek. Quiet, never loud.
 | Ingredient | What we take | Where it lives |
 |---|---|---|
 | **Liminal space** | Tiled walls with grout lines, soft overhead light, vignette, haze, a still pool with slow caustics, an empty floor. Nobody is here | `.thermae-wall`, `.thermae-floor`, `.thermae-pool`, `.thermae-haze` |
-| **Greek / classical** | A Doric colonnade in front of arches (see "The colonnade"), a real marble head (natural photo, no filter), Cinzel inscriptions, Greek-key bands, Delphic maxims, Roman-numeral levels, classical ranks, drachmae, the Agora, the Hall of Laurels | `Colonnade` in `Layout.tsx`, `.thermae-bust`, `.inscription`, `.marble-text`, `.meander` |
+| **Greek / classical** | A Doric colonnade in front of arches (see "The colonnade"), a real marble head (natural photo, no filter), Cinzel inscriptions, Greek-key bands, Delphic maxims, Roman-numeral levels, classical ranks, drachmae, the Agora, the Hall of Laurels | `Colonnade.tsx`, `.thermae-bust`, `.inscription`, `.marble-text`, `.meander` |
 | **Dreamcore** | Arches open to a pale dream sky with soft clouds, drifting sparkles. The room carries the mood; the words don't have to | `#dreamsky` pattern, `.sparkle` |
 | **Macintosh System 6** | Pinstriped title bars, close box, Chicago font, rounded-rect buttons with a hard shadow, menu bar | `.mac-*`, `MenuBar`, `Card`, `Modal` |
 | **Beat Generation** | Courier Prime / Special Elite type, The Scroll (continuous paper), the Cut-Up poem | `.scroll-paper`, `font-type`, `src/lib/cutup.ts` |
@@ -65,11 +65,11 @@ Slow and ambient only: the pool caustics (14 s), the bust floating (11 s), spark
 - **Sync status (P2)** is one 40 px square next to the drachmae, only on a device that syncs: `cloudCheck` (teal) when synced, `cloud` when changes wait or while syncing (a slow pulse, none under reduced motion), `cloudOff` when offline, `cloudAlert` (rose `hp`) when it needs the user. Its label says what to do; tapping it opens Control → Sync.
 
 ## The colonnade
-`Colonnade` in `Layout.tsx` draws the far wall the way Doric columns are built, so it reads as stone and not as a diagram:
+`Colonnade.tsx` (its own chunk: the tiled wall paints first, the columns a moment later) draws the far wall the way Doric columns are built, so it reads as stone and not as a diagram:
 - **Shaft:** narrows upward with a slight swell (entasis); a left-lit marble gradient; twenty flutes, of which the facing ones are drawn, bunching toward the edges as they turn away, each dark on its left wall and lit on its right; drum joints; faint veining (`#vein`, on the shafts only).
 - **Capital:** necking rings, the cushion (echinus), the square slab (abacus). No base: Doric columns stand on the step.
 - **Above:** architrave, a frieze with a triglyph over each column and each bay, cornice.
-- **It stands on the floor on every screen.** The wall's height is measured from the viewport (`floorTop()` mirrors `.thermae-floor`; change them together). A taller screen gets larger columns, up to 1.4 times, then taller shafts.
+- **It stands on the floor on every screen.** The wall's height is measured from the viewport (`floorTop()` in `Colonnade.tsx` mirrors `.thermae-floor`; change them together). A taller screen gets larger columns, up to 1.4 times, then taller shafts.
 - Light comes from the upper left everywhere (the bust, the column shadows on the wall, the arch reveals). Keep it that way when adding to the room.
 
 ## Room to breathe

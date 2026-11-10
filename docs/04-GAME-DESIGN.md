@@ -75,6 +75,10 @@ A **teaching day** is one of the teaching schedule's weekdays inside its semeste
 
 **Weekly review (P1-4).** It covers the same Mon–Sun week as the scorecard: on Sunday the week ending today, on any other day the last finished week (so you have until Saturday). Incentive design: 50 XP is a third of the scorecard on purpose (the week's outcome is worth more than planning it) and pays only for a real review (3 wins written, 3 quests chosen). Old weeks can be saved and edited but never pay, so there's no backfilling. Deleting a review, or emptying it, takes the XP back.
 
+**Steps and the inbox (Q-2).** A quest can hold steps (`checklist`). They pay nothing; the quest pays when it is completed, steps or not. A repeating quest takes its steps to the next instance, unticked. A quest captured with no area said and none implied by the screen is `unsorted`: it sits in the Inbox on Quests until one tap files it under an area (or it is saved from the form).
+
+**The day's log (L-1).** A free line about the day, written on The Scroll, shown in order with what the app recorded. Table `notes`. It pays nothing.
+
 **Repeating quests (P1-1).** A quest can repeat every day, week or month (Quest form, "Repeats"). Completing it creates the next instance, due one period after the current due date; missed periods are skipped so the next one isn't born overdue. Each instance is a normal quest and pays its own XP. Reopening removes the next instance if it's untouched. The RESICO monthly declaration is a monthly series that never skips a month (every month must be filed); its estimate refreshes from the ledger each time the app opens while the quest is open. The estimate is shown read-only in the quest form; your own notes sit below it and are never overwritten.
 
 ## Levels
@@ -99,12 +103,23 @@ Level 50 ≈ 100 perfect days, about a year of real consistency. That's on purpo
 - Achievements are re-locked, and their XP revoked, when what earned them is undone.
 - Wealth-goal progress pays once per goal per month.
 
-## Achievements (MVP)
-First Blood, Questmaster (50 quests), Perfect Day, Perfect Week (7 total), Dawn Patrol (7-day wake streak), Centurion (100 h focus), Grinder (5 full workdays), Steady Hand (30 Good or Perfect days), Scorecard (first weekly scorecard), Totalero (3 statements in a row paid in full on time), Rainmaker (first retainer won), Agora Regular (20 conversations), Bookkeeper (30 transactions), Paid (income linked to an activity).
+## Laurels (A-2, approved 2026-11-10)
+The laurels follow four roads, named after what the user said they are after. `ACHIEVEMENTS` and `ROADS` in `src/game/achievements.ts`; the same `achievementProgress()` numbers unlock a laurel and draw its bar. The Hall shows, per road, what is won and the three nearest; "Show all" opens the rest.
 
-**Progress (A-1, 2026-11-10).** Every unearned laurel shows how far along it is ("12 of 50 quests"), from `achievementProgress()`: the same numbers that unlock it. Won laurels come first, then the rest by how close they are. Display only: no XP changed.
+| Road | Aim (the user's words) | Laurels (XP) |
+|---|---|---|
+| **The Body** | exercise every day, up early without a fight, eat well | Iron Body I/II/III: exercise 7 / 30 / 100 days in a row (100 / 250 / 500). Dawn Patrol I/II/III: up on time 7 / 21 / 66 days in a row (150 / 250 / 500). The Table I/II/III: eat well 7 / 30 / 100 days in a row (75 / 200 / 400). Night Owl Reformed: 21 nights of 7.5 h in a row (250) |
+| **The Craft** | deep work, finished quests, days that hold | First Blood (25), Questmaster I/II: 50 / 200 quests (250 / 400), Perfect Day (50), Perfect Week (300), Centurion I/II: 100 / 500 focus hours (500 / 500), Grinder (200), Steady Hand I/II: 30 / 100 Good-or-Perfect days (250 / 500), Scorecard I/II: 1 / 8 weekly scorecards (100 / 300) |
+| **The Treasury** | income made by your money, not your hours | Bookkeeper (100), Totalero (150), Money at Work I: the first income your money made (100), II / III / IV: your money earns 1 % / 10 % / 100 % of a month of your spending (200 / 400 / 500) |
+| **The Engine** | steady income: a job, or freelance across your fields | Paid (50), Three Fields: paid in 3 areas (200), Agora Regular: 20 conversations (150), Five Offers: 5 proposals (150), Proof: 3 case studies (200), Steady Income: a job or a retainer won (500; key `rainmaker`) |
 
-**To add (P1/P4):** Iron Body (30-day exercise streak), Debt Slayer (all cards at 0 for 3 statements), Shieldbearer (1-month fund), Fortress (6-month fund), Rainmaker (first retainer), Polymath (hours in all 8 areas in one week), Night Owl Reformed (21 nights in bed by 21:45), Season Champion.
+- **Runs are best runs.** A streak laurel counts the longest run of days ever (minimum versions keep a run alive), so a broken streak never takes a laurel back. Undoing the logs that earned it still does.
+- **Money at work** is `moneyIncome()` in `finance.ts`: income in the categories Interest and Investment returns, per month over the last 90 days, against the month of spending the Wealth Road uses. The three percentage laurels are kept once won (`KEPT`): a quiet quarter is not an undo.
+- **Steady income** is an opportunity of kind `job` or `retainer` marked won (`isSteady()`). The Season 1 boss uses the same rule (changed 2026-11-10 from "first retainer": the user wants steady income first).
+- **Cost to the economy:** the 20 new laurels add about 5,975 XP (≈ 1,195 dr) spread over a year or more, about a tenth of the road to level 50. Existing keys, XP and unlocks are unchanged.
+- The user's wake time is still 05:45 in the plan; they said "wake up at 5" on 2026-11-10. Dawn Patrol counts the wake habit as it is set; changing the hour is theirs to decide (it moves the sleep math in `00-MASTER-PLAN.md` §3).
+
+**Promises (A-2).** A reward can be for a milestone instead of for drachmae (`Reward.unlockKey`: a laurel key, or `wl:<n>`). It opens when the milestone is reached, costs no coins, and is claimed once (`claimMilestoneReward()`, ledger id `reward:<id>:claim`, 0 XP and 0 dr; undo works like any purchase). None are seeded: the user writes their own.
 
 ## Reward economy guidelines
 - Small treat (coffee, episode): 40–60 coins → about one realistic day.

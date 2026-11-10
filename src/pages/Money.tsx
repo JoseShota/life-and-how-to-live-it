@@ -4,18 +4,19 @@ import { Glyph } from '@/components/Glyph';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { subDays } from 'date-fns';
 import { db } from '@/db/db';
-import type { Account, AccountRole, BankKey, Goal, IncomeTax, IncomeTaxKind, Installment, Opportunity, OpportunityKind, OpportunityStatus, PipelineEventKind, Statement, Transaction, TxKind } from '@/db/types';
+import type { Account, AccountRole, BankKey, Goal, IncomeTax, Invoice, IncomeTaxKind, Installment, Opportunity, OpportunityKind, OpportunityStatus, PipelineEventKind, Statement, Transaction, TxKind } from '@/db/types';
 import { balanceOf, cardStatus, monthTotals, expenseByCategory, hoursOfWork, SHARED_WORK_AREA, pipelineValue, netWorth, splitLegs, EXPENSE_CATEGORIES, INCOME_CATEGORIES,
   BANKS, dueDaysFor, lastCutoff, dueDateFor, estimateStatement, statementStatus, newSinceCutoff, installmentRemaining } from '@/finance/finance';
 import { deleteOpportunity, deletePipelineEvent, deleteStatement, deleteTransaction, editTransaction, evaluateStatements, getTaxProfile, isStale, weekStartKey, logPipelineEvent, saveOpportunity, rewardGoalProgress, rewardTransactionLogged, saveStatement, setInstallments, transfer } from '@/game/engine';
 import { checkAchievements } from '@/game/achievements';
 import { FINANCE_XP, LEAD_XP, WEEKLY_CONVERSATIONS } from '@/game/rules';
-import { cx, dateKey, mxn, uid } from '@/lib/util';
+import { cx, dateKey, mxn, parseKey, uid } from '@/lib/util';
 import { Bar, Button, Card, Chip, Empty, Input, Label, Modal, Select, PageTitle } from '@/components/ui';
 import { WealthRoad } from '@/components/WealthRoad';
 import { RealRateCard, useRealRates } from '@/components/RealRate';
 import { useToast } from '@/lib/toast';
 import { SplitSheet, TaxCard } from '@/components/TaxBits';
+import { ImportSheet, InvoicesCard } from '@/components/MoneyTools';
 import { IVA_RATE, invoiceFromSubtotal } from '@/finance/tax';
 
 const PIE = ['#e3b9b2', '#a6d9d1', '#c7c2e3', '#b9cfe0', '#dccb98', '#e8c9a0', '#bcd3c6', '#a8383a', '#d4d9d6'];
@@ -33,6 +34,8 @@ export default function Money() {
   const [stmtFor, setStmtFor] = useState<{ acc: Account; st?: Statement } | null>(null);
   const [payFor, setPayFor] = useState<{ acc: Account; amount: number } | null>(null);
   const [splitTx, setSplitTx] = useState<Transaction | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [payInv, setPayInv] = useState<Invoice | null>(null);
   const statements = useLiveQuery(() => db.statements.toArray(), [], []);
   const installments = useLiveQuery(() => db.installments.toArray(), [], []);
 
@@ -102,7 +105,9 @@ export default function Money() {
         </Card>
       </div>
 
-      <Card title="The Ledger">
+      <InvoicesCard onPaid={setPayInv} />
+
+      <Card title="The Ledger" action={<Button variant="ghost" className="!px-3" onClick={() => setImporting(true)}><Glyph name="download" size={16} />Import a statement</Button>}>
         {txs.length === 0 ? <Empty>Nothing logged yet. The wealth engine needs every peso to rank your hours.</Empty> : (
           <ul className="divide-y divide-line">
             {txs.slice(0, 30).map(t => {
@@ -130,6 +135,10 @@ export default function Money() {
 
       <TxForm open={txOpen} onClose={() => setTxOpen(false)} onIncome={setSplitTx} />
       {splitTx && <SplitSheet tx={splitTx} onClose={() => setSplitTx(null)} />}
+      {importing && <ImportSheet onClose={() => setImporting(false)} />}
+      {/* An invoice was paid: log the deposit (with its tax fields), link it, then offer to split it. */}
+      {payInv && <TxForm open preset={{ kind: 'income', amount: payInv.amount, description: `${payInv.client}${payInv.concept ? ` · ${payInv.concept}` : ''}`, areaId: payInv.areaId }} onClose={() => setPayInv(null)}
+        onIncome={async tx => { await db.invoices.update(payInv.id, { paidDate: tx.date, txId: tx.id }); setSplitTx(tx); }} />}
       {payFor && <TxForm open preset={{ kind: 'transfer', toId: payFor.acc.id, amount: payFor.amount, description: `Pago ${payFor.acc.name}` }} onClose={() => setPayFor(null)} />}
       {stmtFor && <StatementForm acc={stmtFor.acc} st={stmtFor.st} txs={txs} installments={installments} onClose={() => setStmtFor(null)} />}
       {editTx && <TxForm open tx={editTx} legs={editTx.transferId ? txs.filter(x => x.transferId === editTx.transferId) : [editTx]} onClose={() => setEditTx(null)} />}
@@ -258,7 +267,7 @@ function StatementForm({ acc, st, txs, installments, onClose }: { acc: Account; 
   );
 }
 
-interface TxPreset { kind: TxKind; toId?: string; amount?: number; description?: string }
+interface TxPreset { kind: TxKind; toId?: string; amount?: number; description?: string; areaId?: string }
 
 /** Add a transaction, or edit `tx` (with all its `legs` when it's a transfer). Editing keeps the kind and the XP. */
 function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: boolean; onClose: () => void; tx?: Transaction; legs?: Transaction[]; preset?: TxPreset; onIncome?: (tx: Transaction) => void }) {
@@ -278,7 +287,7 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
   const profile = useLiveQuery(() => getTaxProfile());
   const cat = category || (kind === 'expense' ? lastCat ?? 'Food' : kind === 'income' ? (profile?.regime === 'resico' ? 'Freelance' : INCOME_CATEGORIES[0]) : '');
   const catOptions = (list: string[]) => (cat && !list.includes(cat) ? [cat, ...list] : list);
-  const [areaId, setAreaId] = useState(tx?.areaId ?? '');
+  const [areaId, setAreaId] = useState(tx?.areaId ?? preset?.areaId ?? '');
   const [date, setDate] = useState(tx?.date ?? dateKey());
   const [desc, setDesc] = useState(tx?.description ?? preset?.description ?? '');
   const [msi, setMsi] = useState<string | null>(null);
@@ -338,7 +347,7 @@ function TxForm({ open, onClose, tx, legs = [], preset, onIncome }: { open: bool
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={tx ? 'Edit transaction' : preset?.kind === 'transfer' ? 'Pay card' : 'New transaction'}>
+    <Modal open={open} onClose={onClose} title={tx ? 'Edit transaction' : preset?.kind === 'transfer' ? 'Pay card' : preset?.kind === 'income' ? 'Invoice paid: log the income' : 'New transaction'}>
       <div className="flex flex-col gap-3">
         {tx ? (
           <p className="font-type text-sm text-ink/70">{kind === 'transfer' ? 'Transfer / pay card' : <span className="capitalize">{kind}</span>} · to change the kind, delete it and log it again.</p>
@@ -440,6 +449,9 @@ function PipelineCard({ opps, onEdit }: { opps: Opportunity[]; onEdit: (o: Oppor
   const count = (k: PipelineEventKind) => week.filter(e => e.kind === k).length;
   const pipe = pipelineValue(opps);
   const last = [...week].filter(e => e.kind !== 'stage').sort((a, b) => b.createdAt - a.createdAt)[0];
+  // The site is the plan's distribution hub: proof goes up every two weeks (00-MASTER-PLAN.md §6).
+  const lastCase = useLiveQuery(async () => (await db.pipelineEvents.where('kind').equals('case-study').toArray()).map(e => e.date).sort().pop() ?? null, [week.length]);
+  const caseDays = lastCase ? Math.round((parseKey(dateKey()).getTime() - parseKey(lastCase).getTime()) / 864e5) : null;
   const log = async (k: Exclude<PipelineEventKind, 'stage'>) => { await logPipelineEvent(k); };
   return (
     <Card title="Opportunity Pipeline" action={<Button variant="ghost" className="!px-3" onClick={() => onEdit('new')}><Glyph name="plus" size={16}/>Add lead</Button>}>
@@ -449,6 +461,7 @@ function PipelineCard({ opps, onEdit }: { opps: Opportunity[]; onEdit: (o: Oppor
         ))}
       </div>
       <p className="mb-1 text-xs text-ink/70">This week: <b className={cx(count('conversation') >= WEEKLY_CONVERSATIONS && 'text-ok')}>{count('conversation')}/{WEEKLY_CONVERSATIONS} conversations</b> · {count('proposal')} proposals · {count('case-study')} case studies</p>
+      {lastCase !== undefined && <p className={cx('mb-1 text-xs', caseDays === null || caseDays > 14 ? 'text-gold' : 'text-ink/70')}>{caseDays === null ? 'No case study on your site yet. The plan: one every two weeks.' : `Last case study on your site: ${caseDays === 0 ? 'today' : `${caseDays} day${caseDays === 1 ? '' : 's'} ago`}${caseDays > 14 ? '. The plan: one every two weeks.' : '.'}`}</p>}
       {last && <p className="mb-2 flex items-center gap-2 text-[11px] text-ink/55">Last: {last.kind} · {last.date.slice(5)}<button className="-my-2 min-h-[40px] px-2 underline" onClick={async () => { await deletePipelineEvent(last.id); toast('Removed the last entry', 'bad'); }}>undo</button></p>}
       <p className="mb-3 text-xs text-ink/60">Expected: <b className="text-gold">{mxn(pipe.expectedMonthly)}/mo</b> · best case {mxn(pipe.bestCaseMonthly)}/mo · won {mxn(pipe.wonMonthly)}/mo</p>
       <div className="flex flex-col gap-2">
@@ -481,7 +494,7 @@ function OppForm({ opp, onClose }: { opp?: Opportunity; onClose: () => void }) {
         </div>
         <Label text="Next action"><Input value={f.nextAction ?? ''} onChange={e => setF({ ...f, nextAction: e.target.value })} /></Label>
         <Label text="Notes"><textarea rows={3} value={f.notes ?? ''} onChange={e => setF({ ...f, notes: e.target.value })} className="mac-inset w-full bg-white p-3 text-sm outline-none" /></Label>
-        <p className="text-xs text-ink/60">Moving a lead to a new stage pays +{LEAD_XP.stage} XP once per stage. Winning a retainer unlocks Rainmaker.</p>
+        <p className="text-xs text-ink/60">Moving a lead to a new stage pays +{LEAD_XP.stage} XP once per stage. Winning a job or a retainer unlocks Steady Income.</p>
         <div className="flex gap-2">
           {opp && <Button variant="danger" aria-label="Delete opportunity" onClick={async () => { if (confirm('Delete this opportunity?')) { await deleteOpportunity(f); onClose(); } }}><Glyph name="trash" size={16}/></Button>}
           <Button className="flex-1" onClick={async () => { if (!f.title.trim()) return; await saveOpportunity({ ...f, monthlyValue: Number(monthly.replace(/[,$\s]/g, '')) || 0 }); onClose(); }}>Save</Button>

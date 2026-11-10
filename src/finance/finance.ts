@@ -253,7 +253,23 @@ export const EXPENSE_CATEGORIES = [
   'Rent', 'Food', 'Transport', 'Services', 'Subscriptions', 'Health', 'Gym', 'Education', 'Tools/Software',
   'Fun', 'Clothes', 'Gifts', 'Taxes', 'Other'
 ]; // Card payments are transfers ("Transfer / pay card"), never expenses: logging one as an expense would count it twice.
-export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Class', 'Royalties/Content', 'Interest', 'Refund', 'Other'];
+export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Class', 'Royalties/Content', 'Interest', 'Investment returns', 'Refund', 'Other'];
+/** Income your money made, not your hours: interest (CETES, savings) and investment returns. */
+export const MONEY_INCOME_CATEGORIES = ['Interest', 'Investment returns'];
+export const MONEY_INCOME_DAYS = 90;
+
+/**
+ * "Rich" as the user defined it: income made by money, not by work. `monthly` is what money earned per month
+ * over the last 90 days (to `today`, inclusive); `ever` is the all-time total. Pure.
+ */
+export function moneyIncome(txs: Transaction[], today: string) {
+  const t = new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) - (MONEY_INCOME_DAYS - 1));
+  const since = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  const mine = txs.filter(x => x.kind === 'income' && MONEY_INCOME_CATEGORIES.includes(x.category) && x.date <= today);
+  const ever = mine.reduce((s, x) => s + x.amount, 0);
+  const recent = mine.filter(x => x.date >= since).reduce((s, x) => s + x.amount, 0);
+  return { ever, monthly: recent / (MONEY_INCOME_DAYS / 30) };
+}
 
 export interface TransferInput {
   fromId: string;

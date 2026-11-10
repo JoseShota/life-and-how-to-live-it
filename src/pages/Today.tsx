@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
 import { Glyph } from '@/components/Glyph';
 import { db, setSetting } from '@/db/db';
-import type { Area, Habit, HabitLog, Task } from '@/db/types';
+import type { Area, DayNote, Habit, HabitLog, Task } from '@/db/types';
 import { setHabit, setHabitNote, habitStreak, weekStats, weekStartKey, shieldBank } from '@/game/engine';
 import { HABIT_NOTE_MAX, formatAmount, habitDone, parseAmount } from '@/game/habitEdit';
 import { GOOD_DAY_MIN_CORE, WEEKLY_SCORECARD, type DayTargets } from '@/game/rules';
@@ -11,7 +11,7 @@ import { usePlayer, useToday, useNow, useWorkStart, useWorkTargets } from '@/lib
 import { idealDayFor, currentBlockIndex, toMin, type Block } from '@/lib/routine';
 import { cutUp } from '@/lib/cutup';
 import { cardAlerts } from '@/finance/finance';
-import { cx, dateKey, hm, mxn, parseKey } from '@/lib/util';
+import { cx, dateKey, hm, mxn, parseKey, uid } from '@/lib/util';
 import { Card, Ring, Button, Bar, Empty, PageTitle, Modal, Label, Input } from '@/components/ui';
 import { TaskRow, TaskForm, QuickAdd } from '@/components/TaskBits';
 import { HabitEditor } from '@/components/HabitBits';
@@ -206,6 +206,9 @@ export default function Today() {
   const week = useLiveQuery(() => weekStats(weekStartKey(today)), [today, logs, minutes]);
   const alerts = useLiveQuery(async () => cardAlerts(await db.accounts.toArray(), await db.transactions.toArray(), await db.statements.toArray(), await db.installments.toArray(), today), [today], []);
   const xpLog = useLiveQuery(() => db.xp.where('date').equals(today).reverse().sortBy('ts'), [today], []);
+  const notes = useLiveQuery(() => db.notes.where('date').equals(today).toArray(), [today], []);
+  // The Scroll is the day in order: what the app recorded, and what you wrote yourself.
+  const scroll = [...xpLog.map(e => ({ ts: e.ts, e, n: undefined })), ...notes.map(n => ({ ts: n.ts, e: undefined, n }))].sort((a, b) => b.ts - a.ts);
 
   const coreDone = habits.filter(h => h.core && logs.find(l => l.habitId === h.id)?.done).length;
   const coreTotal = habits.filter(h => h.core).length;
@@ -303,17 +306,18 @@ export default function Today() {
 
         <Card title="The Scroll">
           <div className="scroll-paper mx-[18px] min-h-[180px] px-3 py-[6px] font-type text-[15px] leading-[28px]">
-            {xpLog.length === 0 ? <p className="text-ink/60">the scroll is blank. type your day into it, one action at a time…</p> : (
+            {scroll.length === 0 ? <p className="text-ink/60">nothing on the scroll yet today.</p> : (
               <ul>
-                {xpLog.slice(0, 14).map(e => (
-                  <li key={e.id} className="flex items-baseline justify-between gap-2">
-                    <span className="truncate">{new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {e.label.toLowerCase()}</span>
-                    <span className={cx('shrink-0', e.coins < 0 ? 'text-gold' : 'text-xp')}>{e.xp > 0 ? `+${e.xp}` : `${e.coins} dr`}</span>
+                {scroll.slice(0, 18).map(({ ts, e, n }) => (
+                  <li key={e?.id ?? n!.id} className="flex items-baseline justify-between gap-2">
+                    <span className={cx(e && 'truncate')}>{new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {e ? e.label.toLowerCase() : <span className="text-cyan">{n!.text}</span>}</span>
+                    {e && <span className={cx('shrink-0', e.coins < 0 ? 'text-gold' : 'text-xp')}>{e.xp > 0 ? `+${e.xp}` : e.coins ? `${e.coins} dr` : ''}</span>}
                   </li>
                 ))}
               </ul>
             )}
           </div>
+          <DayLine today={today} notes={notes} />
           <div className="mt-3"><Bar value={player.progress} /><p className="mt-1 text-xs text-ink/55">{player.needed - player.into} XP to level {player.level + 1}</p></div>
         </Card>
 
@@ -355,5 +359,40 @@ function CutUpCard({ lines }: { lines: string[] }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+const DAY_NOTE_MAX = 280;
+
+/** L-1: write a line about the day. Anything: what happened, what you ate, an idea. It pays nothing; it is a record. */
+function DayLine({ today, notes }: { today: string; notes: DayNote[] }) {
+  const [text, setText] = useState('');
+  const [editing, setEditing] = useState(false);
+  const add = async () => {
+    const t = text.trim().slice(0, DAY_NOTE_MAX);
+    if (!t) return;
+    setText('');
+    await db.notes.add({ id: uid(), date: today, ts: Date.now(), text: t });
+  };
+  return (
+    <div className="mt-3 flex gap-2">
+      <Input value={text} aria-label="Write a line about today" placeholder="write a line about today, press Enter" maxLength={DAY_NOTE_MAX} enterKeyHint="done"
+        onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
+      {notes.length > 0 && <Button variant="ghost" className="!px-3" aria-label="Edit today's lines" onClick={() => setEditing(true)}><Glyph name="pencil" size={16} /></Button>}
+      {editing && (
+        <Modal open onClose={() => setEditing(false)} title="Today's lines">
+          <div className="flex flex-col gap-2">
+            {notes.length === 0 && <p className="text-sm text-ink/70">No lines left.</p>}
+            {[...notes].sort((a, b) => a.ts - b.ts).map(n => (
+              <div key={n.id} className="flex items-center gap-2">
+                <Input defaultValue={n.text} aria-label="Line" maxLength={DAY_NOTE_MAX} onBlur={e => { const t = e.target.value.trim(); if (t && t !== n.text) db.notes.update(n.id, { text: t }); }} />
+                <button onClick={() => { if (confirm('Delete this line?')) db.notes.delete(n.id); }} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink/45 hover:text-hp" aria-label={`Delete line: ${n.text}`}><Glyph name="trash" size={16} /></button>
+              </div>
+            ))}
+            <Button onClick={() => setEditing(false)}>Done</Button>
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }
