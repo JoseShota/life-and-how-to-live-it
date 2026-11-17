@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Glyph } from '@/components/Glyph';
-import { IconPicker } from '@/components/IconPicker';
 import { db, setSetting } from '@/db/db';
 import { exportAll, importAll, download } from '@/lib/backup';
 import { WORK_START_CHOICES, routineIcs } from '@/lib/routine';
@@ -14,9 +13,10 @@ import { evaluateDay } from '@/game/engine';
 import { TaxSettings } from '@/components/TaxBits';
 import { SyncCard } from '@/components/SyncCard';
 import { HabitsCard } from '@/components/HabitBits';
+import { AreasCard } from '@/components/AreaBits';
 import { SeasonCard } from '@/components/SeasonBits';
 import { DEFAULT_INSCRIPTIONS } from '@/components/Layout';
-import { Button, Card, Input, Label, Modal, PageTitle, Select } from '@/components/ui';
+import { Button, Card, Input, Label, PageTitle, Select } from '@/components/ui';
 
 export default function SettingsPage() {
   const toast = useToast();
@@ -34,8 +34,6 @@ export default function SettingsPage() {
   };
   const areas = useLiveQuery(() => db.areas.orderBy('order').toArray(), [], []);
   const place = areas.find(a => a.id === schedule?.areaId)?.short;
-  const [iconFor, setIconFor] = useState<string | null>(null);
-  const iconArea = areas.find(a => a.id === iconFor);
   const syncing = !!useLiveQuery(() => db.syncState.get('vaultId'), [], undefined);
   const lastBackupAt = useLiveQuery(() => db.settings.get('lastBackupAt'))?.value as number | undefined;
   const [kept, setKept] = useState<boolean | null | undefined>(undefined);
@@ -88,21 +86,7 @@ export default function SettingsPage() {
         <SiteLink />
       </Card>
 
-      <Card title="Areas · weekly hour targets">
-        <div className="flex flex-col gap-2">
-          {areas.map(a => (
-            <div key={a.id} className="grid grid-cols-[2.5rem_1fr_5rem] items-center gap-2">
-              <button type="button" onClick={() => setIconFor(a.id)} aria-label={`Change icon for ${a.name}`} title="Change icon"
-                className="mac-inset flex h-10 w-10 items-center justify-center bg-white hover:bg-mint/50 focus-visible:bg-mint/50"><Glyph name={a.icon} size={22} /></button>
-              <Input value={a.name} onChange={e => db.areas.update(a.id, { name: e.target.value })} />
-              <Input inputMode="numeric" value={a.weeklyHoursTarget} onChange={e => db.areas.update(a.id, { weeklyHoursTarget: Number(e.target.value) || 0 })} />
-            </div>
-          ))}
-        </div>
-        <Modal open={!!iconArea} onClose={() => setIconFor(null)} title={`Icon · ${iconArea?.name ?? ''}`}>
-          {iconArea && <IconPicker value={iconArea.icon} onChange={icon => { db.areas.update(iconArea.id, { icon }); setIconFor(null); }} />}
-        </Modal>
-      </Card>
+      <AreasCard />
 
       <Card title="Reminders">
         <p className="mb-3 text-sm text-ink/60">Your device calendar is the most reliable reminder engine. Import the ideal-day routine as recurring events (teaching days get their own, until the semester ends) with a 5-minute alert (works with Google Calendar, Apple Calendar, Outlook).</p>

@@ -41,7 +41,7 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 
 | Table | Key | Indexes | Purpose |
 |---|---|---|---|
-| `areas` | `id` | `order` | Life/work areas (CIDE, Weaving, Freelance, AI, Video, Writing, Website, Wealth) |
+| `areas` | `id` | `order` | Life/work areas (seeded: CIDE, Weaving, Freelance, AI, Video, Writing, Website, Wealth). Editable in Control (Q-3): added areas get a random id; an area with quests, sessions, money, hours, leads, invoices, the teaching schedule or a running timer is archived, never deleted |
 | `tasks` | `id` | `areaId, status, dueDate, priority, completedAt` | Quests |
 | `habits` | `id` | `&key` (unique), `order` | Routine items |
 | `habitLogs` | `id` = `${habitId}:${date}` | `habitId, date, [habitId+date]` | One row per habit per day |
