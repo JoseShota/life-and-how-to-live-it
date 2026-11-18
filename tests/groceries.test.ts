@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  byAisle, cadence, guessSection, itemId, itemKey, parseGroceryInput, parseGroceryItem, restock, runningLow, tripStats, usuals,
+  byAisle, cadence, guessSection, pantrySummary, itemId, itemKey, parseGroceryInput, parseGroceryItem, restock, runningLow, tripStats, usuals,
   withPurchase, BOUGHT_KEEP, DEFAULT_TRIP_EVERY
 } from '../src/lib/groceries';
 import type { GroceryItem, GroceryTrip } from '../src/db/types';
@@ -123,6 +123,14 @@ describe('trips (pure)', () => {
   });
 });
 
+describe("Today's line (pure)", () => {
+  it('says what is to buy, what runs low and when you last went', () => {
+    expect(pantrySummary([], [], '2026-11-18')).toBe('the list is empty');
+    const items = [item('Pan', { needed: true }), item('Huevo', { bought: ['2026-11-04', '2026-11-11'] })];
+    expect(pantrySummary(items, [trip('2026-11-04'), trip('2026-11-11')], '2026-11-18')).toBe('1 to buy · 1 running low · last trip 7 days ago');
+  });
+});
+
 describe('the Pantry (db)', () => {
   beforeEach(async () => {
     await Promise.all(db.tables.map(t => t.clear()));
@@ -139,6 +147,13 @@ describe('the Pantry (db)', () => {
     // The aisle the user chose stays; one row per item.
     expect(await db.groceries.get('g:leche')).toMatchObject({ needed: true, section: 'drinks' });
     expect(await db.groceries.count()).toBe(2);
+  });
+
+  it('typing an item already in the cart keeps it in the cart', async () => {
+    await addToList('leche');
+    await toggleCart((await db.groceries.get('g:leche'))!);
+    await addToList('2 leche');
+    expect(await db.groceries.get('g:leche')).toMatchObject({ needed: true, inCart: true, qty: '2' });
   });
 
   it('a renamed item is found by its new name, and its old name can become a new item', async () => {

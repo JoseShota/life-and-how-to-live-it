@@ -69,7 +69,8 @@ export function parseGroceryItem(raw: string): ParsedGrocery | null {
   const s = raw.replace(/^\s*(?:[-*•]|\[[ xX]?\]|\d+[.)](?=\s))\s*/, '').replace(/\s+/g, ' ').trim();
   if (!s) return null;
   const lead = s.match(LEADING);
-  // "1 kg jitomate", but not "7 up": a bare number needs a unit or a word after it to be a quantity.
+  // "1 kg jitomate", "3 aguacates": a number first is a quantity when a unit or a name follows it ("2 3" is not).
+  // A name that starts with a number ("7 up") reads as 7 of "Up": fix it once in the item sheet.
   if (lead && lead[3] && (lead[2] || /^[a-zÀ-ɏ]/i.test(lead[3]))) {
     const qty = `${lead[1]}${lead[2] ? ' ' + lead[2] : ''}`.toLowerCase();
     return { name: tidyName(lead[3]), qty: lead[2]?.toLowerCase() === 'x' ? `x${lead[1]}` : qty };
@@ -247,6 +248,18 @@ export function tripStats(trips: GroceryTrip[], today: DateKey): TripStats {
     last30: past.filter(t => t.date >= from30).reduce((s, t) => s + (t.total ?? 0), 0),
     avg: priced.length ? priced.reduce((s, t) => s + (t.total ?? 0), 0) / priced.length : undefined
   };
+}
+
+/** Today's one line about groceries: "5 to buy · 2 running low · last trip 6 days ago". */
+export function pantrySummary(items: GroceryItem[], trips: GroceryTrip[], today: DateKey) {
+  const toBuy = items.filter(i => i.needed).length;
+  const s = tripStats(trips, today);
+  const low = runningLow(items, today, s.every).length;
+  return [
+    toBuy ? `${toBuy} to buy` : 'the list is empty',
+    low ? `${low} running low` : '',
+    s.last ? `last trip ${agoText(s.since ?? 0)}` : ''
+  ].filter(Boolean).join(' · ');
 }
 
 /** "today", "yesterday", "3 days ago". */

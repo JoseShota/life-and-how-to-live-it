@@ -9,8 +9,10 @@ import { applyShields, ensureTaxQuests } from '@/game/engine';
 import { Today, Quests, Focus, Money, Rewards, Stats, SettingsPage, Review, Pantry, preloadPages } from '@/pages';
 import { bootSync, captureAuthRedirect } from '@/sync/status';
 import { keepData } from '@/lib/storage';
+import { reloadOnUpdate } from '@/lib/appUpdate';
 
 captureAuthRedirect(); // a sign-in link's tokens leave the address bar before anything renders
+reloadOnUpdate(); // U-1: a deploy shows as soon as it is installed, not on the open after next
 
 seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() => undefined).then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(

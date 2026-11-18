@@ -38,6 +38,7 @@ src/
     hooks.ts            # usePlayer (derived from ledger), useNow, useToday
     toast.tsx           # reward toasts (hooks into db.xp 'creating')
     routine.ts          # the Ideal Day built from the work start (and its teaching-day variant) + .ics generator
+    appUpdate.ts        # U-1 (startup): a deploy shows on the next open, not the one after (reload when the new service worker takes over)
     storage.ts          # S-3: ask the browser to keep the data (persistent storage), backup-reminder rule
     groceries.ts        # PURE Pantry rules (G-1): parse a typed list, guess the aisle, restock rhythm, trip stats
     pantryStore.ts      # the Pantry's writes: add to the list, cart, finish/delete a trip (logs the expense)
@@ -95,6 +96,9 @@ AGENTS.md               # entry point for any coding agent
 - `npm run build` runs `scripts/check-bundle.mjs`: it fails if the entry chunk is ≥ 300 kB or the startup JS (entry + preloaded vendor) is ≥ 350 kB.
 - Startup code avoids heavy libraries: `dateKey()` is hand-rolled instead of date-fns; Recharts only loads with Treasury and Archive.
 - Before P1-9: one 854 kB chunk (255 kB gzip). After: entry 74 kB + vendor 256 kB + Today 17 kB (about 120 kB gzip).
+
+## Updates (U-1)
+The service worker (`registerType: 'autoUpdate'`: `skipWaiting` + `clientsClaim`) downloads a deploy in the background and takes over the open page, but the page keeps running the code it started with. Before U-1 an installed app needed **two** opens to show a deploy (the Pantry stayed invisible after one). `reloadOnUpdate()` (`src/lib/appUpdate.ts`, called first thing in `main.tsx`) reloads when the new worker takes over, unless a field is focused or a sheet (`role="dialog"`, every `Modal`) is open: then it reloads the next time the app goes to the background, so nothing half-typed is lost. On a first visit (no worker yet) it does nothing. Devices still on a version older than U-1 need the two opens one last time.
 
 ## Responsive strategy
 - All sizes: sticky HUD on top, Win95 taskbar (Start + 7 tabs + clock) at the bottom.

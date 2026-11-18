@@ -93,7 +93,7 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-white/50 p-0 backdrop-blur-[3px] sm:items-center sm:p-4" onClick={onClose}>
-      <div className="mac-window max-h-[90vh] w-full max-w-lg overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={title} className="mac-window max-h-[90vh] w-full max-w-lg overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="mac-titlebar sticky top-0 z-10">
           <button onClick={onClose} className="mac-close cursor-pointer" aria-label="Close" />
           <h3 className="mac-title">{title}</h3>

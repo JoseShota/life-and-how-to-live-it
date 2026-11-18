@@ -17,6 +17,7 @@ import { TaskRow, TaskForm, QuickAdd } from '@/components/TaskBits';
 import { HabitEditor } from '@/components/HabitBits';
 import { FreshStartBanner, SeasonBanner } from '@/components/SeasonBits';
 import { backupDue, daysSince } from '@/lib/storage';
+import { pantrySummary } from '@/lib/groceries';
 import { exportAll, download } from '@/lib/backup';
 
 const short = (key: string) => parseKey(key).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -258,6 +259,8 @@ export default function Today() {
 
       <BackupReminder now={now} />
 
+      <GroceriesLine today={today} />
+
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Quests of the Day">
           <div className="flex flex-col gap-2">
@@ -324,6 +327,20 @@ export default function Today() {
         <CutUpCard lines={[...tasks.map(t => t.title), ...habits.map(h => h.name), ...blocks.slice(4, 9).map(b => b.title)]} />
       </div>
     </div>
+  );
+}
+
+/** G-1: the Pantry in one line, so the grocery list is one tap from Today and not only in the menu. */
+function GroceriesLine({ today }: { today: string }) {
+  const data = useLiveQuery(async () => ({ items: await db.groceries.toArray(), trips: await db.groceryTrips.toArray() }), []);
+  if (!data) return null;
+  return (
+    <Card className="!py-1">
+      <Link to="/pantry" className="flex min-h-[40px] flex-wrap items-center justify-between gap-x-3 text-sm">
+        <span className="flex min-w-0 items-center gap-2"><Glyph name="basket" size={18} className="shrink-0 text-cyan" /><b className="font-display">Groceries</b><span className="text-ink/75">{pantrySummary(data.items, data.trips, today)}</span></span>
+        <span className="font-display text-[13px] text-cyan underline">Open the Pantry</span>
+      </Link>
+    </Card>
   );
 }
 

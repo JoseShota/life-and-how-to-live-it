@@ -8,7 +8,7 @@ import { useToday } from '@/lib/hooks';
 import { useToast } from '@/lib/toast';
 import { cx, mxn, parseKey } from '@/lib/util';
 import {
-  GROCERY_NAME_MAX, GROCERY_SECTIONS, agoText, byAisle, cadence, daysBetween, guessSection, itemKey, parseGroceryInput,
+  GROCERY_NAME_MAX, GROCERY_SECTIONS, agoText, byAisle, daysBetween, guessSection, itemKey, parseGroceryInput,
   restock, runningLow, sectionLabel, tripStats, usuals
 } from '@/lib/groceries';
 import { GROCERY_CATEGORY, addToList, deleteTrip, finishTrip, forgetItem, relist, saveItem, toggleCart, unlist } from '@/lib/pantryStore';
@@ -232,7 +232,7 @@ function ItemForm({ item, onClose, today, tripEvery }: { item: GroceryItem; onCl
       <p className="font-type text-sm text-ink/75">
         {times === 0 ? 'Not bought yet.' : `Bought ${times === 1 ? 'once' : `${times} times`}${last ? `, last ${agoText(daysBetween(last, today))}` : ''}.`}
         {r && ` About every ${r.every} days${r.due ? ': it will probably run out before your next trip.' : '.'}`}
-        {!r && times === 1 && cadence(item.bought) === null && ' One more purchase and the Pantry knows its rhythm.'}
+        {times === 1 && ' One more purchase and the Pantry knows its rhythm.'}
       </p>
       <Label text="Name"><Input value={name} maxLength={GROCERY_NAME_MAX} onChange={e => setName(e.target.value)} /></Label>
       <div className="grid grid-cols-2 gap-3">
