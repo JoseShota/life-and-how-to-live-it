@@ -23,6 +23,7 @@ export async function findItem(name: string): Promise<GroceryItem | undefined> {
 /**
  * Puts what was typed on the list. An item seen before keeps its aisle and history and comes back on the list;
  * a new one gets a guessed aisle. A quantity typed now replaces the old one; none typed keeps the last one.
+ * Typing an item already on the list leaves it where it is (in the cart stays in the cart).
  */
 export async function addToList(text: string, section?: GrocerySection) {
   const parsed = parseGroceryInput(text);
@@ -32,7 +33,7 @@ export async function addToList(text: string, section?: GrocerySection) {
     const old = await findItem(p.name);
     if (old) {
       if (!old.needed) again++;
-      await db.groceries.update(old.id, { needed: true, inCart: false, qty: p.qty ?? old.qty, addedAt: old.needed ? old.addedAt : now + i, ...(section ? { section } : {}) });
+      await db.groceries.update(old.id, { needed: true, inCart: old.needed ? old.inCart : false, qty: p.qty ?? old.qty, addedAt: old.needed ? old.addedAt : now + i, ...(section ? { section } : {}) });
     } else {
       added++;
       // The natural id is taken only when an item was renamed away from this name: give the new one its own.
