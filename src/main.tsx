@@ -6,7 +6,7 @@ import { Layout } from '@/components/Layout';
 import { ToastProvider } from '@/lib/toast';
 import { seedIfEmpty } from '@/db/seed';
 import { applyShields, ensureTaxQuests } from '@/game/engine';
-import { Today, Quests, Focus, Money, Rewards, Stats, SettingsPage, Review, preloadPages } from '@/pages';
+import { Today, Quests, Focus, Money, Rewards, Stats, SettingsPage, Review, Pantry, preloadPages } from '@/pages';
 import { bootSync, captureAuthRedirect } from '@/sync/status';
 import { keepData } from '@/lib/storage';
 
@@ -27,6 +27,7 @@ seedIfEmpty().then(() => ensureTaxQuests()).then(() => applyShields()).catch(() 
               <Route path="stats" element={<Stats />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="review" element={<Review />} />
+              <Route path="pantry" element={<Pantry />} />
             </Route>
           </Routes>
         </BrowserRouter>

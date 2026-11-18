@@ -24,7 +24,8 @@ export const NAV = [
 ];
 /** Pages reached from the menu (and from Today when they're due), not from the tab bar. */
 export const MENU_ONLY = [
-  { to: '/review', label: 'Review', jp: '回顧', plain: 'weekly review' }
+  { to: '/review', label: 'Review', jp: '回顧', plain: 'weekly review' },
+  { to: '/pantry', label: 'Pantry', jp: '食料庫', plain: 'groceries' }
 ];
 
 /**

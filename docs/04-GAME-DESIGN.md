@@ -79,6 +79,8 @@ A **teaching day** is one of the teaching schedule's weekdays inside its semeste
 
 **The day's log (L-1).** A free line about the day, written on The Scroll, shown in order with what the app recorded. Table `notes`. It pays nothing.
 
+**The Pantry (G-1).** Groceries pay nothing new: finishing a trip with a total logs a Food expense, which pays the usual +2 XP for a logged transaction (inside its daily cap). Deleting the trip deletes that expense and its XP.
+
 **Repeating quests (P1-1).** A quest can repeat every day, week or month (Quest form, "Repeats"). Completing it creates the next instance, due one period after the current due date; missed periods are skipped so the next one isn't born overdue. Each instance is a normal quest and pays its own XP. Reopening removes the next instance if it's untouched. The RESICO monthly declaration is a monthly series that never skips a month (every month must be filed); its estimate refreshes from the ledger each time the app opens while the quest is open. The estimate is shown read-only in the quest form; your own notes sit below it and are never overwritten.
 
 ## Levels

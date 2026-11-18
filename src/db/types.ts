@@ -295,6 +295,45 @@ export interface Invoice {
   createdAt: number;
 }
 
+/** v15 (G-1): the aisle an item lives in. The list reads in this order at the store. */
+export type GrocerySection = 'produce' | 'bakery' | 'meat' | 'dairy' | 'pantry' | 'frozen' | 'drinks' | 'home' | 'care' | 'other';
+
+/**
+ * v15 (G-1): something you buy at the supermarket. The row stays after it is bought, so the Pantry remembers
+ * it (its aisle, the last quantity, the days you bought it) and can tell when it is probably running low.
+ * `id` is `g:<itemKey(name)>` (src/lib/groceries.ts), so the same item added on two devices is one row.
+ */
+export interface GroceryItem {
+  id: ID;
+  name: string;
+  section: GrocerySection;
+  /** On the shopping list now */
+  needed: boolean;
+  /** Free text: "2 kg", "x3" */
+  qty?: string;
+  /** In the cart during a trip: ticked at the store, bought when the trip is finished */
+  inCart?: boolean;
+  /** When it last went on the list (orders the list inside an aisle) */
+  addedAt?: number;
+  /** Days it was bought, oldest first (the last BOUGHT_KEEP) */
+  bought: DateKey[];
+  createdAt: number;
+}
+
+/** v15 (G-1): one visit to the supermarket. Pays nothing itself; the expense it logs pays like any other. */
+export interface GroceryTrip {
+  id: ID;
+  date: DateKey;
+  store?: string;
+  /** Names of what was bought, as they read on the list */
+  items: string[];
+  /** MXN spent, when known */
+  total?: number;
+  /** The expense logged in the Treasury for this trip */
+  txId?: ID;
+  createdAt: number;
+}
+
 export type XpSource =
   | 'task'
   | 'habit'
