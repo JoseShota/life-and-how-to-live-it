@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { db } from '@/db/db';
-import { onAchievement } from '@/game/achievements';
+import { onAchievement } from '@/game/achievementEvents';
 import { isQuiet } from '@/sync/track';
 
 interface Toast { id: number; text: string; tone: 'xp' | 'gold' | 'bad' | 'epic' }

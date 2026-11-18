@@ -92,7 +92,9 @@ AGENTS.md               # entry point for any coding agent
 - React, the router and Dexie live in a `vendor` chunk (`manualChunks` in `vite.config.ts`): an app update doesn't re-download them.
 - `npm run build` runs `scripts/check-bundle.mjs`: it fails if the entry chunk is ≥ 300 kB or the startup JS (entry + preloaded vendor) is ≥ 350 kB.
 - Startup code avoids heavy libraries: `dateKey()` is hand-rolled instead of date-fns; Recharts only loads with Treasury and Archive.
+- **The entry chunk must not import `@/game/engine` or `@/game/achievements`.** Anything `main.tsx`, `Layout` or the toast layer reaches lands in the entry, and those two pull in finance, wealth and the whole engine. The startup tasks live in their own small modules: `applyShields` in `game/streaks.ts`, `ensureTaxQuests` in `game/taxQuests.ts`, and the "laurel won" signal (`onAchievement`) in `game/achievementEvents.ts`. `engine.ts` and `achievements.ts` re-export them, so pages keep one import path. The engine becomes a shared chunk that loads with the first page and is precached like the rest.
 - Before P1-9: one 854 kB chunk (255 kB gzip). After: entry 74 kB + vendor 256 kB + Today 17 kB (about 120 kB gzip).
+- 2026-11 the startup JS had grown to 347.4 kB (entry 91.7 kB), close to the limit. Moving the engine out of the entry brought it to 308.7 kB: entry 53.0 kB + vendor 255.5 kB, with the engine as a 39.2 kB shared chunk.
 
 ## Responsive strategy
 - All sizes: sticky HUD on top, Win95 taskbar (Start + 7 tabs + clock) at the bottom.

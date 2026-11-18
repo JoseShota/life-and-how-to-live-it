@@ -2,8 +2,7 @@
 import { db, TAX_MONTHLY_RECURRENCE, weakly } from '@/db/db';
 import { instanceId, nextDue } from '@/lib/recurrence';
 import type { Difficulty, Habit, IncomeTax, Opportunity, PipelineEventKind, Statement, Task, Transaction, XpSource } from '@/db/types';
-import { DEFAULT_TAX_PROFILE, monthTax, monthlyDueDate, type TaxProfile } from '@/finance/tax';
-import { mxn } from '@/lib/util';
+import { monthlyDueDate } from '@/finance/tax';
 import { cutoffOnOrAfter, splitLegs, statementStatus, transferLegs } from '@/finance/finance';
 import { dateKey, parseKey, uid } from '@/lib/util';
 import {
@@ -14,6 +13,12 @@ import {
 } from './rules';
 import { checkAchievements } from './achievements';
 import { HABIT_NOTE_MAX, habitDone } from './habitEdit';
+import { habitStreak, shieldBank } from './streaks';
+import { taxArea, taxMonthQuest } from './taxQuests';
+
+// Startup code lives in its own modules (see their headers); re-exported so callers keep one import path.
+export { applyShields, habitStreak, shieldBank } from './streaks';
+export { ensureTaxQuests, getTaxProfile, taxMonthQuest } from './taxQuests';
 
 /** One ledger row per refId, and its id IS the refId (v13), so two devices awarding the same thing can't double it. */
 export async function award(source: XpSource, refId: string, xp: number, label: string, coins = coinsFor(xp), date = dateKey()) {
@@ -102,29 +107,6 @@ export async function spawnNext(task: Task, doneOn: string) {
 }
 
 // ---------- Habits ----------
-/** Dates on which a streak shield covered this habit (the day counts as "not broken", not as done). */
-async function shieldedDates(habitId: string) {
-  const rows = await db.xp.where('refId').startsWith(`shield:use:${habitId}:`).toArray();
-  return new Set(rows.map(r => r.refId.split(':')[3]));
-}
-
-export async function habitStreak(habitId: string, upTo: string = dateKey()): Promise<number> {
-  const logs = await db.habitLogs.where('habitId').equals(habitId).toArray();
-  const done = new Set(logs.filter(l => l.done).map(l => l.date));
-  const shielded = await shieldedDates(habitId);
-  let streak = 0;
-  const d = parseKey(upTo);
-  // today counts if done; if not done yet, streak continues from yesterday
-  if (!done.has(dateKey(d))) d.setDate(d.getDate() - 1);
-  for (;;) {
-    const k = dateKey(d);
-    if (done.has(k)) streak++;
-    else if (!shielded.has(k)) break;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
-}
-
 /** Checks a habit for `date`. `min` = done in its minimum version: keeps the streak, half XP, counts for a Good Day only. */
 /** A free line about a habit on a day ("ran 5 km", "woke twice"). No XP: it is a record, not a score. */
 export async function setHabitNote(habit: Habit, date: string, text: string) {
@@ -243,13 +225,6 @@ export async function evaluateDay(date: string = dateKey()) {
 
 // ---------- Streak shields (Duolingo-style streak freeze, ledger-based) ----------
 
-/** Shields in the bank: earned minus used (never below 0). */
-export async function shieldBank() {
-  const earned = await db.xp.where('refId').startsWith('shield:earn:').count();
-  const used = await db.xp.where('refId').startsWith('shield:use:').count();
-  return Math.max(0, earned - used);
-}
-
 /** Good-or-Perfect days in a row ending on `date`. */
 async function goodRun(date: string) {
   let n = 0;
@@ -271,28 +246,6 @@ async function evaluateShieldEarn(date: string) {
   if (earns && !has && (await shieldBank()) < SHIELD_MAX) {
     await db.xp.put({ id: ref, ts: Date.now(), date, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield earned (${run} good days in a row)` });
   } else if (!earns && has) await revoke(ref);
-}
-
-/**
- * Run when the app opens: for each core habit missed yesterday whose streak was alive the day before,
- * spend a shield so one missed day doesn't reset it ("never miss twice"). Returns the habits it protected.
- */
-export async function applyShields(today = dateKey()) {
-  const y = parseKey(today); y.setDate(y.getDate() - 1);
-  const yesterday = dateKey(y);
-  const before = new Date(y); before.setDate(before.getDate() - 1);
-  const protectedHabits: string[] = [];
-  // In routine order, so the habits that come first in the day are protected first.
-  for (const h of (await db.habits.orderBy('order').toArray()).filter(x => x.core && !x.archived)) {
-    if ((await db.habitLogs.get(`${h.id}:${yesterday}`))?.done) continue;
-    const ref = `shield:use:${h.id}:${yesterday}`;
-    if (await db.xp.where('refId').equals(ref).count()) continue;
-    if ((await habitStreak(h.id, dateKey(before))) < 1) continue;
-    if ((await shieldBank()) < 1) break;
-    await db.xp.put({ id: ref, ts: Date.now(), date: yesterday, source: 'shield', refId: ref, xp: 0, coins: 0, label: `Streak shield used: ${h.name}` });
-    protectedHabits.push(h.name);
-  }
-  return protectedHabits;
 }
 
 /** Read-only weekly stats for the scorecard (week starting on Monday `monday`). */
@@ -469,62 +422,6 @@ export async function transfer(fromId: string, toId: string, amount: number, dat
 }
 
 // ---------- RESICO quests (v6) ----------
-export async function getTaxProfile(): Promise<TaxProfile> {
-  return { ...DEFAULT_TAX_PROFILE, ...((await db.settings.get('taxProfile'))?.value as Partial<TaxProfile> | undefined) };
-}
-
-const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-
-/**
- * Creates the RESICO filing quests once each: last month's declaration (due the 17th; RESICO files even with zero
- * income) and, in April, last year's annual return. Deterministic ids, never overwritten.
- */
-async function taxArea() {
-  const areas = await db.areas.toArray();
-  return areas.find(a => a.short === 'Wealth') ?? areas[areas.length - 1];
-}
-
-async function taxNotes(month: string) {
-  const m = monthTax(await db.transactions.where('date').startsWith(month).toArray(), month);
-  return `Estimate: ISR ${mxn(m.isrDue, 2)} + IVA ${mxn(m.ivaDue, 2)} = ${mxn(m.totalDue, 2)} (income collected ${mxn(m.base, 2)} at ${(m.rate * 100).toFixed(2)} %). File even if it's zero. Pay from the tax reserve.`;
-}
-
-/** The monthly declaration quest for `month` (YYYY-MM): due the 17th of the next month, part of the monthly series. */
-export async function taxMonthQuest(month: string, areaId: string): Promise<Task> {
-  const [y, mo] = month.split('-').map(Number);
-  return {
-    id: `tax-m-${month}`, areaId, difficulty: 2, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: monthlyDueDate(month),
-    title: `Declaración mensual RESICO · ${MONTHS_ES[mo - 1]} ${y}`, autoNotes: await taxNotes(month), recurrence: { ...TAX_MONTHLY_RECURRENCE }
-  };
-}
-
-export async function ensureTaxQuests(today = dateKey()) {
-  const profile = await getTaxProfile();
-  if (profile.regime !== 'resico') return;
-  const area = await taxArea();
-  if (!area) return;
-  const t = parseKey(today);
-  const prev = dateKey(new Date(t.getFullYear(), t.getMonth() - 1, 1)).slice(0, 7);
-  // Weak writes: this runs on every device at startup, possibly before it has pulled. A quest the other device
-  // already created (or filed) must win over this fresh default, and a refreshed estimate must never carry a
-  // stale status back over a newer edit. Every device recomputes the estimate from the synced ledger anyway.
-  if (!(await db.tasks.get(`tax-m-${prev}`))) { const q = await taxMonthQuest(prev, area.id); await weakly(() => db.tasks.add(q)); }
-  // The series can create a month's quest before the month ends: keep open estimates in step with the ledger.
-  // Only `autoNotes` is rewritten; the user's own `notes` are never touched.
-  for (const q of await db.tasks.where('status').notEqual('done').filter(x => x.id.startsWith('tax-m-')).toArray()) {
-    const autoNotes = await taxNotes(q.id.slice(6));
-    if (q.autoNotes !== autoNotes) await weakly(() => db.tasks.update(q.id, { autoNotes }));
-  }
-  if (t.getMonth() === 3) {
-    const year = t.getFullYear() - 1;
-    const aid = `tax-a-${year}`;
-    if (!(await db.tasks.get(aid))) {
-      await weakly(() => db.tasks.add({ id: aid, areaId: area.id, difficulty: 3, priority: 2, status: 'todo', createdAt: Date.now(), dueDate: `${year + 1}-04-30`,
-        title: `Declaración anual ${year} (RESICO)`, autoNotes: 'Annual return for personas físicas, due in April. RESICO has no personal deductions.' }));
-    }
-  }
-}
-
 // ---------- Credit-card statements (v4) ----------
 
 /**

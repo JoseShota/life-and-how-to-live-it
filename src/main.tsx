@@ -5,7 +5,9 @@ import './index.css';
 import { Layout } from '@/components/Layout';
 import { ToastProvider } from '@/lib/toast';
 import { seedIfEmpty } from '@/db/seed';
-import { applyShields, ensureTaxQuests } from '@/game/engine';
+// Startup tasks import their own small modules, not '@/game/engine', so the entry chunk stays light (P1-9).
+import { applyShields } from '@/game/streaks';
+import { ensureTaxQuests } from '@/game/taxQuests';
 import { Today, Quests, Focus, Money, Rewards, Stats, SettingsPage, Review, preloadPages } from '@/pages';
 import { bootSync, captureAuthRedirect } from '@/sync/status';
 import { keepData } from '@/lib/storage';

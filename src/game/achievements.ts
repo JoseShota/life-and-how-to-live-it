@@ -4,6 +4,9 @@ import { moneyIncome, totaleroStreak } from '@/finance/finance';
 import type { Opportunity } from '@/db/types';
 import { WEALTH_LEVELS, levelsToAward, wealthSnapshot } from '@/finance/wealth';
 import { coinsFor } from './rules';
+import { emitAchievement } from './achievementEvents';
+
+export { onAchievement } from './achievementEvents';
 
 /** The four roads the laurels follow: what the user said they are after (2026-11-10). */
 export type Road = 'body' | 'craft' | 'treasury' | 'engine';
@@ -173,7 +176,7 @@ export async function evaluateWealth() {
     const def = WEALTH_LEVELS[n - 1];
     await db.xp.put({ id: `wl:${n}`, ts: Date.now(), date: dateKey(), source: 'milestone', refId: `wl:${n}`, xp: def.xp, coins: coinsFor(def.xp), label: `Wealth level ${n}: ${def.name}` });
     const ach: AchievementDef = { key: `wl:${n}`, icon: 'temple', name: `Wealth level ${n}: ${def.name}`, description: def.unlock, xp: def.xp, road: 'treasury' };
-    listeners.forEach(l => l(ach));
+    emitAchievement(ach);
   }
 }
 
@@ -182,10 +185,6 @@ export async function evaluateWealth() {
  * levels: a quiet quarter is not an undo, and XP is never taken away for time passing.
  */
 const KEPT = new Set(['money-pct-1', 'money-pct-10', 'money-pct-100']);
-
-type Listener = (a: AchievementDef) => void;
-const listeners = new Set<Listener>();
-export const onAchievement = (fn: Listener) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
 
 let running = false;
 export async function checkAchievements() {
@@ -205,7 +204,7 @@ export async function checkAchievements() {
       if (c[a.key] && !have.has(a.key)) {
         await db.unlocked.put({ key: a.key, unlockedAt: Date.now() });
         await db.xp.put({ id: `ach:${a.key}`, ts: Date.now(), date: dateKey(), source: 'achievement', refId: `ach:${a.key}`, xp: a.xp, coins: Math.round(a.xp / 5), label: `Achievement: ${a.name}` });
-        listeners.forEach(l => l(a));
+        emitAchievement(a);
       }
     }
     await evaluateWealth();
