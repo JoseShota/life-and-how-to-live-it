@@ -39,6 +39,8 @@ src/
     toast.tsx           # reward toasts (hooks into db.xp 'creating')
     routine.ts          # the Ideal Day built from the work start (and its teaching-day variant) + .ics generator
     storage.ts          # S-3: ask the browser to keep the data (persistent storage), backup-reminder rule
+    groceries.ts        # PURE Pantry rules (G-1): parse a typed list, guess the aisle, restock rhythm, trip stats
+    pantryStore.ts      # the Pantry's writes: add to the list, cart, finish/delete a trip (logs the expense)
     workStart.ts        # the work-start choices and default (tiny, so the startup bundle doesn't load routine.ts)
     backup.ts           # JSON export/import
   sync/
@@ -59,7 +61,7 @@ supabase/migrations/    # 0001_sync.sql: sync_vaults, sync_records, RLS, sync_* 
     RealRate.tsx        # Wealth Engine card (real MXN/h), useRealRates(), non-focus hours form
     ActiveTimerPill.tsx
   pages/index.ts        # React.lazy loaders for every page + idle preload (P1-9)
-  pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings, Review (menu only)
+  pages/                # one file per route: Today, Quests, Focus, Money, Rewards, Stats, Settings, Review and Pantry (menu only)
 tests/                  # vitest
 docs/                   # this documentation
 .cursor/rules/          # rules Cursor loads automatically

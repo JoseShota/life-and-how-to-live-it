@@ -2,7 +2,9 @@
 
 Source of truth: `src/db/types.ts` (types) and `src/db/db.ts` (Dexie indexes). Keep this file in sync when they change.
 
-## Tables (Dexie v14)
+## Tables (Dexie v15)
+
+v15 (G-1, 2026-11-18): the Pantry. Two new synced tables, no rows to migrate. `groceries` (`id`: `GroceryItem` = something you buy; the row stays after it is bought, so the app remembers its aisle `section`, last `qty` and the days it was `bought` (the last 12), and knows when it is probably running low; `needed` = on the list, `inCart` = ticked during a trip) and `groceryTrips` (`id, date`: `GroceryTrip` = one visit, with the item names bought, optional `store` and `total`, and the expense it logged by `txId`). A grocery item's id is deterministic, `g:<itemKey(name)>` (lowercase, no accents, singular: `src/lib/groceries.ts`), so the same item added on both devices is one row; an item renamed away from its id keeps it, and a new item with the old name gets `g:<key>#<uuid>`. Backups are `BACKUP_VERSION` 7; older backups import with the new tables empty.
 
 v14 (2026-11-10): two new synced tables, no rows to migrate. `notes` (`id, date`: `DayNote` = a free line about a day) and `invoices` (`id, issuedDate`: `Invoice` = money owed for work; open until `paidDate`, linked to its income by `txId`). New optional, unindexed fields: `Task.checklist` (`{id, text, done}[]`), `Task.unsorted` (in the inbox), `Reward.unlockKey` (a milestone reward). Synced setting `site` (the user's own site, a link in the menu). Income category `Investment returns` joins `Interest` as "money income". Backups are `BACKUP_VERSION` 6; older backups import with the new tables empty. A device still on v13 shows "reload to update" when it meets v14 rows (the existing schema check in `sync/engine.ts`).
 
@@ -57,6 +59,8 @@ v2 (no index changes): `areas`, `habits`, `rewards`, `goals` store a hand-drawn 
 | `pipelineEvents` | `id` | `date, kind, opportunityId` | v7: leading indicators of the income engine |
 | `reviews` | `id` (Monday) | — | v8: the weekly review of one Mon–Sun week |
 | `areaHours` | `id` | `areaId, date` | v10: non-focus hours per area (no XP), for the real MXN/h |
+| `groceries` | `id` (`g:<item key>`) | — | v15: grocery items, on the list or remembered |
+| `groceryTrips` | `id` | `date` | v15: supermarket trips (items bought, store, total, linked expense) |
 | `unlocked` | `key` | — | Unlocked achievements |
 | `syncOutbox` | `id` (`<table>|<key>`) | — | v13, device-only: rows changed here and not yet pushed (`t`, `k`, `hlc`) |
 | `syncState` | `key` | — | v13, device-only: `clock` (`{ hlc, offset }`), `device` (id), `keys` (non-extractable CryptoKeys), `vaultId`, `cursor` (last pulled seq), `session` (Supabase tokens), `replaceBefore` (after a backup import, until the next full pull) |
@@ -85,6 +89,8 @@ PipelineEvent { id, kind: 'conversation'|'proposal'|'case-study'|'stage', opport
 AreaHours   { id, areaId, date, hours, weekly?, until?, note?, createdAt }
 Review      { id (Monday), weekEnd, wins: string[], nextQuestIds: ID[], note?, createdAt, updatedAt }
 Reward      { id, title, icon, cost, archived }
+GroceryItem { id, name, section, needed, qty?, inCart?, addedAt?, bought: DateKey[], createdAt }
+GroceryTrip { id, date, store?, items: string[], total?, txId?, createdAt }
 XpEvent     { id, ts, date, source, refId, xp, coins, label }
 ```
 

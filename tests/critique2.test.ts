@@ -114,7 +114,7 @@ describe('steps, the day log, invoices, import', () => {
     await db.notes.add({ id: 'n1', date: '2026-11-10', ts: 5, text: 'lunch with M., talked about the data job' });
     await db.invoices.add({ id: 'v1', client: 'Weaving', amount: 8000, issuedDate: '2026-11-01', createdAt: 1 });
     const backup = JSON.parse(JSON.stringify(await exportAll()));
-    expect(backup.version).toBe(6);
+    expect(backup.version).toBe(7);
     await Promise.all(db.tables.map(t => t.clear()));
     await importAll(backup);
     expect(await db.notes.get('n1')).toMatchObject({ text: 'lunch with M., talked about the data job' });

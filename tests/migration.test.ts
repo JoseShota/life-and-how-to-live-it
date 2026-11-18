@@ -37,7 +37,7 @@ describe('upgrade from the deployed schema (v2 → latest)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(14);
+    expect(db.verno).toBe(15);
     const habits = await db.habits.toArray();
     const by = (k: string) => habits.find(h => h.key === k)!;
     expect(by('wake').core).toBe(false);
@@ -93,7 +93,7 @@ describe('upgrade from v11 (teaching-day targets)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(14);
+    expect(db.verno).toBe(15);
     expect((await db.settings.get('workTargets'))!.value).toEqual({ weekday: { done: 5, full: 7 }, weekend: { done: 3, full: 5 }, teaching: { done: 4, full: 5 } });
     expect(await db.settings.get('playerName')).toMatchObject({ value: 'P' });
     expect(await db.sessions.get('s1')).toMatchObject({ minutes: 300 });
@@ -137,7 +137,7 @@ describe('upgrade from v12 (sync groundwork)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(14);
+    expect(db.verno).toBe(15);
     const after = await db.xp.toArray();
     expect(after).toHaveLength(5);
     expect(after.reduce((s, e) => s + e.xp, 0)).toBe(155);
@@ -188,7 +188,7 @@ describe('upgrade from v13 (notes and invoices)', () => {
 
     const db = new LifeDB(name);
     await db.open();
-    expect(db.verno).toBe(14);
+    expect(db.verno).toBe(15);
     expect(await db.tasks.get('k1')).toMatchObject({ title: 'Grade', status: 'todo' });
     expect(await db.rewards.get('r1')).toMatchObject({ cost: 60 });
     expect(await db.habitLogs.get('h1:2026-11-09')).toMatchObject({ value: 7.75, note: 'slept well' });
@@ -198,6 +198,41 @@ describe('upgrade from v13 (notes and invoices)', () => {
     expect(await db.invoices.count()).toBe(0);
     expect((await db.syncState.get('cursor'))?.value).toBe(42);
     expect(await db.syncOutbox.count()).toBe(1); // only what was already waiting
+    db.close();
+  });
+});
+
+/** v14 → v15: two new empty tables (groceries, groceryTrips). Every existing row, the ledger and the sync state are untouched. */
+describe('upgrade from v14 (the Pantry)', () => {
+  it('keeps everything and queues nothing to sync', async () => {
+    const name = 'upgrade-v14-test';
+    const old = new Dexie(name);
+    old.version(14).stores({
+      areas: 'id, order', tasks: 'id, areaId, status, dueDate, priority, completedAt', habits: 'id, &key, order',
+      habitLogs: 'id, habitId, date, [habitId+date]', sessions: 'id, areaId, date, start', accounts: 'id, order',
+      transactions: 'id, accountId, date, kind, areaId, transferId', goals: 'id, order', opportunities: 'id, status',
+      rewards: 'id', xp: 'id, date, source, refId, ts', unlocked: 'key', settings: 'key',
+      statements: 'id, accountId, cutoffDate, dueDate', installments: 'id, accountId, txId',
+      pipelineEvents: 'id, date, kind, opportunityId', reviews: 'id', areaHours: 'id, areaId, date',
+      syncOutbox: 'id', syncState: 'key', notes: 'id, date', invoices: 'id, issuedDate'
+    });
+    await old.open();
+    await old.table('notes').add({ id: 'n1', date: '2026-11-17', ts: 1, text: 'went to the market' });
+    await old.table('transactions').add({ id: 't1', accountId: 'd1', date: '2026-11-17', amount: -640, kind: 'expense', category: 'Food', createdAt: 1 });
+    await old.table('xp').add({ id: 'tx:t1', ts: 1, date: '2026-11-17', source: 'finance', refId: 'tx:t1', xp: 2, coins: 1, label: 'Logged a transaction' });
+    await old.table('syncState').put({ key: 'cursor', value: 7 });
+    old.close();
+
+    const db = new LifeDB(name);
+    await db.open();
+    expect(db.verno).toBe(15);
+    expect(await db.notes.get('n1')).toMatchObject({ text: 'went to the market' });
+    expect(await db.transactions.get('t1')).toMatchObject({ amount: -640 });
+    expect(await db.xp.get('tx:t1')).toMatchObject({ xp: 2, coins: 1 });
+    expect(await db.groceries.count()).toBe(0);
+    expect(await db.groceryTrips.count()).toBe(0);
+    expect((await db.syncState.get('cursor'))?.value).toBe(7);
+    expect(await db.syncOutbox.count()).toBe(0);
     db.close();
   });
 });

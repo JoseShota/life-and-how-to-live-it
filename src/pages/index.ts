@@ -10,7 +10,8 @@ const loaders = {
   rewards: () => import('./Rewards'),
   stats: () => import('./Stats'),
   settings: () => import('./Settings'),
-  review: () => import('./Review')
+  review: () => import('./Review'),
+  pantry: () => import('./Pantry')
 };
 
 export const Today = lazy(loaders.today);
@@ -21,6 +22,7 @@ export const Rewards = lazy(loaders.rewards);
 export const Stats = lazy(loaders.stats);
 export const SettingsPage = lazy(loaders.settings);
 export const Review = lazy(loaders.review);
+export const Pantry = lazy(loaders.pantry);
 
 /** Warms every page once the first one has rendered, so switching tabs never waits on the network or disk. */
 export function preloadPages() {
